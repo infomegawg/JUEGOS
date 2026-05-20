@@ -636,9 +636,7 @@
   <aside class="sidebar sidebar-left">
     <div>
       <h3>⚙ Configuración</h3>
-      <label>Nº de participantes</label>
-      <input type="number" id="totalInput" min="1" max="9999" value="500" />
-      <button class="btn btn-ghost" id="applyBtn" style="margin-top:10px;">Aplicar y Reiniciar</button>
+      <div style="font-size:11px;opacity:0.6;line-height:1.6;">El número de jugadores y el estado se cargan automáticamente desde el panel central.</div>
     </div>
     <div>
       <h3>🎲 Acciones</h3>
@@ -658,7 +656,8 @@
         • Click en cualquier número morado para eliminarlo manualmente<br>
         • Pulsa <b style="color:var(--morado-3)">GIRAR RULETA</b> para eliminar uno al azar<br>
         • Los eliminados quedan en rojo y tachados<br>
-        • Usa <b style="color:var(--azul-ow)">Eliminar varios</b> para varias rondas seguidas
+        • Usa <b style="color:var(--azul-ow)">Eliminar varios</b> para varias rondas seguidas<br>
+        • Pulsa <b style="color:var(--naranja)">F11</b> para Pantalla Completa
       </div>
     </div>
   </aside>
@@ -764,15 +763,37 @@ window.fbInicializarSesion = async function(total) {
 };
 
 window.fbEscuchar = function() {
+  // 1. Escuchar la sesión para cargar el número de jugadores
+  db.collection("sesion").doc("actual").onSnapshot((doc) => {
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.total && data.total !== state.total) {
+        state.total = data.total;
+        render();
+        console.log("Total jugadores actualizado desde Firebase:", data.total);
+      }
+    }
+  });
+
+  // 2. Escuchar eliminaciones en tiempo real (de cualquier prueba)
   db.collection("eliminaciones").onSnapshot((snapshot) => {
     snapshot.docChanges().forEach((change) => {
-      if (change.type === "added") {
+      if (change.type === "added" || change.type === "modified") {
         const data = change.doc.data();
         const dorsal = data.dorsal;
-        if (window.state && !window.state.eliminated.has(dorsal)) {
-          window.state.eliminated.add(dorsal);
+        if (!state.eliminated.has(dorsal)) {
+          state.eliminated.add(dorsal);
+          // Marcar en el grid SIN animación ni sonido
           const cell = document.querySelector("[data-n='" + dorsal + "']");
-          if (cell) cell.classList.add("eliminated");
+          if (cell) {
+            cell.classList.remove("winner", "highlight");
+            cell.classList.add("eliminated");
+          }
+          // Solo añadir al historial si no fue eliminado por el propio bingo
+          if (data.juez !== "Bingo-LED") {
+            state.history.push({ num: dorsal, method: data.metodo || "externo", t: new Date() });
+            renderHistory();
+          }
           if (window.updateStats) window.updateStats();
         }
       }
@@ -816,8 +837,6 @@ window.state = state;
 // ===== ELEMENTOS =====
 const $ = (id) => document.getElementById(id);
 const grid = $("grid");
-const totalInput = $("totalInput");
-const applyBtn = $("applyBtn");
 const spinBtn = $("spinBtn");
 const megaSpinBtn = $("megaSpinBtn");
 const multiBtn = $("multiBtn");
@@ -1201,20 +1220,6 @@ megaSpinBtn.addEventListener("click", () => {
   }
 });
 
-applyBtn.addEventListener("click", () => {
-  const v = parseInt(totalInput.value, 10);
-  if (!v || v < 1) { alert("Introduce un número válido (mínimo 1)"); return; }
-  if (v > 9999) { alert("Máximo 9999 participantes"); return; }
-  if (state.history.length > 0) {
-    if (!confirm("Esto reiniciará el juego. ¿Continuar?")) return;
-  }
-  state.total = v;
-  state.eliminated = new Set();
-  state.history = [];
-  render();
-  renderHistory();
-});
-
 resetBtn.addEventListener("click", () => {
   if (state.history.length === 0) return;
   if (!confirm("¿Seguro que quieres resetear? Se perderá todo el historial y se reiniciará Firebase.")) return;
@@ -1419,11 +1424,10 @@ setInterval(updateClock, 1000); updateClock();
 render();
 renderHistory();
 
-// Inicializar Firebase cuando esté disponible
+// Inicializar Firebase cuando esté disponible — carga estado desde Firebase
 const fbInitInterval = setInterval(() => {
-  if (window.fbInicializarSesion && window.fbEscuchar) {
+  if (window.fbEscuchar) {
     clearInterval(fbInitInterval);
-    window.fbInicializarSesion(state.total);
     window.fbEscuchar();
     console.log("Firebase conectado OK");
   }
