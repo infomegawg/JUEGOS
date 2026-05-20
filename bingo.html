@@ -709,13 +709,13 @@
 
 <canvas id="confetti"></canvas>
 
-<script type="module">
+<!-- FIREBASE CDN COMPAT -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
 /* =========================================================
    FIREBASE — Los Juegos de Omega
    ========================================================= */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
 const firebaseConfig = {
   apiKey: "AIzaSyAQjPK6bdZurVNRlj7PI6Suu9jRHQ6ycFk",
   authDomain: "los-juegos-de-omega.firebaseapp.com",
@@ -725,85 +725,78 @@ const firebaseConfig = {
   appId: "1:602888359633:web:bfc738d469ad95fe37fff0"
 };
 
-const fbApp = initializeApp(firebaseConfig);
-const db = getFirestore(fbApp);
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+console.log("Firebase compat inicializado OK");
 
-// Escribe una eliminación en Firestore
-async function fbEliminar(dorsal, prueba, metodo) {
+window.fbEliminar = async function(dorsal, prueba, metodo) {
   console.log("fbEliminar llamado:", dorsal, prueba, metodo);
   try {
-    await setDoc(doc(db, "eliminaciones", String(dorsal)), {
+    await db.collection("eliminaciones").doc(String(dorsal)).set({
       dorsal: dorsal,
       prueba: prueba,
       metodo: metodo,
       juez: "Bingo-LED",
-      eliminado_en: serverTimestamp()
+      eliminado_en: firebase.firestore.FieldValue.serverTimestamp()
     });
-    await setDoc(doc(db, "participantes", String(dorsal)), {
+    await db.collection("participantes").doc(String(dorsal)).set({
       dorsal: dorsal,
       vivo: false,
-      eliminado_en: serverTimestamp(),
+      eliminado_en: firebase.firestore.FieldValue.serverTimestamp(),
       prueba: prueba,
       metodo: metodo,
       juez: "Bingo-LED"
     }, { merge: true });
+    console.log("Dorsal", dorsal, "escrito en Firebase OK");
   } catch(e) { console.error("Firebase error:", e); }
-}
+};
 
-// Inicializar sesión con 500 participantes si no existe
-async function fbInicializarSesion(total) {
+window.fbInicializarSesion = async function(total) {
   try {
-    const sesionRef = doc(db, "sesion", "actual");
-    await setDoc(sesionRef, {
+    await db.collection("sesion").doc("actual").set({
       total: total,
       prueba_actual: "Han cantado bingo",
       activa: true,
-      inicio: serverTimestamp()
+      inicio: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+    console.log("Sesion Firebase inicializada OK");
   } catch(e) { console.error("Firebase sesion error:", e); }
-}
+};
 
-// Escuchar cambios de Firebase en tiempo real (por si otro dispositivo elimina)
-function fbEscuchar() {
-  onSnapshot(collection(db, "eliminaciones"), (snapshot) => {
+window.fbEscuchar = function() {
+  db.collection("eliminaciones").onSnapshot((snapshot) => {
     snapshot.docChanges().forEach((change) => {
       if (change.type === "added") {
         const data = change.doc.data();
         const dorsal = data.dorsal;
-        if (!state.eliminated.has(dorsal)) {
-          state.eliminated.add(dorsal);
-          const cell = document.querySelector('[data-n="' + dorsal + '"]');
+        if (window.state && !window.state.eliminated.has(dorsal)) {
+          window.state.eliminated.add(dorsal);
+          const cell = document.querySelector("[data-n='" + dorsal + "']");
           if (cell) cell.classList.add("eliminated");
-          updateStats();
-          renderHistory && renderHistory();
+          if (window.updateStats) window.updateStats();
         }
       }
     });
   });
-}
+};
 
-// Resetear toda la sesión en Firebase
-async function fbReset() {
+window.fbReset = async function() {
   try {
-    // Borrar todas las eliminaciones
-    const { getDocs, deleteDoc } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js");
-    const elimSnap = await getDocs(collection(db, "eliminaciones"));
-    const partSnap = await getDocs(collection(db, "participantes"));
-    const borrar = [];
-    elimSnap.forEach(d => borrar.push(deleteDoc(d.ref)));
-    partSnap.forEach(d => borrar.push(deleteDoc(d.ref)));
-    await Promise.all(borrar);
-    // Resetear sesión
-    await setDoc(doc(db, "sesion", "actual"), {
+    const elimSnap = await db.collection("eliminaciones").get();
+    const partSnap = await db.collection("participantes").get();
+    const batch = db.batch();
+    elimSnap.forEach(d => batch.delete(d.ref));
+    partSnap.forEach(d => batch.delete(d.ref));
+    await batch.commit();
+    await db.collection("sesion").doc("actual").set({
       total: 500,
       prueba_actual: "Han cantado bingo",
       activa: true,
-      reseteado_en: serverTimestamp()
+      reseteado_en: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     console.log("Firebase reseteado OK");
   } catch(e) { console.error("Firebase reset error:", e); }
-}
-window.fbReset = fbReset;
+};
 </script>
 
 <script>
@@ -818,6 +811,7 @@ const state = {
   spinning: false,
   soundOn: true,
 };
+window.state = state;
 
 // ===== ELEMENTOS =====
 const $ = (id) => document.getElementById(id);
@@ -876,6 +870,7 @@ function updateStats() {
   spinBtn.disabled = (state.total - elim) === 0;
   megaSpinBtn.disabled = (state.total - elim) === 0;
 }
+window.updateStats = updateStats;
 
 function addHistory(num, method) {
   state.history.push({ num, method, t: new Date() });
