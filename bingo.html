@@ -730,6 +730,7 @@ const db = getFirestore(fbApp);
 
 // Escribe una eliminación en Firestore
 async function fbEliminar(dorsal, prueba, metodo) {
+  console.log("fbEliminar llamado:", dorsal, prueba, metodo);
   try {
     await setDoc(doc(db, "eliminaciones", String(dorsal)), {
       dorsal: dorsal,
@@ -1424,10 +1425,14 @@ render();
 renderHistory();
 
 // Inicializar Firebase cuando esté disponible
-setTimeout(() => {
-  if (window.fbInicializarSesion) window.fbInicializarSesion(state.total);
-  if (window.fbEscuchar) window.fbEscuchar();
-}, 1000);
+const fbInitInterval = setInterval(() => {
+  if (window.fbInicializarSesion && window.fbEscuchar) {
+    clearInterval(fbInitInterval);
+    window.fbInicializarSesion(state.total);
+    window.fbEscuchar();
+    console.log("Firebase conectado OK");
+  }
+}, 300);
 
 document.addEventListener("click", () => { getAudio(); }, { once: true });
 </script>
