@@ -387,6 +387,37 @@ const TS = firebase.firestore.FieldValue.serverTimestamp;
 let participantes = {}; // { dorsal: { nombre, apellidos, email, telefono, vivo } }
 let eliminaciones = []; // historial
 let filtro = 'todos';
+let vozSeleccionada = null;
+
+/* ===== VOZ (misma que bingo) ===== */
+function initVoz() {
+  const cargar = () => {
+    const voces = window.speechSynthesis.getVoices();
+    vozSeleccionada =
+      voces.find(v => v.name === "Google español") ||
+      voces.find(v => v.name.includes("Google") && v.lang === "es-ES") ||
+      voces.find(v => v.name.includes("Google") && v.lang.startsWith("es")) ||
+      voces.find(v => v.name.includes("Helena")) ||
+      voces.find(v => v.name.includes("Pablo")) ||
+      voces.find(v => v.name.includes("Mónica")) ||
+      voces.find(v => v.name.includes("Monica")) ||
+      voces.find(v => v.lang === "es-ES") ||
+      voces.find(v => v.lang.startsWith("es")) ||
+      voces[0] || null;
+  };
+  cargar();
+  window.speechSynthesis.onvoiceschanged = cargar;
+}
+
+function hablarPanel(texto) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const msg = new SpeechSynthesisUtterance(texto);
+  msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
+  if (vozSeleccionada) msg.voice = vozSeleccionada;
+  window.speechSynthesis.speak(msg);
+}
+
 let tabActual = 'hist';
 let elimDorsalSeleccionado = null;
 
@@ -445,6 +476,7 @@ function bloquearPanel() {
 
 /* ===== INIT ===== */
 function init() {
+  initVoz();
   updateClock();
   setInterval(updateClock, 1000);
   escucharParticipantes();
@@ -667,18 +699,7 @@ async function eliminarDorsal(dorsal, metodo) {
       juez: "Panel-Central"
     });
     mostrarNotif(`#${dorsal} eliminado`);
-    // Voz en el panel
-    if (window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-      const voces = window.speechSynthesis.getVoices();
-      const voz = voces.find(v => v.name === "Google español") ||
-        voces.find(v => v.name.includes("Google") && v.lang === "es-ES") ||
-        voces.find(v => v.lang === "es-ES") || null;
-      const msg = new SpeechSynthesisUtterance(`Jugador ${dorsal}, eliminado`);
-      msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
-      if (voz) msg.voice = voz;
-      window.speechSynthesis.speak(msg);
-    }
+    hablarPanel(`Jugador ${dorsal}, eliminado`);
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar"); }
 }
 
@@ -695,12 +716,7 @@ async function llamarJugador() {
       llamado_en: TS()
     });
     // Voz en el panel
-    const msg1 = new SpeechSynthesisUtterance(`Jugador ${dorsal}`);
-    const msg2 = new SpeechSynthesisUtterance(`por favor acude a ${zona}`);
-    [msg1, msg2].forEach(m => { m.lang="es-ES"; m.rate=0.9; m.pitch=1; });
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(msg1);
-    window.speechSynthesis.speak(msg2);
+    hablarPanel(`Jugador ${dorsal}, por favor acude a ${zona}`);
     mostrarNotif(`Llamada enviada: #${dorsal} → ${zona}`);
     // Auto-cancelar en LED tras 8s
     setTimeout(async () => {
