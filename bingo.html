@@ -803,19 +803,17 @@ window.fbEscuchar = function() {
 
 window.fbReset = async function() {
   try {
-    const elimSnap = await db.collection("eliminaciones").get();
-    const partSnap = await db.collection("participantes").get();
+    // Solo borrar eliminaciones de la prueba del bingo, no tocar el resto
+    const elimSnap = await db.collection("eliminaciones")
+      .where("prueba", "==", "Han cantado bingo").get();
     const batch = db.batch();
     elimSnap.forEach(d => batch.delete(d.ref));
-    partSnap.forEach(d => batch.delete(d.ref));
+    // Revivir solo los participantes eliminados por el bingo
+    const partSnap = await db.collection("participantes")
+      .where("prueba", "==", "Han cantado bingo").get();
+    partSnap.forEach(d => batch.update(d.ref, { vivo: true, eliminado_en: null, prueba: null, metodo: null, juez: null }));
     await batch.commit();
-    await db.collection("sesion").doc("actual").set({
-      total: 500,
-      prueba_actual: "Han cantado bingo",
-      activa: true,
-      reseteado_en: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    console.log("Firebase reseteado OK");
+    console.log("Firebase bingo reseteado OK");
   } catch(e) { console.error("Firebase reset error:", e); }
 };
 </script>
@@ -854,14 +852,7 @@ const statLast = $("statLast");
 // ===== RENDER GRID =====
 function render() {
   const total = state.total;
-  let cols;
-  if (total <= 50) cols = 10;
-  else if (total <= 100) cols = 12;
-  else if (total <= 200) cols = 16;
-  else if (total <= 300) cols = 20;
-  else if (total <= 500) cols = 35;
-  else cols = Math.ceil(Math.sqrt(total * 1.4));
-  grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  grid.style.gridTemplateColumns = `repeat(35, 1fr)`;
 
   grid.innerHTML = "";
   const frag = document.createDocumentFragment();
