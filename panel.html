@@ -259,15 +259,20 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 
       <!-- ELIMINACIÓN MANUAL -->
       <div class="section">
-        <div class="section-title"><i class="ti ti-user-x"></i> Eliminación manual</div>
+        <div class="section-title"><i class="ti ti-user-x"></i> Eliminación / Salvar</div>
         <div class="form-row">
           <label>Dorsal o nombre</label>
           <input type="text" id="elim-search" placeholder="Buscar..." oninput="buscarParaElim(this.value)" />
         </div>
         <div id="elim-resultado" style="margin-bottom:8px;min-height:20px;font-size:11px;color:var(--morado2);"></div>
-        <button class="btn btn-rojo" onclick="eliminarManual()">
-          <i class="ti ti-trash"></i> Eliminar
-        </button>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-rojo" style="flex:1;" onclick="eliminarManual()">
+            <i class="ti ti-trash"></i> Eliminar
+          </button>
+          <button class="btn btn-verde" style="flex:1;" onclick="salvarManual()">
+            <i class="ti ti-heart"></i> Salvar
+          </button>
+        </div>
       </div>
 
       <!-- RESETEAR -->
@@ -390,9 +395,11 @@ let filtro = 'todos';
 let vozSeleccionada = null;
 
 /* ===== VOZ (misma que bingo) ===== */
+/* ===== VOZ (misma que bingo) ===== */
 function initVoz() {
   const cargar = () => {
     const voces = window.speechSynthesis.getVoices();
+    if (!voces.length) return; // aún no cargadas
     vozSeleccionada =
       voces.find(v => v.name === "Google español") ||
       voces.find(v => v.name.includes("Google") && v.lang === "es-ES") ||
@@ -404,9 +411,14 @@ function initVoz() {
       voces.find(v => v.lang === "es-ES") ||
       voces.find(v => v.lang.startsWith("es")) ||
       voces[0] || null;
+    console.log("Voz seleccionada:", vozSeleccionada?.name);
   };
-  cargar();
   window.speechSynthesis.onvoiceschanged = cargar;
+  cargar();
+  // Reintentos por si las voces tardan en cargar
+  setTimeout(cargar, 500);
+  setTimeout(cargar, 1500);
+  setTimeout(cargar, 3000);
 }
 
 function hablarPanel(texto) {
@@ -680,6 +692,24 @@ function eliminarManual() {
   document.getElementById("elim-resultado").textContent = '';
   elimDorsalActual = null;
 }
+
+async function salvarManual() {
+  if (!elimDorsalActual) { mostrarNotif("Busca un jugador primero"); return; }
+  const p = participantes[elimDorsalActual];
+  if (!p) { mostrarNotif("Jugador no encontrado"); return; }
+  if (p.vivo) { mostrarNotif("El jugador ya está vivo"); return; }
+  try {
+    await db.collection("eliminaciones").doc(String(elimDorsalActual)).delete();
+    await db.collection("participantes").doc(String(elimDorsalActual)).update({
+      vivo: true, eliminado_en: null, prueba: null, metodo: null, juez: null
+    });
+    mostrarNotif(`#${elimDorsalActual} salvado y devuelto al juego`);
+    document.getElementById("elim-search").value = '';
+    document.getElementById("elim-resultado").textContent = '';
+    elimDorsalActual = null;
+  } catch(e) { console.error(e); mostrarNotif("Error al salvar"); }
+}
+
 
 async function eliminarDorsal(dorsal, metodo) {
   const prueba = document.getElementById("prueba-select").value;
