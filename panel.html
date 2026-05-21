@@ -745,13 +745,29 @@ async function llamarJugador() {
       activa: true,
       llamado_en: TS()
     });
-    // Voz en el panel
-    hablarPanel(`Jugador ${dorsal}, por favor acude a ${zona}`);
     mostrarNotif(`Llamada enviada: #${dorsal} → ${zona}`);
-    // Auto-cancelar en LED tras 8s
+
+    // Voz: locución + pausa 1s + repetición
+    const texto = `Jugador ${dorsal}, por favor acude a ${zona}`;
+    if (window.speechSynthesis && vozSeleccionada !== undefined) {
+      window.speechSynthesis.cancel();
+      const msg1 = new SpeechSynthesisUtterance(texto);
+      const pausa = new SpeechSynthesisUtterance(' ');
+      const msg2 = new SpeechSynthesisUtterance(texto);
+      [msg1, pausa, msg2].forEach(m => {
+        m.lang = "es-ES"; m.rate = 0.9; m.pitch = 0.9; m.volume = 1;
+        if (vozSeleccionada) m.voice = vozSeleccionada;
+      });
+      pausa.rate = 0.1; // pausa lenta = ~1 segundo
+      window.speechSynthesis.speak(msg1);
+      window.speechSynthesis.speak(pausa);
+      window.speechSynthesis.speak(msg2);
+    }
+
+    // Auto-cancelar animación tras ~14s (2 locuciones + pausa + margen)
     setTimeout(async () => {
       await db.collection("llamadas").doc("actual").update({ activa: false });
-    }, 8000);
+    }, 14000);
   } catch(e) { console.error(e); }
 }
 
