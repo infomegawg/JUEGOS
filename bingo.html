@@ -1415,6 +1415,18 @@ setInterval(updateClock, 1000); updateClock();
 render();
 renderHistory();
 
+// Si está en modo LED, escuchar cambios de modo para volver a led.html
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('led') === '1') {
+  const fbApp2 = firebase.app();
+  const db2 = firebase.firestore();
+  db2.collection('sesion').doc('actual').onSnapshot(doc => {
+    if (doc.exists && doc.data().modo_led !== 'bingo') {
+      window.location.href = 'https://infomegawg.github.io/JUEGOS/led.html';
+    }
+  });
+}
+
 // Inicializar Firebase cuando esté disponible — carga estado desde Firebase
 const fbInitInterval = setInterval(() => {
   if (window.fbEscuchar) {
