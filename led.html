@@ -276,9 +276,7 @@ function mostrarEliminacion(dorsal) {
   overlay.classList.add('show');
 
   // Voz
-  hablar(`Jugador ${dorsal}, eliminado`);
-
-  // Quitar overlay tras 3 segundos
+  // Quitar overlay tras 4 segundos
   setTimeout(() => overlay.classList.remove('show'), 4000);
 }
 

@@ -478,12 +478,15 @@ function escucharEliminaciones() {
 }
 
 function escucharSesion() {
+  let primeraVez = true;
   db.collection("sesion").doc("actual").onSnapshot(doc => {
     if (doc.exists) {
       const data = doc.data();
-      document.getElementById("st-prueba").textContent = data.prueba_actual || "—";
-      if (data.prueba_actual) {
+      // Solo sincronizar el desplegable Y el stat la primera vez que carga
+      if (primeraVez && data.prueba_actual) {
         document.getElementById("prueba-select").value = data.prueba_actual;
+        document.getElementById("st-prueba").textContent = data.prueba_actual;
+        primeraVez = false;
       }
     }
   });
@@ -664,6 +667,18 @@ async function eliminarDorsal(dorsal, metodo) {
       juez: "Panel-Central"
     });
     mostrarNotif(`#${dorsal} eliminado`);
+    // Voz en el panel
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+      const voces = window.speechSynthesis.getVoices();
+      const voz = voces.find(v => v.name === "Google español") ||
+        voces.find(v => v.name.includes("Google") && v.lang === "es-ES") ||
+        voces.find(v => v.lang === "es-ES") || null;
+      const msg = new SpeechSynthesisUtterance(`Jugador ${dorsal}, eliminado`);
+      msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
+      if (voz) msg.voice = voz;
+      window.speechSynthesis.speak(msg);
+    }
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar"); }
 }
 
