@@ -280,6 +280,60 @@ function mostrarEliminacion(dorsal) {
   setTimeout(() => overlay.classList.remove('show'), 4000);
 }
 
+/* ===== ANIMACIÓN ELIMINACIÓN MÚLTIPLE ===== */
+function mostrarEliminacionMultiple(dorsales) {
+  dorsales.forEach(dorsal => {
+    const cell = document.getElementById('cell-' + dorsal);
+    if (cell) {
+      cell.classList.add('nuevo-elim');
+      setTimeout(() => cell.classList.remove('nuevo-elim'), 700);
+    }
+  });
+
+  const overlay = document.getElementById('elim-overlay');
+  const numEl = document.getElementById('elim-num');
+  if (dorsales.length === 1) {
+    numEl.style.fontSize = '';
+    numEl.textContent = dorsales[0];
+  } else {
+    const ultimo = dorsales[dorsales.length - 1];
+    const resto = dorsales.slice(0, -1).join(', ');
+    numEl.style.fontSize = dorsales.length > 4 ? 'clamp(50px,8vw,110px)' : 'clamp(80px,12vw,180px)';
+    numEl.textContent = `${resto} y ${ultimo}`;
+  }
+  overlay.classList.add('show');
+  hablarEliminacionMultiple(dorsales);
+
+  setTimeout(() => {
+    overlay.classList.remove('show');
+    numEl.style.fontSize = '';
+  }, Math.max(4000, dorsales.length * 700));
+}
+
+function hablarEliminacionMultiple(dorsales) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+
+  const hacer = (texto, rate = 0.95, pitch = 1.0) => {
+    const msg = new SpeechSynthesisUtterance(texto);
+    msg.lang = 'es-ES'; msg.rate = rate; msg.pitch = pitch; msg.volume = 1;
+    if (vozSeleccionada) msg.voice = vozSeleccionada;
+    return msg;
+  };
+
+  if (dorsales.length === 1) {
+    window.speechSynthesis.speak(hacer(`Jugador ${dorsales[0]}`));
+    window.speechSynthesis.speak(hacer('Eliminado', 0.85, 0.9));
+  } else {
+    window.speechSynthesis.speak(hacer('Jugadores'));
+    dorsales.forEach((n, i) => {
+      const esUltimo = i === dorsales.length - 1;
+      window.speechSynthesis.speak(hacer(esUltimo ? `y ${n}` : `${n}`, 0.95, 1.0));
+    });
+    window.speechSynthesis.speak(hacer('Eliminados', 0.85, 0.9));
+  }
+}
+
 /* ===== FIREBASE LISTENERS ===== */
 function init() {
   initVoz();
@@ -336,8 +390,9 @@ function init() {
           eliminados.add(dorsal);
           const cell = document.getElementById('cell-' + dorsal);
           if (cell) cell.classList.add('elim');
-          // Animación + voz solo para eliminaciones manuales del panel
-          if (d.juez === 'Panel-Central' || d.metodo === 'manual-panel') {
+          // Animación + voz solo para eliminaciones manuales individuales del panel
+          // (las eliminaciones múltiples se animan agrupadas vía 'eliminaciones_multiples')
+          if ((d.juez === 'Panel-Central' || d.metodo === 'manual-panel') && d.metodo !== 'multiple-panel') {
             mostrarEliminacion(dorsal);
           }
           updateStats(Object.keys(participantes).length);
@@ -349,6 +404,20 @@ function init() {
         const cell = document.getElementById('cell-' + d.dorsal);
         if (cell) cell.classList.remove('elim');
         updateStats(Object.keys(participantes).length);
+      }
+    });
+  });
+
+  // Escuchar eliminaciones múltiples (selección manual desde Panel Central)
+  let primerSnapMultiple = true;
+  db.collection('eliminaciones_multiples').onSnapshot(snap => {
+    if (primerSnapMultiple) { primerSnapMultiple = false; return; }
+    snap.docChanges().forEach(ch => {
+      if (ch.type === 'added') {
+        const d = ch.doc.data();
+        if (Array.isArray(d.dorsales) && d.dorsales.length) {
+          mostrarEliminacionMultiple(d.dorsales);
+        }
       }
     });
   });
