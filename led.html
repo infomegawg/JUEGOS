@@ -283,9 +283,12 @@ function mostrarEliminacion(dorsal) {
 
 /* ===== ANIMACIÓN ELIMINACIÓN MÚLTIPLE (mismo overlay que la individual) =====
    La voz se reproduce en el Panel Central (hablarPanelMultiple), no aquí.
-   El LED solo muestra el overlay durante 'duracion_ms', el tiempo que el
-   panel estima que tardará en recitar todos los dorsales. */
-function mostrarEliminacionMultiple(dorsales, duracionMs) {
+   El LED muestra el overlay al crearse el documento y lo cierra quando el
+   panel avisa (campo 'terminado') que ha acabado de hablar — sincronizado
+   de verdad, sin estimar cuánto tarda la voz. */
+let multiOverlayTimeoutId = null;
+
+function mostrarEliminacionMultiple(dorsales) {
   dorsales.forEach(dorsal => {
     const cell = document.getElementById('cell-' + dorsal);
     if (cell) {
@@ -312,11 +315,20 @@ function mostrarEliminacionMultiple(dorsales, duracionMs) {
 
   overlay.classList.add('show');
 
-  setTimeout(() => {
-    overlay.classList.remove('show');
-    numEl.style.fontSize = '';
-    if (labelEl) labelEl.textContent = 'JUGADOR ELIMINADO';
-  }, duracionMs || 4000);
+  // Red de seguridad: si por lo que sea nunca llega el aviso de "terminado",
+  // no se queda el overlay bloqueado para siempre.
+  clearTimeout(multiOverlayTimeoutId);
+  multiOverlayTimeoutId = setTimeout(ocultarEliminacionMultiple, 20000);
+}
+
+function ocultarEliminacionMultiple() {
+  clearTimeout(multiOverlayTimeoutId);
+  const overlay = document.getElementById('elim-overlay');
+  const numEl = document.getElementById('elim-num');
+  const labelEl = overlay.querySelector('.elim-label');
+  overlay.classList.remove('show');
+  numEl.style.fontSize = '';
+  if (labelEl) labelEl.textContent = 'JUGADOR ELIMINADO';
 }
 
 /* ===== FIREBASE LISTENERS ===== */
@@ -398,11 +410,12 @@ function init() {
   db.collection('eliminaciones_multiples').onSnapshot(snap => {
     if (primerSnapMultiple) { primerSnapMultiple = false; return; }
     snap.docChanges().forEach(ch => {
-      if (ch.type === 'added') {
-        const d = ch.doc.data();
-        if (Array.isArray(d.dorsales) && d.dorsales.length) {
-          mostrarEliminacionMultiple(d.dorsales, d.duracion_ms);
-        }
+      const d = ch.doc.data();
+      if (ch.type === 'added' && Array.isArray(d.dorsales) && d.dorsales.length) {
+        mostrarEliminacionMultiple(d.dorsales);
+      }
+      if (ch.type === 'modified' && d.terminado) {
+        ocultarEliminacionMultiple();
       }
     });
   });

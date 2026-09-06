@@ -471,7 +471,9 @@ function hablarPanelMultiple(dorsales, onFinish) {
     const finalizar = () => { if (!terminado) { terminado = true; onFinish(); } };
     utterances[utterances.length - 1].onend = finalizar;
     utterances[utterances.length - 1].onerror = finalizar;
-    setTimeout(finalizar, frases.length * 1200 + 2000);
+    // Red de seguridad amplia (solo por si el navegador no dispara onend) —
+    // la duración real la marca el evento onend, no este timeout.
+    setTimeout(finalizar, frases.length * 2500 + 3000);
   }
   utterances.forEach(u => window.speechSynthesis.speak(u));
 }
@@ -706,15 +708,17 @@ async function confirmarEliminacionMultiple() {
       });
     });
     await batch.commit();
-    // Duración estimada de la voz, para que el LED cierre el overlay a la vez que termina de hablar
-    const duracionMs = 900 + dorsales.length * 750 + 900;
-    await db.collection("eliminaciones_multiples").add({
+    const docRef = await db.collection("eliminaciones_multiples").add({
       dorsales: dorsales,
-      duracion_ms: duracionMs,
       creado_en: TS(),
-      origen: "panel-central"
+      origen: "panel-central",
+      terminado: false
     });
-    hablarPanelMultiple(dorsales);
+    // El LED muestra el overlay al crear este documento y lo cierra cuando
+    // marcamos "terminado" — sincronizado con el final real de la voz, no estimado.
+    hablarPanelMultiple(dorsales, () => {
+      docRef.update({ terminado: true, fin_en: TS() }).catch(e => console.error(e));
+    });
     mostrarNotif(`${dorsales.length} jugadores eliminados`);
     toggleModoMulti();
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar varios"); }
