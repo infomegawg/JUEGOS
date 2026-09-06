@@ -1027,8 +1027,23 @@ async function guardarPrueba() {
 
 /* ===== RESETEAR TODO ===== */
 async function resetearTodo() {
-  if (!confirm("¿Resetear TODA la sesión? Se borrarán eliminaciones y se revivirán todos los jugadores.")) return;
+  const pin = prompt("Esta acción borra el historial de la sesión actual.\nIntroduce el PIN de acceso para confirmar:");
+  if (pin === null) return;
+  if (pin !== "1402") { mostrarNotif("PIN incorrecto, no se ha reseteado nada"); return; }
+  if (!confirm("¿Resetear TODA la sesión? Se borrarán eliminaciones y se revivirán todos los jugadores.\n\nSe guardará antes un backup del estado actual, por si hace falta consultarlo luego.")) return;
   try {
+    // Backup del estado actual antes de borrar nada: queda archivado con su
+    // propia fecha, sin sobrescribir ni afectar al autoguardado de cada 15 min.
+    try {
+      const csvPrevio = generarCSVHistorial();
+      const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      await db.collection("backups_historicos").doc(marca).set({
+        contenido: csvPrevio,
+        creado_en: TS(),
+        motivo: "reset-sesion"
+      });
+    } catch(e) { console.error("No se pudo guardar el backup previo al reset", e); }
+
     const elimSnap = await db.collection("eliminaciones").get();
     const batch = db.batch();
     elimSnap.forEach(d => batch.delete(d.ref));
