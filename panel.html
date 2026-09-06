@@ -316,6 +316,15 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         </div>
       </div>
 
+      <!-- RESPALDO -->
+      <div class="section">
+        <div class="section-title"><i class="ti ti-cloud-download"></i> Respaldo</div>
+        <div id="backup-info" style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Autoguardado cada 15 min · aún no se ha guardado ninguno</div>
+        <button class="btn btn-morado" onclick="descargarBackupCSV()">
+          <i class="ti ti-download"></i> Descargar backup ahora
+        </button>
+      </div>
+
       <!-- RESETEAR -->
       <div class="section">
         <button class="btn btn-ghost" onclick="resetearTodo()"><i class="ti ti-refresh"></i> Resetear todo</button>
@@ -610,6 +619,10 @@ function init() {
   escucharEliminaciones();
   escucharSesion();
   escucharLlamadas();
+  // Primer backup a los 10s (para no esperar 15 min al abrir el panel),
+  // y luego uno automático cada 15 minutos mientras el panel esté abierto.
+  setTimeout(guardarBackupAutomatico, 10000);
+  setInterval(guardarBackupAutomatico, 15 * 60 * 1000);
 }
 
 /* ===== FIRESTORE LISTENERS ===== */
@@ -1028,6 +1041,68 @@ async function resetearTodo() {
     await db.collection("sesion").doc("actual").set({ activa: true, reseteado_en: TS() }, { merge: true });
     mostrarNotif("Sesión reseteada");
   } catch(e) { console.error(e); }
+}
+
+/* ===== RESPALDO AUTOMÁTICO (CSV cada 15 min, guardado en Firestore) ===== */
+function csvEscape(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+function fechaLegible(ts) {
+  if (!ts || typeof ts.toDate !== "function") return "";
+  return ts.toDate().toLocaleString("es-ES");
+}
+
+function generarCSVHistorial() {
+  const cabecera = ["Dorsal", "Nombre", "Apellidos", "Estado", "Eliminado en", "Método", "Equipo", "Juez", "Prueba"];
+  const filas = Object.values(participantes)
+    .sort((a, b) => a.dorsal - b.dorsal)
+    .map(p => [
+      p.dorsal,
+      p.nombre || "",
+      p.apellidos || "",
+      p.vivo ? "Vivo" : "Eliminado",
+      p.vivo ? "" : fechaLegible(p.eliminado_en),
+      p.vivo ? "" : (p.metodo || ""),
+      p.vivo ? "" : (p.equipo || ""),
+      p.vivo ? "" : (p.juez || ""),
+      p.vivo ? "" : (p.prueba || "")
+    ]);
+  const lineas = [cabecera, ...filas].map(fila => fila.map(csvEscape).join(","));
+  return "﻿" + lineas.join("\r\n"); // BOM para que Excel muestre bien los acentos
+}
+
+async function guardarBackupAutomatico() {
+  try {
+    const csv = generarCSVHistorial();
+    const vivos = Object.values(participantes).filter(p => p.vivo).length;
+    const eliminados = Object.values(participantes).length - vivos;
+    await db.collection("backups").doc("historial_actual").set({
+      contenido: csv,
+      actualizado_en: TS(),
+      total_participantes: Object.values(participantes).length,
+      total_vivos: vivos,
+      total_eliminados: eliminados
+    });
+    const info = document.getElementById("backup-info");
+    if (info) info.textContent = `Autoguardado cada 15 min · último: ${new Date().toLocaleTimeString("es-ES")}`;
+  } catch(e) { console.error("Error guardando backup automático", e); }
+}
+
+function descargarBackupCSV() {
+  const csv = generarCSVHistorial();
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+  a.href = url;
+  a.download = `backup_juegos_omega_${marca}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  mostrarNotif("Backup descargado");
 }
 
 /* ===== IMPORTAR CSV ===== */
