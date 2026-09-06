@@ -281,8 +281,11 @@ function mostrarEliminacion(dorsal) {
   setTimeout(() => overlay.classList.remove('show'), 4000);
 }
 
-/* ===== ANIMACIÓN ELIMINACIÓN MÚLTIPLE (mismo overlay que la individual) ===== */
-function mostrarEliminacionMultiple(dorsales) {
+/* ===== ANIMACIÓN ELIMINACIÓN MÚLTIPLE (mismo overlay que la individual) =====
+   La voz se reproduce en el Panel Central (hablarPanelMultiple), no aquí.
+   El LED solo muestra el overlay durante 'duracion_ms', el tiempo que el
+   panel estima que tardará en recitar todos los dorsales. */
+function mostrarEliminacionMultiple(dorsales, duracionMs) {
   dorsales.forEach(dorsal => {
     const cell = document.getElementById('cell-' + dorsal);
     if (cell) {
@@ -309,48 +312,11 @@ function mostrarEliminacionMultiple(dorsales) {
 
   overlay.classList.add('show');
 
-  // La animación dura exactamente lo que tarda la voz en leer todos los dorsales
-  hablarEliminacionMultiple(dorsales, () => {
+  setTimeout(() => {
     overlay.classList.remove('show');
     numEl.style.fontSize = '';
     if (labelEl) labelEl.textContent = 'JUGADOR ELIMINADO';
-  });
-}
-
-function hablarEliminacionMultiple(dorsales, onFinish) {
-  if (!window.speechSynthesis) { if (onFinish) onFinish(); return; }
-  window.speechSynthesis.cancel();
-
-  // Misma voz y mismo tono que usa hablar() para la eliminación individual
-  const crear = (texto) => {
-    const msg = new SpeechSynthesisUtterance(texto);
-    msg.lang = 'es-ES'; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
-    if (vozSeleccionada) msg.voice = vozSeleccionada;
-    return msg;
-  };
-
-  const frases = [];
-  if (dorsales.length === 1) {
-    frases.push(`Jugador ${dorsales[0]}`, 'Eliminado');
-  } else {
-    frases.push('Jugadores');
-    dorsales.forEach((n, i) => {
-      const esUltimo = i === dorsales.length - 1;
-      frases.push(esUltimo ? `y ${n}` : `${n}`);
-    });
-    frases.push('Eliminados');
-  }
-
-  const utterances = frases.map(crear);
-  if (onFinish) {
-    let terminado = false;
-    const finalizar = () => { if (!terminado) { terminado = true; onFinish(); } };
-    utterances[utterances.length - 1].onend = finalizar;
-    utterances[utterances.length - 1].onerror = finalizar;
-    // Red de seguridad por si el navegador no dispara onend (algunos motores lo omiten)
-    setTimeout(finalizar, frases.length * 1200 + 2000);
-  }
-  utterances.forEach(u => window.speechSynthesis.speak(u));
+  }, duracionMs || 4000);
 }
 
 /* ===== FIREBASE LISTENERS ===== */
@@ -435,7 +401,7 @@ function init() {
       if (ch.type === 'added') {
         const d = ch.doc.data();
         if (Array.isArray(d.dorsales) && d.dorsales.length) {
-          mostrarEliminacionMultiple(d.dorsales);
+          mostrarEliminacionMultiple(d.dorsales, d.duracion_ms);
         }
       }
     });

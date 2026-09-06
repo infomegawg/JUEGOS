@@ -441,6 +441,41 @@ function hablarPanel(texto) {
   window.speechSynthesis.speak(msg);
 }
 
+// Igual que hablarPanel, pero recita todos los dorsales de una eliminación múltiple
+function hablarPanelMultiple(dorsales, onFinish) {
+  if (!window.speechSynthesis) { if (onFinish) onFinish(); return; }
+  window.speechSynthesis.cancel();
+
+  const crear = (texto) => {
+    const msg = new SpeechSynthesisUtterance(texto);
+    msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
+    if (vozSeleccionada) msg.voice = vozSeleccionada;
+    return msg;
+  };
+
+  const frases = [];
+  if (dorsales.length === 1) {
+    frases.push(`Jugador ${dorsales[0]}`, "Eliminado");
+  } else {
+    frases.push("Jugadores");
+    dorsales.forEach((n, i) => {
+      const esUltimo = i === dorsales.length - 1;
+      frases.push(esUltimo ? `y ${n}` : `${n}`);
+    });
+    frases.push("Eliminados");
+  }
+
+  const utterances = frases.map(crear);
+  if (onFinish) {
+    let terminado = false;
+    const finalizar = () => { if (!terminado) { terminado = true; onFinish(); } };
+    utterances[utterances.length - 1].onend = finalizar;
+    utterances[utterances.length - 1].onerror = finalizar;
+    setTimeout(finalizar, frases.length * 1200 + 2000);
+  }
+  utterances.forEach(u => window.speechSynthesis.speak(u));
+}
+
 let tabActual = 'hist';
 let elimDorsalSeleccionado = null;
 
@@ -671,11 +706,15 @@ async function confirmarEliminacionMultiple() {
       });
     });
     await batch.commit();
+    // Duración estimada de la voz, para que el LED cierre el overlay a la vez que termina de hablar
+    const duracionMs = 900 + dorsales.length * 750 + 900;
     await db.collection("eliminaciones_multiples").add({
       dorsales: dorsales,
+      duracion_ms: duracionMs,
       creado_en: TS(),
       origen: "panel-central"
     });
+    hablarPanelMultiple(dorsales);
     mostrarNotif(`${dorsales.length} jugadores eliminados`);
     toggleModoMulti();
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar varios"); }
