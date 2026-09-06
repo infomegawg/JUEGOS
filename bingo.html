@@ -1415,10 +1415,18 @@ animateConfetti();
    ========================================================= */
 let vozSeleccionada = null;
 
+const VOZ_GUARDADA_KEY = "bingoVozNombre";
+
 function cargarVoces() {
   const voces = window.speechSynthesis.getVoices();
-  // Prioridad: Google español es-ES
-  vozSeleccionada =
+
+  // Si el operador ya eligió una voz manualmente en este ordenador, se respeta
+  // esa elección en vez del algoritmo automático (que no siempre acierta: cada
+  // sistema tiene instaladas voces distintas con nombres distintos).
+  const nombreGuardado = localStorage.getItem(VOZ_GUARDADA_KEY);
+  const vozGuardada = nombreGuardado ? voces.find(v => v.name === nombreGuardado) : null;
+
+  vozSeleccionada = vozGuardada ||
     voces.find(v => v.name.includes("Pablo")) ||
     voces.find(v => v.name.includes("Jorge")) ||
     voces.find(v => v.name.includes("Diego")) ||
@@ -1433,7 +1441,7 @@ function cargarVoces() {
     voces.find(v => v.lang.startsWith("es")) ||
     voces[0] || null;
 
-  // Rellenar selector de voces en el panel de control
+  // Rellenar selector de voces en el panel de control (tecla C)
   const sel = $("voiceSelect");
   if (sel) {
     sel.innerHTML = voces.map((v, i) =>
@@ -1441,6 +1449,7 @@ function cargarVoces() {
     ).join("");
     sel.addEventListener("change", () => {
       vozSeleccionada = voces[parseInt(sel.value)];
+      if (vozSeleccionada) localStorage.setItem(VOZ_GUARDADA_KEY, vozSeleccionada.name);
     });
   }
 }
