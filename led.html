@@ -418,8 +418,9 @@ function init() {
           const cell = document.getElementById('cell-' + dorsal);
           if (cell) cell.classList.add('elim');
           // Animación + voz solo para eliminaciones manuales individuales del panel
-          // (las eliminaciones múltiples se animan agrupadas vía 'eliminaciones_multiples')
-          if ((d.juez === 'Panel-Central' || d.metodo === 'manual-panel') && d.metodo !== 'multiple-panel') {
+          // (las múltiples y las de equipo se animan agrupadas vía 'eliminaciones_multiples')
+          const esGrupal = d.metodo === 'multiple-panel' || d.metodo === 'equipo-panel';
+          if ((d.juez === 'Panel-Central' || d.metodo === 'manual-panel') && !esGrupal) {
             mostrarEliminacion(dorsal);
           }
           updateStats(Object.keys(participantes).length);
