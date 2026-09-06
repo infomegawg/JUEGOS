@@ -412,7 +412,10 @@ function init() {
   });
 
   // Escuchar eliminaciones en tiempo real
+  let primerSnapEliminaciones = true;
   db.collection('eliminaciones').onSnapshot(snap => {
+    const esCargaInicial = primerSnapEliminaciones;
+    primerSnapEliminaciones = false;
     snap.docChanges().forEach(ch => {
       if (ch.type === 'added') {
         const d = ch.doc.data();
@@ -422,9 +425,12 @@ function init() {
           const cell = document.getElementById('cell-' + dorsal);
           if (cell) cell.classList.add('elim');
           // Animación + voz solo para eliminaciones manuales individuales del panel
-          // (las múltiples y las de equipo se animan agrupadas vía 'eliminaciones_multiples')
+          // (las múltiples y las de equipo se animan agrupadas vía 'eliminaciones_multiples').
+          // Se ignora en la carga inicial: si no, al recargar el LED (p.ej. al volver
+          // del modo bingo/apagado al grid) se repite la animación de la última
+          // eliminación del historial, como si acabara de ocurrir.
           const esGrupal = d.metodo === 'multiple-panel' || d.metodo === 'equipo-panel';
-          if ((d.juez === 'Panel-Central' || d.metodo === 'manual-panel') && !esGrupal) {
+          if (!esCargaInicial && (d.juez === 'Panel-Central' || d.metodo === 'manual-panel') && !esGrupal) {
             mostrarEliminacion(dorsal);
           }
           updateStats(Object.keys(participantes).length);
