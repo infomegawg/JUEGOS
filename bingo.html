@@ -1130,21 +1130,14 @@ function programarAutoCierreOverlay(ms = 10000) {
   overlayAutoCloseId = setTimeout(hideOverlay, ms);
 }
 
-// Avisa al Panel Central para que reproduzca la misma locución en su propio
-// dispositivo (la app del bingo, y su voz, viven en el portátil de la pantalla).
-function anunciarAlPanel(dorsales) {
-  if (!esInstanciaLED) return;
-  db.collection("bingo_anuncios").add({ dorsales: dorsales, creado_en: firebase.firestore.FieldValue.serverTimestamp() })
-    .catch(e => console.error(e));
-}
-
 function showWinnerOverlay(num) {
   winnerNumber.textContent = num;
   overlay.classList.add("show");
+  // Se programa el autocierre ANTES de hablar/confeti: si algo ahí lanzara un
+  // error, no debe impedir que el overlay se cierre solo a los 10s.
+  programarAutoCierreOverlay();
   hablarEliminacion(num);
   rainConfetti(3000);
-  programarAutoCierreOverlay();
-  anunciarAlPanel([num]);
 }
 
 function showMultiOverlay(nums) {
@@ -1158,10 +1151,9 @@ function showMultiOverlay(nums) {
     winnerNumber.textContent = `${resto} y ${ultimo}`;
   }
   overlay.classList.add("show");
+  programarAutoCierreOverlay();
   hablarMultiEliminacion(nums);
   rainConfetti(3000);
-  programarAutoCierreOverlay();
-  anunciarAlPanel(nums);
 }
 
 function hablarMultiEliminacion(nums) {
