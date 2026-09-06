@@ -748,6 +748,46 @@ window.fbEliminar = async function(dorsal, prueba, metodo) {
   } catch(e) { console.error("Firebase error:", e); }
 };
 
+/* =========================================================
+   CONTROL REMOTO — comandos enviados desde el Panel Central
+   para accionar la ruleta sin tocar el portátil de la pantalla.
+   ========================================================= */
+let primerSnapComandos = true;
+db.collection("bingo_comandos").orderBy("creado_en", "desc").limit(1)
+  .onSnapshot(snap => {
+    if (primerSnapComandos) { primerSnapComandos = false; return; }
+    snap.docChanges().forEach(ch => {
+      if (ch.type !== "added") return;
+      const d = ch.doc.data();
+      ejecutarComandoRemoto(d);
+    });
+  });
+
+function ejecutarComandoRemoto(d) {
+  // Espera a que la función objetivo exista y a que no haya un giro en curso
+  const intentar = (fn, maxEsperaMs = 8000) => {
+    const inicio = Date.now();
+    const tick = () => {
+      if (typeof spin === "function" && !state.spinning) { fn(); return; }
+      if (Date.now() - inicio < maxEsperaMs) setTimeout(tick, 200);
+    };
+    tick();
+  };
+
+  if (d.accion === "girar") {
+    intentar(() => spin());
+  } else if (d.accion === "girar_multi") {
+    intentar(() => {
+      const active = activeNumbers();
+      if (!active.length) return;
+      const count = Math.min(parseInt(d.cantidad, 10) || 1, active.length);
+      const shuffled = [...active].sort(() => Math.random() - 0.5);
+      const winners = shuffled.slice(0, count);
+      spinMulti(winners);
+    });
+  }
+}
+
 window.fbInicializarSesion = async function(total) {
   try {
     await db.collection("sesion").doc("actual").set({

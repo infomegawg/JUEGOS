@@ -232,6 +232,21 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         </div>
       </div>
 
+      <!-- CONTROL REMOTO BINGO -->
+      <div class="section">
+        <div class="section-title"><i class="ti ti-remote-control"></i> Control remoto Bingo</div>
+        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta que se ve en la pantalla LED sin tocar ese portátil (la pantalla debe estar en modo "Bingo")</div>
+        <button class="btn btn-morado" style="margin-bottom:8px;" onclick="girarBingoRemoto()">
+          <i class="ti ti-player-play"></i> Girar (1 número)
+        </button>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="bingo-remoto-cantidad" placeholder="Cantidad" min="1" style="flex:1;" />
+          <button class="btn btn-naranja" style="flex:1;" onclick="girarBingoMultiRemoto()">
+            <i class="ti ti-players"></i> Eliminar varios y girar
+          </button>
+        </div>
+      </div>
+
       <!-- LLAMAR JUGADOR -->
       <div class="section">
         <div class="section-title"><i class="ti ti-speakerphone"></i> Llamar jugador</div>
@@ -802,6 +817,25 @@ async function confirmarEliminacionMultiple() {
     }
     toggleModoMulti();
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar varios"); }
+}
+
+/* ===== CONTROL REMOTO BINGO ===== */
+// La app bingo.html (abierta en el portátil de la pantalla LED) escucha esta
+// colección y acciona su propia ruleta al recibir un comando nuevo.
+async function girarBingoRemoto() {
+  try {
+    await db.collection("bingo_comandos").add({ accion: "girar", creado_en: TS() });
+    mostrarNotif("Comando enviado: girar 1 número");
+  } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
+}
+
+async function girarBingoMultiRemoto() {
+  const cantidad = parseInt(document.getElementById("bingo-remoto-cantidad").value, 10);
+  if (!cantidad || cantidad < 1) { mostrarNotif("Indica cuántos números eliminar"); return; }
+  try {
+    await db.collection("bingo_comandos").add({ accion: "girar_multi", cantidad: cantidad, creado_en: TS() });
+    mostrarNotif(`Comando enviado: eliminar ${cantidad} y girar`);
+  } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
 }
 
 /* ===== HISTORIAL ===== */
