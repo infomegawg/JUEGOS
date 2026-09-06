@@ -1427,14 +1427,11 @@ function cargarVoces() {
   const vozGuardada = nombreGuardado ? voces.find(v => v.name === nombreGuardado) : null;
 
   vozSeleccionada = vozGuardada ||
-    voces.find(v => v.name.includes("Pablo")) ||
-    voces.find(v => v.name.includes("Jorge")) ||
-    voces.find(v => v.name.includes("Diego")) ||
-    voces.find(v => v.name.includes("Enrique")) ||
     voces.find(v => v.name === "Google español") ||
     voces.find(v => v.name.includes("Google") && v.lang === "es-ES") ||
     voces.find(v => v.name.includes("Google") && v.lang.startsWith("es")) ||
     voces.find(v => v.name.includes("Helena")) ||
+    voces.find(v => v.name.includes("Pablo")) ||
     voces.find(v => v.name.includes("Mónica")) ||
     voces.find(v => v.name.includes("Monica")) ||
     voces.find(v => v.lang === "es-ES") ||
