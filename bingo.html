@@ -1122,11 +1122,29 @@ function scrollCellIntoView(cell) {
   }
 }
 
+// Autocierre del overlay: al accionar el bingo en remoto no hay nadie físicamente
+// junto al portátil para hacer click o pulsar espacio, así que se cierra solo.
+let overlayAutoCloseId = null;
+function programarAutoCierreOverlay(ms = 10000) {
+  clearTimeout(overlayAutoCloseId);
+  overlayAutoCloseId = setTimeout(hideOverlay, ms);
+}
+
+// Avisa al Panel Central para que reproduzca la misma locución en su propio
+// dispositivo (la app del bingo, y su voz, viven en el portátil de la pantalla).
+function anunciarAlPanel(dorsales) {
+  if (!esInstanciaLED) return;
+  db.collection("bingo_anuncios").add({ dorsales: dorsales, creado_en: firebase.firestore.FieldValue.serverTimestamp() })
+    .catch(e => console.error(e));
+}
+
 function showWinnerOverlay(num) {
   winnerNumber.textContent = num;
   overlay.classList.add("show");
   hablarEliminacion(num);
   rainConfetti(3000);
+  programarAutoCierreOverlay();
+  anunciarAlPanel([num]);
 }
 
 function showMultiOverlay(nums) {
@@ -1142,6 +1160,8 @@ function showMultiOverlay(nums) {
   overlay.classList.add("show");
   hablarMultiEliminacion(nums);
   rainConfetti(3000);
+  programarAutoCierreOverlay();
+  anunciarAlPanel(nums);
 }
 
 function hablarMultiEliminacion(nums) {
@@ -1172,7 +1192,9 @@ function hablarMultiEliminacion(nums) {
 }
 
 function hideOverlay() {
+  clearTimeout(overlayAutoCloseId);
   overlay.classList.remove("show");
+  winnerNumber.style.fontSize = "";
 }
 
 overlay.addEventListener("click", hideOverlay);

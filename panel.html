@@ -613,6 +613,7 @@ function init() {
   escucharEliminaciones();
   escucharSesion();
   escucharLlamadas();
+  escucharAnunciosBingo();
 }
 
 /* ===== FIRESTORE LISTENERS ===== */
@@ -652,6 +653,23 @@ function escucharSesion() {
       }
     }
   });
+}
+
+// Cuando el bingo (en la pantalla LED) anuncia un número, reproduce aquí
+// la misma locución, para que el operador la oiga sin estar junto a la pantalla.
+function escucharAnunciosBingo() {
+  let primerSnap = true;
+  db.collection("bingo_anuncios").orderBy("creado_en", "desc").limit(1)
+    .onSnapshot(snap => {
+      if (primerSnap) { primerSnap = false; return; }
+      snap.docChanges().forEach(ch => {
+        if (ch.type !== "added") return;
+        const d = ch.doc.data();
+        if (Array.isArray(d.dorsales) && d.dorsales.length) {
+          hablarPanelMultiple(d.dorsales);
+        }
+      });
+    });
 }
 
 function escucharLlamadas() {
