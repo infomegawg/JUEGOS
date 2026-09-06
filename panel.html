@@ -456,16 +456,16 @@ function hablarPanel(texto) {
   window.speechSynthesis.speak(msg);
 }
 
-// Anuncia la eliminación de un equipo entero: "Equipo Azul, eliminado"
+// Anuncia la eliminación de un equipo entero: "El equipo Azul ha sido eliminado"
 function hablarPanelEquipo(equipo, onFinish) {
   if (!window.speechSynthesis) { if (onFinish) onFinish(); return; }
   window.speechSynthesis.cancel();
 
-  const msg1 = new SpeechSynthesisUtterance(`Equipo ${equipo}`);
+  const msg1 = new SpeechSynthesisUtterance(`El equipo ${equipo}`);
   msg1.lang = "es-ES"; msg1.rate = 0.9; msg1.pitch = 0.9; msg1.volume = 1;
   if (vozSeleccionada) msg1.voice = vozSeleccionada;
 
-  const msg2 = new SpeechSynthesisUtterance("Eliminado");
+  const msg2 = new SpeechSynthesisUtterance("ha sido eliminado");
   msg2.lang = "es-ES"; msg2.rate = 0.85; msg2.pitch = 0.9; msg2.volume = 1;
   if (vozSeleccionada) msg2.voice = vozSeleccionada;
 
