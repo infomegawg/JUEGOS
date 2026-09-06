@@ -466,15 +466,28 @@ function hablarPanelMultiple(dorsales, onFinish) {
   }
 
   const utterances = frases.map(crear);
-  if (onFinish) {
-    let terminado = false;
-    const finalizar = () => { if (!terminado) { terminado = true; onFinish(); } };
-    utterances[utterances.length - 1].onend = finalizar;
-    utterances[utterances.length - 1].onerror = finalizar;
-    // Red de seguridad amplia (solo por si el navegador no dispara onend) —
-    // la duración real la marca el evento onend, no este timeout.
-    setTimeout(finalizar, frases.length * 2500 + 3000);
-  }
+
+  // Workaround del bug de Chrome/Edge: con colas largas de utterances, la síntesis
+  // de voz se corta sola a los ~15s si no se le da un "toque" periódico.
+  const keepAlive = setInterval(() => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }
+  }, 5000);
+
+  let terminado = false;
+  const finalizar = () => {
+    if (terminado) return;
+    terminado = true;
+    clearInterval(keepAlive);
+    if (onFinish) onFinish();
+  };
+  utterances[utterances.length - 1].onend = finalizar;
+  utterances[utterances.length - 1].onerror = finalizar;
+  // Red de seguridad amplia (solo por si el navegador no dispara onend) —
+  // la duración real la marca el evento onend, no este timeout.
+  setTimeout(finalizar, frases.length * 2500 + 5000);
   utterances.forEach(u => window.speechSynthesis.speak(u));
 }
 

@@ -316,9 +316,10 @@ function mostrarEliminacionMultiple(dorsales) {
   overlay.classList.add('show');
 
   // Red de seguridad: si por lo que sea nunca llega el aviso de "terminado",
-  // no se queda el overlay bloqueado para siempre.
+  // no se queda el overlay bloqueado para siempre. Escala con el nº de dorsales
+  // para no cortar animaciones largas (eliminaciones de equipos grandes).
   clearTimeout(multiOverlayTimeoutId);
-  multiOverlayTimeoutId = setTimeout(ocultarEliminacionMultiple, 20000);
+  multiOverlayTimeoutId = setTimeout(ocultarEliminacionMultiple, Math.max(20000, dorsales.length * 2500 + 8000));
 }
 
 function ocultarEliminacionMultiple() {
