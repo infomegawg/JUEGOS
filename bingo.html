@@ -751,40 +751,43 @@ window.fbEliminar = async function(dorsal, prueba, metodo) {
 /* =========================================================
    CONTROL REMOTO — comandos enviados desde el Panel Central
    para accionar la ruleta sin tocar el portátil de la pantalla.
+
+   Solo escucha si esta pestaña es la que abrió automáticamente la
+   pantalla LED (URL con ?led=1). Así, si alguien abre bingo.html
+   manualmente en otro sitio (p.ej. el botón "Apps digitales" del
+   panel, para verlo o probarlo), esa copia NO reacciona a los
+   comandos remotos — evita que dos pestañas giren a la vez y
+   eliminen dos números distintos para un solo comando.
    ========================================================= */
-let primerSnapComandos = true;
-db.collection("bingo_comandos").orderBy("creado_en", "desc").limit(1)
-  .onSnapshot(snap => {
-    if (primerSnapComandos) { primerSnapComandos = false; return; }
-    snap.docChanges().forEach(ch => {
-      if (ch.type !== "added") return;
-      const d = ch.doc.data();
-      ejecutarComandoRemoto(d);
+const esInstanciaLED = new URLSearchParams(location.search).get("led") === "1";
+
+if (esInstanciaLED) {
+  let primerSnapComandos = true;
+  db.collection("bingo_comandos").orderBy("creado_en", "desc").limit(1)
+    .onSnapshot(snap => {
+      if (primerSnapComandos) { primerSnapComandos = false; return; }
+      snap.docChanges().forEach(ch => {
+        if (ch.type !== "added") return;
+        ejecutarComandoRemoto(ch.doc.data());
+      });
     });
-  });
+}
 
 function ejecutarComandoRemoto(d) {
-  // Espera a que la función objetivo exista y a que no haya un giro en curso
-  const intentar = (fn, maxEsperaMs = 8000) => {
-    const inicio = Date.now();
-    const tick = () => {
-      if (typeof spin === "function" && !state.spinning) { fn(); return; }
-      if (Date.now() - inicio < maxEsperaMs) setTimeout(tick, 200);
-    };
-    tick();
-  };
+  // Si ya hay un giro en curso, se ignora el comando en vez de dejarlo
+  // pendiente — encolarlo causaba un giro "fantasma" más tarde, sin que
+  // nadie lo pidiera en ese momento, y desincronizaba voz y pantalla.
+  if (typeof spin !== "function" || state.spinning) return;
 
   if (d.accion === "girar") {
-    intentar(() => spin());
+    spin();
   } else if (d.accion === "girar_multi") {
-    intentar(() => {
-      const active = activeNumbers();
-      if (!active.length) return;
-      const count = Math.min(parseInt(d.cantidad, 10) || 1, active.length);
-      const shuffled = [...active].sort(() => Math.random() - 0.5);
-      const winners = shuffled.slice(0, count);
-      spinMulti(winners);
-    });
+    const active = activeNumbers();
+    if (!active.length) return;
+    const count = Math.min(parseInt(d.cantidad, 10) || 1, active.length);
+    const shuffled = [...active].sort(() => Math.random() - 0.5);
+    const winners = shuffled.slice(0, count);
+    spinMulti(winners);
   }
 }
 
@@ -1394,11 +1397,14 @@ function cargarVoces() {
   const voces = window.speechSynthesis.getVoices();
   // Prioridad: Google español es-ES
   vozSeleccionada =
+    voces.find(v => v.name.includes("Pablo")) ||
+    voces.find(v => v.name.includes("Jorge")) ||
+    voces.find(v => v.name.includes("Diego")) ||
+    voces.find(v => v.name.includes("Enrique")) ||
     voces.find(v => v.name === "Google español") ||
     voces.find(v => v.name.includes("Google") && v.lang === "es-ES") ||
     voces.find(v => v.name.includes("Google") && v.lang.startsWith("es")) ||
     voces.find(v => v.name.includes("Helena")) ||
-    voces.find(v => v.name.includes("Pablo")) ||
     voces.find(v => v.name.includes("Mónica")) ||
     voces.find(v => v.name.includes("Monica")) ||
     voces.find(v => v.lang === "es-ES") ||
