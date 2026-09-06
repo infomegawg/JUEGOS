@@ -178,6 +178,7 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   <div class="elim-label">JUGADOR ELIMINADO</div>
 </div>
 
+
 <!-- OVERLAY LLAMADA -->
 <div class="call-overlay" id="call-overlay">
   <div class="call-badge">📢 ATENCIÓN</div>
@@ -280,7 +281,7 @@ function mostrarEliminacion(dorsal) {
   setTimeout(() => overlay.classList.remove('show'), 4000);
 }
 
-/* ===== ANIMACIÓN ELIMINACIÓN MÚLTIPLE ===== */
+/* ===== ANIMACIÓN ELIMINACIÓN MÚLTIPLE (mismo overlay que la individual) ===== */
 function mostrarEliminacionMultiple(dorsales) {
   dorsales.forEach(dorsal => {
     const cell = document.getElementById('cell-' + dorsal);
@@ -292,46 +293,64 @@ function mostrarEliminacionMultiple(dorsales) {
 
   const overlay = document.getElementById('elim-overlay');
   const numEl = document.getElementById('elim-num');
+  const labelEl = overlay.querySelector('.elim-label');
+
   if (dorsales.length === 1) {
     numEl.style.fontSize = '';
     numEl.textContent = dorsales[0];
+    if (labelEl) labelEl.textContent = 'JUGADOR ELIMINADO';
   } else {
     const ultimo = dorsales[dorsales.length - 1];
     const resto = dorsales.slice(0, -1).join(', ');
-    numEl.style.fontSize = dorsales.length > 4 ? 'clamp(50px,8vw,110px)' : 'clamp(80px,12vw,180px)';
+    numEl.style.fontSize = dorsales.length > 4 ? 'clamp(50px,8vw,130px)' : 'clamp(80px,12vw,200px)';
     numEl.textContent = `${resto} y ${ultimo}`;
+    if (labelEl) labelEl.textContent = 'JUGADORES ELIMINADOS';
   }
-  overlay.classList.add('show');
-  hablarEliminacionMultiple(dorsales);
 
-  setTimeout(() => {
+  overlay.classList.add('show');
+
+  // La animación dura exactamente lo que tarda la voz en leer todos los dorsales
+  hablarEliminacionMultiple(dorsales, () => {
     overlay.classList.remove('show');
     numEl.style.fontSize = '';
-  }, Math.max(4000, dorsales.length * 700));
+    if (labelEl) labelEl.textContent = 'JUGADOR ELIMINADO';
+  });
 }
 
-function hablarEliminacionMultiple(dorsales) {
-  if (!window.speechSynthesis) return;
+function hablarEliminacionMultiple(dorsales, onFinish) {
+  if (!window.speechSynthesis) { if (onFinish) onFinish(); return; }
   window.speechSynthesis.cancel();
 
-  const hacer = (texto, rate = 0.95, pitch = 1.0) => {
+  // Misma voz y mismo tono que usa hablar() para la eliminación individual
+  const crear = (texto) => {
     const msg = new SpeechSynthesisUtterance(texto);
-    msg.lang = 'es-ES'; msg.rate = rate; msg.pitch = pitch; msg.volume = 1;
+    msg.lang = 'es-ES'; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
     if (vozSeleccionada) msg.voice = vozSeleccionada;
     return msg;
   };
 
+  const frases = [];
   if (dorsales.length === 1) {
-    window.speechSynthesis.speak(hacer(`Jugador ${dorsales[0]}`));
-    window.speechSynthesis.speak(hacer('Eliminado', 0.85, 0.9));
+    frases.push(`Jugador ${dorsales[0]}`, 'Eliminado');
   } else {
-    window.speechSynthesis.speak(hacer('Jugadores'));
+    frases.push('Jugadores');
     dorsales.forEach((n, i) => {
       const esUltimo = i === dorsales.length - 1;
-      window.speechSynthesis.speak(hacer(esUltimo ? `y ${n}` : `${n}`, 0.95, 1.0));
+      frases.push(esUltimo ? `y ${n}` : `${n}`);
     });
-    window.speechSynthesis.speak(hacer('Eliminados', 0.85, 0.9));
+    frases.push('Eliminados');
   }
+
+  const utterances = frases.map(crear);
+  if (onFinish) {
+    let terminado = false;
+    const finalizar = () => { if (!terminado) { terminado = true; onFinish(); } };
+    utterances[utterances.length - 1].onend = finalizar;
+    utterances[utterances.length - 1].onerror = finalizar;
+    // Red de seguridad por si el navegador no dispara onend (algunos motores lo omiten)
+    setTimeout(finalizar, frases.length * 1200 + 2000);
+  }
+  utterances.forEach(u => window.speechSynthesis.speak(u));
 }
 
 /* ===== FIREBASE LISTENERS ===== */
