@@ -279,6 +279,21 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         </button>
         <div id="multi-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#fff3d6;border:1px solid var(--naranja);">
           <div style="font-size:11px;font-weight:700;color:var(--naranja);margin-bottom:6px;">Selecciona dorsales en el grid — <span id="multi-count">0</span> seleccionados</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+            <select id="equipo-select" style="flex:1;">
+              <option value="">Sin equipo (recitar cada dorsal)</option>
+              <option value="Azul">🔵 Equipo Azul</option>
+              <option value="Rojo">🔴 Equipo Rojo</option>
+              <option value="Verde">🟢 Equipo Verde</option>
+              <option value="Amarillo">🟡 Equipo Amarillo</option>
+              <option value="Naranja">🟠 Equipo Naranja</option>
+              <option value="Morado">🟣 Equipo Morado</option>
+              <option value="Blanco">⚪ Equipo Blanco</option>
+              <option value="Negro">⚫ Equipo Negro</option>
+            </select>
+            <input type="number" id="equipo-duracion" value="10" min="3" max="60" style="width:56px;" title="Segundos que se ve en pantalla" />
+            <span style="font-size:10px;color:var(--texto2);">seg</span>
+          </div>
           <div style="display:flex;gap:6px;">
             <button class="btn btn-rojo" style="flex:1;" onclick="confirmarEliminacionMultiple()"><i class="ti ti-trash"></i> Eliminar seleccionados</button>
             <button class="btn btn-ghost" style="flex:1;" onclick="toggleModoMulti()">Cancelar</button>
@@ -439,6 +454,30 @@ function hablarPanel(texto) {
   msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
   if (vozSeleccionada) msg.voice = vozSeleccionada;
   window.speechSynthesis.speak(msg);
+}
+
+// Anuncia la eliminación de un equipo entero: "Equipo Azul, eliminado"
+function hablarPanelEquipo(equipo, onFinish) {
+  if (!window.speechSynthesis) { if (onFinish) onFinish(); return; }
+  window.speechSynthesis.cancel();
+
+  const msg1 = new SpeechSynthesisUtterance(`Equipo ${equipo}`);
+  msg1.lang = "es-ES"; msg1.rate = 0.9; msg1.pitch = 0.9; msg1.volume = 1;
+  if (vozSeleccionada) msg1.voice = vozSeleccionada;
+
+  const msg2 = new SpeechSynthesisUtterance("Eliminado");
+  msg2.lang = "es-ES"; msg2.rate = 0.85; msg2.pitch = 0.9; msg2.volume = 1;
+  if (vozSeleccionada) msg2.voice = vozSeleccionada;
+
+  if (onFinish) {
+    let terminado = false;
+    const finalizar = () => { if (!terminado) { terminado = true; onFinish(); } };
+    msg2.onend = finalizar;
+    msg2.onerror = finalizar;
+    setTimeout(finalizar, 4000);
+  }
+  window.speechSynthesis.speak(msg1);
+  window.speechSynthesis.speak(msg2);
 }
 
 // Igual que hablarPanel, pero recita todos los dorsales de una eliminación múltiple
@@ -689,6 +728,8 @@ function toggleModoMulti() {
   seleccionMulti.clear();
   document.getElementById("multi-bar").style.display = modoMulti ? "block" : "none";
   document.getElementById("multi-toggle-btn").style.opacity = modoMulti ? "0.5" : "";
+  document.getElementById("equipo-select").value = "";
+  document.getElementById("equipo-duracion").value = "10";
   actualizarContadorMulti();
   renderGrid();
 }
@@ -700,15 +741,21 @@ function actualizarContadorMulti() {
 async function confirmarEliminacionMultiple() {
   const dorsales = Array.from(seleccionMulti).sort((a,b) => a - b);
   if (!dorsales.length) { mostrarNotif("No has seleccionado ningún dorsal"); return; }
-  if (!confirm(`¿Eliminar a ${dorsales.length} jugadores?\n#${dorsales.join(', #')}`)) return;
+  const equipo = document.getElementById("equipo-select").value;
+  const confirmMsg = equipo
+    ? `¿Eliminar al Equipo ${equipo} (${dorsales.length} jugadores)?\n#${dorsales.join(', #')}`
+    : `¿Eliminar a ${dorsales.length} jugadores?\n#${dorsales.join(', #')}`;
+  if (!confirm(confirmMsg)) return;
   const prueba = document.getElementById("prueba-select").value;
+  const metodo = equipo ? "equipo-panel" : "multiple-panel";
   try {
     const batch = db.batch();
     dorsales.forEach(dorsal => {
       batch.set(db.collection("eliminaciones").doc(String(dorsal)), {
         dorsal: dorsal,
         prueba: prueba,
-        metodo: "multiple-panel",
+        metodo: metodo,
+        equipo: equipo || null,
         juez: "Panel-Central",
         eliminado_en: TS()
       });
@@ -716,23 +763,43 @@ async function confirmarEliminacionMultiple() {
         vivo: false,
         eliminado_en: TS(),
         prueba: prueba,
-        metodo: "multiple-panel",
+        metodo: metodo,
+        equipo: equipo || null,
         juez: "Panel-Central"
       });
     });
     await batch.commit();
-    const docRef = await db.collection("eliminaciones_multiples").add({
-      dorsales: dorsales,
-      creado_en: TS(),
-      origen: "panel-central",
-      terminado: false
-    });
-    // El LED muestra el overlay al crear este documento y lo cierra cuando
-    // marcamos "terminado" — sincronizado con el final real de la voz, no estimado.
-    hablarPanelMultiple(dorsales, () => {
-      docRef.update({ terminado: true, fin_en: TS() }).catch(e => console.error(e));
-    });
-    mostrarNotif(`${dorsales.length} jugadores eliminados`);
+
+    if (equipo) {
+      // Modo equipo: la voz dice "Equipo Azul, eliminado" y en pantalla
+      // aparecen todos los dorsales durante los segundos indicados (fijo).
+      const segundos = parseInt(document.getElementById("equipo-duracion").value, 10) || 10;
+      await db.collection("eliminaciones_multiples").add({
+        dorsales: dorsales,
+        modo: "equipo",
+        equipo: equipo,
+        duracion_ms: segundos * 1000,
+        creado_en: TS(),
+        origen: "panel-central",
+        terminado: false
+      });
+      hablarPanelEquipo(equipo);
+      mostrarNotif(`Equipo ${equipo} eliminado (${dorsales.length} jugadores)`);
+    } else {
+      const docRef = await db.collection("eliminaciones_multiples").add({
+        dorsales: dorsales,
+        modo: "lista",
+        creado_en: TS(),
+        origen: "panel-central",
+        terminado: false
+      });
+      // El LED muestra el overlay al crear este documento y lo cierra cuando
+      // marcamos "terminado" — sincronizado con el final real de la voz, no estimado.
+      hablarPanelMultiple(dorsales, () => {
+        docRef.update({ terminado: true, fin_en: TS() }).catch(e => console.error(e));
+      });
+      mostrarNotif(`${dorsales.length} jugadores eliminados`);
+    }
     toggleModoMulti();
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar varios"); }
 }

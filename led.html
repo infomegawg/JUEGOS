@@ -332,6 +332,35 @@ function ocultarEliminacionMultiple() {
   if (labelEl) labelEl.textContent = 'JUGADOR ELIMINADO';
 }
 
+/* ===== ELIMINACIÓN DE EQUIPO (voz corta "Equipo Azul, eliminado" + todos los dorsales en pantalla) =====
+   Aquí la duración del overlay es fija (decidida en el panel), no depende
+   de cuándo termine de hablar, porque la voz es mucho más corta que el
+   tiempo que hace falta para leer en pantalla todos los dorsales del equipo. */
+function mostrarEliminacionEquipo(dorsales, equipo, duracionMs) {
+  dorsales.forEach(dorsal => {
+    const cell = document.getElementById('cell-' + dorsal);
+    if (cell) {
+      cell.classList.add('nuevo-elim');
+      setTimeout(() => cell.classList.remove('nuevo-elim'), 700);
+    }
+  });
+
+  const overlay = document.getElementById('elim-overlay');
+  const numEl = document.getElementById('elim-num');
+  const labelEl = overlay.querySelector('.elim-label');
+
+  const ultimo = dorsales[dorsales.length - 1];
+  const resto = dorsales.slice(0, -1).join(', ');
+  numEl.style.fontSize = dorsales.length > 12 ? 'clamp(28px,5vw,70px)' : (dorsales.length > 6 ? 'clamp(40px,6.5vw,100px)' : 'clamp(70px,10vw,160px)');
+  numEl.textContent = resto ? `${resto} y ${ultimo}` : String(ultimo);
+  if (labelEl) labelEl.textContent = `EQUIPO ${equipo.toUpperCase()} ELIMINADO`;
+
+  overlay.classList.add('show');
+
+  clearTimeout(multiOverlayTimeoutId);
+  multiOverlayTimeoutId = setTimeout(ocultarEliminacionMultiple, duracionMs || 10000);
+}
+
 /* ===== FIREBASE LISTENERS ===== */
 function init() {
   initVoz();
@@ -413,9 +442,15 @@ function init() {
     snap.docChanges().forEach(ch => {
       const d = ch.doc.data();
       if (ch.type === 'added' && Array.isArray(d.dorsales) && d.dorsales.length) {
-        mostrarEliminacionMultiple(d.dorsales);
+        if (d.modo === 'equipo') {
+          mostrarEliminacionEquipo(d.dorsales, d.equipo || '', d.duracion_ms);
+        } else {
+          mostrarEliminacionMultiple(d.dorsales);
+        }
       }
-      if (ch.type === 'modified' && d.terminado) {
+      // El cierre por "terminado" solo aplica al modo lista (sincronizado con
+      // la voz). El modo equipo se cierra solo, por su propia duración fija.
+      if (ch.type === 'modified' && d.terminado && d.modo !== 'equipo') {
         ocultarEliminacionMultiple();
       }
     });
