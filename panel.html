@@ -295,16 +295,19 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div id="multi-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#fff3d6;border:1px solid var(--naranja);">
           <div style="font-size:11px;font-weight:700;color:var(--naranja);margin-bottom:6px;">Selecciona dorsales en el grid — <span id="multi-count">0</span> seleccionados</div>
           <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
-            <select id="equipo-select" style="flex:1;">
+            <select id="equipo-select" style="flex:1;" onchange="onEquipoSelectChange()">
               <option value="">Sin equipo (recitar cada dorsal)</option>
-              <option value="Azul">🔵 Equipo Azul</option>
-              <option value="Rojo">🔴 Equipo Rojo</option>
-              <option value="Verde">🟢 Equipo Verde</option>
-              <option value="Amarillo">🟡 Equipo Amarillo</option>
-              <option value="Naranja">🟠 Equipo Naranja</option>
-              <option value="Morado">🟣 Equipo Morado</option>
-              <option value="Blanco">⚪ Equipo Blanco</option>
-              <option value="Negro">⚫ Equipo Negro</option>
+              <optgroup label="Equipos del Staff" id="equipos-staff-group"></optgroup>
+              <optgroup label="Colores fijos">
+                <option value="Azul">🔵 Equipo Azul</option>
+                <option value="Rojo">🔴 Equipo Rojo</option>
+                <option value="Verde">🟢 Equipo Verde</option>
+                <option value="Amarillo">🟡 Equipo Amarillo</option>
+                <option value="Naranja">🟠 Equipo Naranja</option>
+                <option value="Morado">🟣 Equipo Morado</option>
+                <option value="Blanco">⚪ Equipo Blanco</option>
+                <option value="Negro">⚫ Equipo Negro</option>
+              </optgroup>
             </select>
             <input type="number" id="equipo-duracion" value="10" min="3" max="60" style="width:56px;" title="Segundos que se ve en pantalla" />
             <span style="font-size:10px;color:var(--texto2);">seg</span>
@@ -351,9 +354,26 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
     <!-- SIDEBAR DERECHO -->
     <div class="sidebar-r">
       <div class="tabs">
+        <div class="tab" id="tab-staff" onclick="setTab('staff')">Staff <span id="staff-badge" style="display:none;background:var(--rojo);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:2px;">0</span></div>
         <div class="tab active" id="tab-hist" onclick="setTab('hist')">Historial</div>
         <div class="tab" id="tab-part" onclick="setTab('part')">Jugadores</div>
         <div class="tab" id="tab-imp" onclick="setTab('imp')">Importar</div>
+      </div>
+
+      <!-- STAFF: propuestas, SOS, conectados -->
+      <div id="panel-staff" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:10px;gap:14px;">
+        <div>
+          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-alert-triangle"></i> Avisos de ayuda (SOS)</div>
+          <div id="ayuda-list"><div style="font-size:11px;color:var(--texto2);">Sin avisos</div></div>
+        </div>
+        <div>
+          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-clock-play"></i> Propuestas pendientes</div>
+          <div id="propuestas-list"><div style="font-size:11px;color:var(--texto2);">Sin propuestas</div></div>
+        </div>
+        <div>
+          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users"></i> Staff conectado</div>
+          <div id="staff-presencia-list"><div style="font-size:11px;color:var(--texto2);">Nadie conectado</div></div>
+        </div>
       </div>
 
       <!-- HISTORIAL -->
@@ -619,6 +639,10 @@ function init() {
   escucharEliminaciones();
   escucharSesion();
   escucharLlamadas();
+  escucharEquiposStaff();
+  escucharPropuestasStaff();
+  escucharAyudaStaff();
+  escucharPresenciaStaff();
   // Primer backup a los 10s (para no esperar 15 min al abrir el panel),
   // y luego uno automático cada 15 minutos mientras el panel esté abierto.
   setTimeout(guardarBackupAutomatico, 10000);
@@ -639,6 +663,7 @@ function escucharParticipantes() {
     updateStats();
     renderGrid();
     renderParticipantes();
+    renderEquiposStaffOptions();
   });
 }
 
@@ -762,72 +787,291 @@ function toggleModoMulti() {
   renderGrid();
 }
 
+// Equipos formados por el staff (colección "equipos"): se listan en el
+// desplegable junto a los colores fijos. Al elegir uno, se preseleccionan
+// automáticamente sus dorsales vivos — el operador ya no tiene que marcarlos
+// uno a uno en el grid.
+let equiposStaffCache = {};
+
+function renderEquiposStaffOptions() {
+  const grupo = document.getElementById("equipos-staff-group");
+  if (!grupo) return;
+  const valorActual = document.getElementById("equipo-select").value;
+  const equipos = Object.entries(equiposStaffCache).sort((a,b) => a[1].nombre.localeCompare(b[1].nombre));
+  grupo.innerHTML = equipos.map(([id, eq]) => {
+    const vivos = eq.dorsales.filter(d => participantes[d] && participantes[d].vivo).length;
+    return `<option value="equipo:${id}">👥 ${eq.nombre} (${vivos} vivos de ${eq.dorsales.length})</option>`;
+  }).join('');
+  // Si la opción elegida sigue existiendo tras refrescar, se mantiene seleccionada
+  if (valorActual) document.getElementById("equipo-select").value = valorActual;
+}
+
+function escucharEquiposStaff() {
+  db.collection("equipos").where("activo", "==", true).onSnapshot(snap => {
+    equiposStaffCache = {};
+    snap.forEach(d => { equiposStaffCache[d.id] = d.data(); });
+    renderEquiposStaffOptions();
+  });
+}
+
+function onEquipoSelectChange() {
+  const val = document.getElementById("equipo-select").value;
+  if (!val.startsWith("equipo:")) return;
+  const id = val.slice("equipo:".length);
+  const eq = equiposStaffCache[id];
+  if (!eq) return;
+  const vivos = eq.dorsales.filter(d => participantes[d] && participantes[d].vivo);
+  if (!vivos.length) { mostrarNotif(`El equipo ${eq.nombre} no tiene dorsales vivos`); return; }
+  if (!modoMulti) {
+    modoMulti = true;
+    document.getElementById("multi-bar").style.display = "block";
+    document.getElementById("multi-toggle-btn").style.opacity = "0.5";
+  }
+  seleccionMulti = new Set(vivos);
+  actualizarContadorMulti();
+  renderGrid();
+  mostrarNotif(`${vivos.length} dorsales del equipo ${eq.nombre} preseleccionados`);
+}
+
+// Nombre a usar en la voz/animación: el propio valor si es un color fijo, o
+// el nombre real del equipo si se eligió uno del staff.
+function nombreEquipoSeleccionado() {
+  const val = document.getElementById("equipo-select").value;
+  if (!val) return "";
+  if (val.startsWith("equipo:")) {
+    const eq = equiposStaffCache[val.slice("equipo:".length)];
+    return eq ? eq.nombre : "";
+  }
+  return val;
+}
+
 function actualizarContadorMulti() {
   document.getElementById("multi-count").textContent = seleccionMulti.size;
+}
+
+/* ===== APP STAFF: propuestas pendientes, avisos SOS y presencia ===== */
+
+// Aviso sonoro corto para que un SOS no pase desapercibido si nadie mira la pantalla
+let audioCtxPanel = null;
+function beepAvisoSOS() {
+  try {
+    if (!audioCtxPanel) audioCtxPanel = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = audioCtxPanel;
+    [0, 220, 440].forEach(delay => {
+      setTimeout(() => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "square";
+        osc.frequency.value = 880;
+        gain.gain.setValueAtTime(0.15, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.15);
+      }, delay);
+    });
+  } catch(e) {}
+}
+
+function escucharPropuestasStaff() {
+  db.collection("staff_propuestas").where("estado", "==", "pendiente").onSnapshot(snap => {
+    const propuestas = [];
+    snap.forEach(d => propuestas.push({ id: d.id, ...d.data() }));
+    propuestas.sort((a,b) => (a.creado_en?.seconds||0) - (b.creado_en?.seconds||0));
+    renderPropuestasStaff(propuestas);
+  });
+}
+
+function renderPropuestasStaff(propuestas) {
+  const cont = document.getElementById("propuestas-list");
+  const badge = document.getElementById("staff-badge");
+  if (badge) {
+    badge.style.display = propuestas.length ? "inline-block" : "none";
+    badge.textContent = propuestas.length;
+  }
+  if (!propuestas.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Sin propuestas</div>'; return; }
+  cont.innerHTML = propuestas.map(p => {
+    const hora = p.creado_en ? new Date(p.creado_en.seconds*1000).toLocaleTimeString('es-ES') : '';
+    const titulo = p.tipo === 'equipo'
+      ? `Equipo ${p.equipo_nombre} (${p.dorsales.length} dorsales)`
+      : (p.dorsales.length === 1 ? `Dorsal #${p.dorsales[0]}` : `${p.dorsales.length} dorsales sueltos`);
+    return `<div style="background:#fff3d6;border:1px solid var(--naranja);border-radius:6px;padding:8px;margin-bottom:6px;">
+      <div style="font-size:12px;font-weight:800;color:var(--naranja);">${titulo}</div>
+      <div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">#${p.dorsales.join(', #')}</div>
+      <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Propuesto por ${p.staff_nombre||'—'} · ${p.prueba||'—'} · ${hora}</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="aceptarPropuestaStaff('${p.id}')">Aceptar</button>
+        <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="descartarPropuestaStaff('${p.id}')">Descartar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function aceptarPropuestaStaff(id) {
+  const ref = db.collection("staff_propuestas").doc(id);
+  try {
+    const snap = await ref.get();
+    if (!snap.exists) return;
+    const p = snap.data();
+    if (p.estado !== "pendiente") { mostrarNotif("Esta propuesta ya se resolvió"); return; }
+    // Se marca resuelta ANTES de ejecutar, para que un doble clic no la duplique.
+    await ref.update({ estado: "aceptada", resuelto_en: TS() });
+
+    const extra = { prueba: p.prueba || undefined, staff_origen: p.staff_nombre || null };
+    if (p.tipo === "equipo") {
+      await ejecutarEliminacionMultiple(p.dorsales, p.equipo_nombre, 10, extra);
+    } else if (p.dorsales.length === 1) {
+      await eliminarDorsal(p.dorsales[0], "staff-app", extra);
+    } else {
+      await ejecutarEliminacionMultiple(p.dorsales, "", 10, extra);
+    }
+    mostrarNotif("Propuesta aceptada y aplicada");
+  } catch(e) { console.error(e); mostrarNotif("Error al aceptar la propuesta"); }
+}
+
+async function descartarPropuestaStaff(id) {
+  if (!confirm("¿Descartar esta propuesta sin eliminar a nadie?")) return;
+  try {
+    await db.collection("staff_propuestas").doc(id).update({ estado: "descartada", resuelto_en: TS() });
+    mostrarNotif("Propuesta descartada");
+  } catch(e) { console.error(e); }
+}
+
+function escucharAyudaStaff() {
+  let primerSnap = true;
+  db.collection("staff_ayuda").where("atendido", "==", false).onSnapshot(snap => {
+    if (!primerSnap) {
+      snap.docChanges().forEach(ch => { if (ch.type === "added") beepAvisoSOS(); });
+    }
+    primerSnap = false;
+    const avisos = [];
+    snap.forEach(d => avisos.push({ id: d.id, ...d.data() }));
+    avisos.sort((a,b) => (a.creado_en?.seconds||0) - (b.creado_en?.seconds||0));
+    renderAyudaStaff(avisos);
+  });
+}
+
+function renderAyudaStaff(avisos) {
+  const cont = document.getElementById("ayuda-list");
+  if (!avisos.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Sin avisos</div>'; return; }
+  cont.innerHTML = avisos.map(a => {
+    const hora = a.creado_en ? new Date(a.creado_en.seconds*1000).toLocaleTimeString('es-ES') : '';
+    return `<div style="background:#fce8eb;border:1px solid var(--rojo);border-radius:6px;padding:8px;margin-bottom:6px;">
+      <div style="font-size:12px;font-weight:900;color:var(--rojo);">🆘 ${a.staff_nombre||'Staff'} necesita ayuda</div>
+      <div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">Prueba: ${a.prueba||'—'} · ${hora}</div>
+      <button class="btn btn-rojo" style="width:100%;padding:6px;font-size:10px;" onclick="atenderAyudaStaff('${a.id}')">Marcar como atendido</button>
+    </div>`;
+  }).join('');
+}
+
+async function atenderAyudaStaff(id) {
+  try {
+    await db.collection("staff_ayuda").doc(id).update({ atendido: true, atendido_en: TS() });
+    mostrarNotif("Aviso marcado como atendido");
+  } catch(e) { console.error(e); }
+}
+
+let ultimoStaffPresencia = [];
+function escucharPresenciaStaff() {
+  db.collection("staff_presencia").onSnapshot(snap => {
+    ultimoStaffPresencia = [];
+    snap.forEach(d => ultimoStaffPresencia.push({ id: d.id, ...d.data() }));
+    renderPresenciaStaff();
+  });
+  // El estado online/desconectado depende del reloj, no solo de cambios en
+  // Firestore, así que se refresca periódicamente aunque no llegue nada nuevo.
+  setInterval(renderPresenciaStaff, 15000);
+}
+
+function renderPresenciaStaff() {
+  const cont = document.getElementById("staff-presencia-list");
+  if (!cont) return;
+  if (!ultimoStaffPresencia.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Nadie conectado</div>'; return; }
+  const ahoraSeg = Date.now() / 1000;
+  cont.innerHTML = ultimoStaffPresencia
+    .slice()
+    .sort((a,b) => (b.ultima_actividad?.seconds||0) - (a.ultima_actividad?.seconds||0))
+    .map(s => {
+      const seg = s.ultima_actividad ? (ahoraSeg - s.ultima_actividad.seconds) : 999999;
+      const online = seg < 90; // sin señal en 90s → se considera desconectado
+      return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px;">
+        <span style="width:8px;height:8px;border-radius:50%;background:${online?'#22c55e':'#999'};display:inline-block;flex-shrink:0;"></span>
+        <span style="font-weight:700;">${s.nombre || s.id}</span>
+        <span style="color:var(--texto2);margin-left:auto;">${online ? 'en línea' : 'desconectado'}</span>
+      </div>`;
+    }).join('');
+}
+
+// Núcleo reutilizable: usado tanto por el botón manual del panel como al
+// aceptar una propuesta de la App Staff — el resultado es idéntico en ambos
+// casos (mismo batch, misma voz, misma animación en el LED).
+async function ejecutarEliminacionMultiple(dorsales, equipo, segundos, extra = {}) {
+  const prueba = extra.prueba || document.getElementById("prueba-select").value;
+  const metodo = equipo ? "equipo-panel" : "multiple-panel";
+  const batch = db.batch();
+  dorsales.forEach(dorsal => {
+    batch.set(db.collection("eliminaciones").doc(String(dorsal)), {
+      dorsal: dorsal,
+      prueba: prueba,
+      metodo: metodo,
+      equipo: equipo || null,
+      juez: "Panel-Central",
+      eliminado_en: TS(),
+      staff_origen: extra.staff_origen || null
+    });
+    batch.update(db.collection("participantes").doc(String(dorsal)), {
+      vivo: false,
+      eliminado_en: TS(),
+      prueba: prueba,
+      metodo: metodo,
+      equipo: equipo || null,
+      juez: "Panel-Central",
+      staff_origen: extra.staff_origen || null
+    });
+  });
+  await batch.commit();
+
+  if (equipo) {
+    // Modo equipo: la voz dice "Equipo Azul, eliminado" y en pantalla
+    // aparecen todos los dorsales durante los segundos indicados (fijo).
+    await db.collection("eliminaciones_multiples").add({
+      dorsales: dorsales,
+      modo: "equipo",
+      equipo: equipo,
+      duracion_ms: (segundos || 10) * 1000,
+      creado_en: TS(),
+      origen: "panel-central",
+      terminado: false
+    });
+    hablarPanelEquipo(equipo);
+    mostrarNotif(`Equipo ${equipo} eliminado (${dorsales.length} jugadores)`);
+  } else {
+    const docRef = await db.collection("eliminaciones_multiples").add({
+      dorsales: dorsales,
+      modo: "lista",
+      creado_en: TS(),
+      origen: "panel-central",
+      terminado: false
+    });
+    // El LED muestra el overlay al crear este documento y lo cierra cuando
+    // marcamos "terminado" — sincronizado con el final real de la voz, no estimado.
+    hablarPanelMultiple(dorsales, () => {
+      docRef.update({ terminado: true, fin_en: TS() }).catch(e => console.error(e));
+    });
+    mostrarNotif(`${dorsales.length} jugadores eliminados`);
+  }
 }
 
 async function confirmarEliminacionMultiple() {
   const dorsales = Array.from(seleccionMulti).sort((a,b) => a - b);
   if (!dorsales.length) { mostrarNotif("No has seleccionado ningún dorsal"); return; }
-  const equipo = document.getElementById("equipo-select").value;
+  const equipo = nombreEquipoSeleccionado();
   const confirmMsg = equipo
     ? `¿Eliminar al Equipo ${equipo} (${dorsales.length} jugadores)?\n#${dorsales.join(', #')}`
     : `¿Eliminar a ${dorsales.length} jugadores?\n#${dorsales.join(', #')}`;
   if (!confirm(confirmMsg)) return;
-  const prueba = document.getElementById("prueba-select").value;
-  const metodo = equipo ? "equipo-panel" : "multiple-panel";
+  const segundos = parseInt(document.getElementById("equipo-duracion").value, 10) || 10;
   try {
-    const batch = db.batch();
-    dorsales.forEach(dorsal => {
-      batch.set(db.collection("eliminaciones").doc(String(dorsal)), {
-        dorsal: dorsal,
-        prueba: prueba,
-        metodo: metodo,
-        equipo: equipo || null,
-        juez: "Panel-Central",
-        eliminado_en: TS()
-      });
-      batch.update(db.collection("participantes").doc(String(dorsal)), {
-        vivo: false,
-        eliminado_en: TS(),
-        prueba: prueba,
-        metodo: metodo,
-        equipo: equipo || null,
-        juez: "Panel-Central"
-      });
-    });
-    await batch.commit();
-
-    if (equipo) {
-      // Modo equipo: la voz dice "Equipo Azul, eliminado" y en pantalla
-      // aparecen todos los dorsales durante los segundos indicados (fijo).
-      const segundos = parseInt(document.getElementById("equipo-duracion").value, 10) || 10;
-      await db.collection("eliminaciones_multiples").add({
-        dorsales: dorsales,
-        modo: "equipo",
-        equipo: equipo,
-        duracion_ms: segundos * 1000,
-        creado_en: TS(),
-        origen: "panel-central",
-        terminado: false
-      });
-      hablarPanelEquipo(equipo);
-      mostrarNotif(`Equipo ${equipo} eliminado (${dorsales.length} jugadores)`);
-    } else {
-      const docRef = await db.collection("eliminaciones_multiples").add({
-        dorsales: dorsales,
-        modo: "lista",
-        creado_en: TS(),
-        origen: "panel-central",
-        terminado: false
-      });
-      // El LED muestra el overlay al crear este documento y lo cierra cuando
-      // marcamos "terminado" — sincronizado con el final real de la voz, no estimado.
-      hablarPanelMultiple(dorsales, () => {
-        docRef.update({ terminado: true, fin_en: TS() }).catch(e => console.error(e));
-      });
-      mostrarNotif(`${dorsales.length} jugadores eliminados`);
-    }
+    await ejecutarEliminacionMultiple(dorsales, equipo, segundos);
     toggleModoMulti();
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar varios"); }
 }
@@ -893,7 +1137,7 @@ function renderParticipantes() {
 /* ===== TABS ===== */
 function setTab(t) {
   tabActual = t;
-  ['hist','part','imp'].forEach(id => {
+  ['staff','hist','part','imp'].forEach(id => {
     document.getElementById('tab-'+id).classList.toggle('active', id===t);
     const panel = document.getElementById('panel-'+id);
     if (panel) panel.style.display = id===t ? (id==='hist'?'block':'flex') : 'none';
@@ -950,22 +1194,24 @@ async function salvarManual() {
 }
 
 
-async function eliminarDorsal(dorsal, metodo) {
-  const prueba = document.getElementById("prueba-select").value;
+async function eliminarDorsal(dorsal, metodo, extra = {}) {
+  const prueba = extra.prueba || document.getElementById("prueba-select").value;
   try {
     await db.collection("eliminaciones").doc(String(dorsal)).set({
       dorsal: dorsal,
       prueba: prueba,
       metodo: metodo,
       juez: "Panel-Central",
-      eliminado_en: TS()
+      eliminado_en: TS(),
+      staff_origen: extra.staff_origen || null
     });
     await db.collection("participantes").doc(String(dorsal)).update({
       vivo: false,
       eliminado_en: TS(),
       prueba: prueba,
       metodo: metodo,
-      juez: "Panel-Central"
+      juez: "Panel-Central",
+      staff_origen: extra.staff_origen || null
     });
     mostrarNotif(`#${dorsal} eliminado`);
     hablarPanel(`Jugador ${dorsal}, eliminado`);

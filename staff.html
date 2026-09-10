@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>App Staff — Los Juegos de Omega</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet"/>
+<link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css" rel="stylesheet"/>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+<style>
+:root {
+  --bg: #f0ecf7;
+  --bg2: #ffffff;
+  --morado: #7018cc;
+  --morado2: #8f2de8;
+  --naranja: #e85e00;
+  --verde: #0d8a4a;
+  --rojo: #d41230;
+  --texto: #1a0a2e;
+  --texto2: #5a4070;
+  --border: rgba(130,36,227,0.2);
+  --mono: 'Montserrat', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+html, body { background: var(--bg); color: var(--texto); font-family: var(--mono); font-weight: 700; overscroll-behavior-y: contain; }
+body { padding-bottom: 84px; min-height: 100vh; }
+
+button { font-family: var(--mono); font-weight: 800; cursor: pointer; border: none; border-radius: 8px; }
+input, select { font-family: var(--mono); font-weight: 700; border: 1px solid var(--border); border-radius: 8px; padding: 10px; width: 100%; background: #fff; color: var(--texto); }
+
+.btn { padding: 12px; font-size: 13px; }
+.btn-morado { background: var(--morado); color: #fff; }
+.btn-naranja { background: var(--naranja); color: #fff; }
+.btn-verde { background: var(--verde); color: #fff; }
+.btn-rojo { background: var(--rojo); color: #fff; }
+.btn-ghost { background: #ede8f8; color: var(--morado); }
+.btn:disabled { opacity: 0.5; }
+
+/* ===== LOGIN ===== */
+#login-screen {
+  position: fixed; inset: 0; background: var(--morado); color: #fff;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; padding: 24px; z-index: 200;
+}
+#login-screen h1 { font-family: 'Orbitron', sans-serif; font-size: 20px; text-align: center; letter-spacing: 1px; }
+#login-screen input { width: 100%; max-width: 320px; text-align: center; font-size: 16px; }
+#login-screen button { width: 100%; max-width: 320px; }
+
+/* ===== HEADER ===== */
+.header { background: var(--morado); color: #fff; padding: 12px 14px; }
+.header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.header-top .quien { font-size: 13px; font-weight: 900; flex: 1; }
+.header-top .cambiar { background: rgba(255,255,255,0.15); color: #fff; padding: 6px 10px; font-size: 10px; border-radius: 6px; }
+.header select { font-size: 12px; }
+
+/* ===== TABS ===== */
+.tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+.tab { flex: 1; text-align: center; padding: 12px 4px; font-size: 12px; font-weight: 800; color: var(--texto2); border-bottom: 3px solid transparent; }
+.tab.active { color: var(--morado); border-bottom-color: var(--morado); }
+
+.screen { display: none; padding: 12px; }
+.screen.active { display: block; }
+
+/* ===== STATS ===== */
+.stats-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.stat-box { flex: 1; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px; text-align: center; }
+.stat-box .val { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: 900; }
+.stat-box .lbl { font-size: 9px; color: var(--texto2); text-transform: uppercase; }
+.stat-vivos .val { color: var(--verde); }
+.stat-elim .val { color: var(--rojo); }
+
+/* ===== GRID ===== */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 5px; margin-top: 8px; }
+.cell { aspect-ratio: 1; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; background: #ede8f8; border: 1px solid var(--border); color: var(--morado); }
+.cell.elim { background: #fce8eb; border-color: rgba(212,18,48,0.4); color: rgba(212,18,48,0.5); text-decoration: line-through; }
+.cell.sel { background: #fff3d6; border-color: var(--naranja); color: var(--naranja); box-shadow: inset 0 0 0 2px var(--naranja); }
+
+/* ===== EQUIPOS ===== */
+.equipo-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.equipo-card .nombre { font-size: 14px; font-weight: 900; color: var(--morado); }
+.equipo-card .meta { font-size: 11px; color: var(--texto2); margin: 4px 0 8px; }
+.equipo-card .btns { display: flex; gap: 6px; }
+.equipo-card .btns button { flex: 1; padding: 8px; font-size: 11px; }
+
+/* ===== SOS FLOTANTE ===== */
+#sos-btn {
+  position: fixed; right: 14px; bottom: 14px; z-index: 50;
+  width: 64px; height: 64px; border-radius: 50%; background: var(--rojo); color: #fff;
+  font-size: 20px; box-shadow: 0 4px 14px rgba(212,18,48,0.5);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ===== BARRA DE ACCIÓN FIJA ===== */
+.action-bar {
+  position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--border);
+  padding: 10px 12px; display: none; gap: 8px; z-index: 40;
+}
+.action-bar.show { display: flex; }
+.action-bar button { flex: 1; }
+
+.toast { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: var(--texto); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 12px; z-index: 300; opacity: 0; transition: opacity .2s; pointer-events: none; }
+.toast.show { opacity: 1; }
+
+#offline-banner { display: none; background: var(--naranja); color: #fff; text-align: center; font-size: 11px; padding: 6px; }
+#offline-banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <h1>👷 APP STAFF<br>Los Juegos de Omega</h1>
+  <input type="text" id="login-nombre" placeholder="Tu nombre" maxlength="30" autofocus />
+  <button class="btn btn-naranja" onclick="entrarStaff()">Entrar</button>
+</div>
+
+<div id="offline-banner">⚠ Sin conexión — tus acciones se enviarán al recuperarla</div>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-top">
+    <div class="quien">👤 <span id="quien-soy">—</span></div>
+    <button class="cambiar" onclick="cambiarNombre()">Cambiar</button>
+  </div>
+  <select id="prueba-select-staff" onchange="guardarPruebaLocal()">
+    <option value="Han cantado bingo">Han cantado bingo</option>
+    <option value="Pollito inglés">Pollito inglés</option>
+    <option value="Desafío explosivo">Desafío explosivo</option>
+    <option value="Campo de batalla">Campo de batalla</option>
+    <option value="Selección fatal">Selección fatal</option>
+    <option value="El juego de las canicas">El juego de las canicas</option>
+    <option value="Ruleta de colores">Ruleta de colores</option>
+    <option value="Tiro al saco">Tiro al saco</option>
+    <option value="Hundir la flota">Hundir la flota</option>
+    <option value="Omega Trivia">Omega Trivia</option>
+    <option value="Pistolas a ciegas">Pistolas a ciegas</option>
+    <option value="Piedra papel o tijera">Piedra papel o tijera</option>
+  </select>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" id="tab-grid" onclick="setPantalla('grid')">Participantes</div>
+  <div class="tab" id="tab-equipos" onclick="setPantalla('equipos')">Equipos</div>
+</div>
+
+<!-- PANTALLA GRID -->
+<div class="screen active" id="pantalla-grid">
+  <div class="stats-row">
+    <div class="stat-box stat-vivos"><div class="val" id="st-vivos">0</div><div class="lbl">Vivos</div></div>
+    <div class="stat-box stat-elim"><div class="val" id="st-elim">0</div><div class="lbl">Eliminados</div></div>
+  </div>
+  <input type="text" id="grid-search" placeholder="Buscar dorsal..." oninput="renderGridStaff()" style="margin-bottom:8px;"/>
+  <div style="font-size:11px;color:var(--texto2);margin-bottom:4px;">Toca los dorsales que quieres proponer para eliminar (<span id="sel-count">0</span> seleccionados)</div>
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- PANTALLA EQUIPOS -->
+<div class="screen" id="pantalla-equipos">
+  <button class="btn btn-morado" style="width:100%;margin-bottom:12px;" onclick="abrirCrearEquipo()">
+    <i class="ti ti-users-plus"></i> Crear nuevo equipo
+  </button>
+  <div id="crear-equipo-form" style="display:none;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
+    <label style="display:block;font-size:11px;font-weight:800;margin-bottom:4px;">Nombre del equipo</label>
+    <input type="text" id="nuevo-equipo-nombre" placeholder="Ej: Fuego, Azul, Los Tigres..." style="margin-bottom:10px;"/>
+    <div style="font-size:11px;color:var(--texto2);margin-bottom:6px;">Selecciona los dorsales del equipo (<span id="nuevo-equipo-count">0</span>)</div>
+    <input type="text" id="nuevo-equipo-search" placeholder="Buscar dorsal..." oninput="renderGridNuevoEquipo()" style="margin-bottom:8px;"/>
+    <div class="grid" id="grid-nuevo-equipo" style="max-height:260px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-verde" style="flex:1;" onclick="guardarNuevoEquipo()">Guardar equipo</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="cerrarCrearEquipo()">Cancelar</button>
+    </div>
+  </div>
+  <div id="equipos-list"></div>
+</div>
+
+<!-- BARRA DE ACCIÓN (aparece al seleccionar dorsales en la pantalla Participantes) -->
+<div class="action-bar" id="action-bar">
+  <button class="btn btn-ghost" onclick="limpiarSeleccion()">Cancelar</button>
+  <button class="btn btn-naranja" onclick="proponerSeleccion()">Proponer eliminación</button>
+</div>
+
+<button id="sos-btn" onclick="pedirAyuda()">🆘</button>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===== FIREBASE ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAQjPK6bdZurVNRlj7PI6Suu9jRHQ6ycFk",
+  authDomain: "los-juegos-de-omega.firebaseapp.com",
+  projectId: "los-juegos-de-omega",
+  storageBucket: "los-juegos-de-omega.firebasestorage.app",
+  messagingSenderId: "602888359633",
+  appId: "1:602888359633:web:bfc738d469ad95fe37fff0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const TS = firebase.firestore.FieldValue.serverTimestamp;
+
+/* ===== ESTADO ===== */
+let participantes = {};
+let equipos = {};
+let seleccion = new Set();
+let seleccionNuevoEquipo = new Set();
+let staffNombre = null;
+let enviando = false; // protección contra doble-toque
+
+/* ===== TOAST ===== */
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2200);
+}
+
+/* ===== ALMACENAMIENTO LOCAL (con blindaje por si el navegador lo bloquea) ===== */
+function lsGet(key) { try { return localStorage.getItem(key); } catch(e) { return null; } }
+function lsSet(key, val) { try { localStorage.setItem(key, val); } catch(e) {} }
+
+/* ===== LOGIN / IDENTIFICACIÓN ===== */
+function entrarStaff() {
+  const nombre = document.getElementById("login-nombre").value.trim();
+  if (!nombre) { toast("Escribe tu nombre"); return; }
+  staffNombre = nombre;
+  lsSet("staffNombre", nombre);
+  document.getElementById("login-screen").style.display = "none";
+  document.getElementById("quien-soy").textContent = nombre;
+  iniciarApp();
+}
+
+function cambiarNombre() {
+  const actual = staffNombre || "";
+  const nuevo = prompt("Tu nombre:", actual);
+  if (nuevo === null || !nuevo.trim()) return;
+  staffNombre = nuevo.trim();
+  lsSet("staffNombre", staffNombre);
+  document.getElementById("quien-soy").textContent = staffNombre;
+  toast("Nombre actualizado");
+}
+
+function idStaffDoc(nombre) {
+  return nombre.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_");
+}
+
+/* ===== PRUEBA (solo etiqueta local para las propuestas, no escribe a sesión global) ===== */
+function guardarPruebaLocal() {
+  lsSet("staffPrueba", document.getElementById("prueba-select-staff").value);
+}
+
+/* ===== TABS ===== */
+function setPantalla(p) {
+  ['grid','equipos'].forEach(id => {
+    document.getElementById('tab-'+id).classList.toggle('active', id===p);
+    document.getElementById('pantalla-'+id).classList.toggle('active', id===p);
+  });
+}
+
+/* ===== GRID PARTICIPANTES ===== */
+function renderGridStaff() {
+  const grid = document.getElementById("grid");
+  const q = document.getElementById("grid-search").value.trim().toLowerCase();
+  let lista = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
+  if (q) lista = lista.filter(p => String(p.dorsal).includes(q) || (p.nombre||'').toLowerCase().includes(q));
+  grid.innerHTML = lista.map(p => {
+    let cls = 'cell';
+    if (!p.vivo) cls += ' elim';
+    else if (seleccion.has(p.dorsal)) cls += ' sel';
+    return `<div class="${cls}" onclick="toggleSeleccion(${p.dorsal})">${p.dorsal}</div>`;
+  }).join('');
+}
+
+function toggleSeleccion(dorsal) {
+  const p = participantes[dorsal];
+  if (!p || !p.vivo) return;
+  if (seleccion.has(dorsal)) seleccion.delete(dorsal);
+  else seleccion.add(dorsal);
+  document.getElementById("sel-count").textContent = seleccion.size;
+  document.getElementById("action-bar").classList.toggle("show", seleccion.size > 0);
+  renderGridStaff();
+}
+
+function limpiarSeleccion() {
+  seleccion.clear();
+  document.getElementById("sel-count").textContent = "0";
+  document.getElementById("action-bar").classList.remove("show");
+  renderGridStaff();
+}
+
+function updateStatsStaff() {
+  const vals = Object.values(participantes);
+  document.getElementById("st-vivos").textContent = vals.filter(p => p.vivo).length;
+  document.getElementById("st-elim").textContent = vals.filter(p => !p.vivo).length;
+}
+
+/* ===== PROPONER ELIMINACIÓN (dorsales sueltos, sin equipo) ===== */
+async function proponerSeleccion() {
+  if (enviando) return;
+  const dorsales = Array.from(seleccion).sort((a,b) => a - b);
+  if (!dorsales.length) return;
+  if (!confirm(`¿Proponer al Panel Central la eliminación de ${dorsales.length} dorsal(es)?\n#${dorsales.join(', #')}`)) return;
+  enviando = true;
+  try {
+    await enviarConColaOffline("staff_propuestas", {
+      tipo: "individual",
+      dorsales: dorsales,
+      equipo_nombre: null,
+      staff_nombre: staffNombre,
+      prueba: document.getElementById("prueba-select-staff").value,
+      estado: "pendiente",
+      creado_en: TS()
+    });
+    toast("Propuesta enviada al Panel Central");
+    limpiarSeleccion();
+  } finally {
+    setTimeout(() => { enviando = false; }, 600);
+  }
+}
+
+/* ===== EQUIPOS ===== */
+function abrirCrearEquipo() {
+  seleccionNuevoEquipo.clear();
+  document.getElementById("nuevo-equipo-nombre").value = "";
+  document.getElementById("nuevo-equipo-search").value = "";
+  document.getElementById("crear-equipo-form").style.display = "block";
+  renderGridNuevoEquipo();
+}
+
+function cerrarCrearEquipo() {
+  document.getElementById("crear-equipo-form").style.display = "none";
+}
+
+function renderGridNuevoEquipo() {
+  const grid = document.getElementById("grid-nuevo-equipo");
+  const q = document.getElementById("nuevo-equipo-search").value.trim().toLowerCase();
+  let lista = Object.values(participantes).filter(p => p.vivo).sort((a,b) => a.dorsal - b.dorsal);
+  if (q) lista = lista.filter(p => String(p.dorsal).includes(q));
+  grid.innerHTML = lista.map(p => {
+    const cls = seleccionNuevoEquipo.has(p.dorsal) ? 'cell sel' : 'cell';
+    return `<div class="${cls}" onclick="toggleSeleccionNuevoEquipo(${p.dorsal})">${p.dorsal}</div>`;
+  }).join('');
+  document.getElementById("nuevo-equipo-count").textContent = seleccionNuevoEquipo.size;
+}
+
+function toggleSeleccionNuevoEquipo(dorsal) {
+  if (seleccionNuevoEquipo.has(dorsal)) seleccionNuevoEquipo.delete(dorsal);
+  else seleccionNuevoEquipo.add(dorsal);
+  renderGridNuevoEquipo();
+}
+
+async function guardarNuevoEquipo() {
+  if (enviando) return;
+  const nombre = document.getElementById("nuevo-equipo-nombre").value.trim();
+  if (!nombre) { toast("Ponle un nombre al equipo"); return; }
+  const dorsales = Array.from(seleccionNuevoEquipo).sort((a,b) => a - b);
+  if (!dorsales.length) { toast("Selecciona al menos un dorsal"); return; }
+  enviando = true;
+  try {
+    await enviarConColaOffline("equipos", {
+      nombre: nombre,
+      dorsales: dorsales,
+      creado_por: staffNombre,
+      prueba: document.getElementById("prueba-select-staff").value,
+      creado_en: TS(),
+      activo: true
+    });
+    toast(`Equipo "${nombre}" creado`);
+    cerrarCrearEquipo();
+  } finally {
+    setTimeout(() => { enviando = false; }, 600);
+  }
+}
+
+function renderEquiposList() {
+  const cont = document.getElementById("equipos-list");
+  const lista = Object.entries(equipos).filter(([id, e]) => e.activo !== false);
+  if (!lista.length) { cont.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:12px;padding:20px;">Aún no hay equipos creados</div>'; return; }
+  cont.innerHTML = lista.map(([id, e]) => {
+    const vivos = e.dorsales.filter(d => participantes[d] && participantes[d].vivo);
+    return `<div class="equipo-card">
+      <div class="nombre">👥 ${e.nombre}</div>
+      <div class="meta">${vivos.length} vivos de ${e.dorsales.length} · #${e.dorsales.join(', #')} · creado por ${e.creado_por||'—'}</div>
+      <div class="btns">
+        <button class="btn btn-naranja" ${vivos.length ? '' : 'disabled'} onclick="proponerEquipo('${id}')">Proponer eliminar (${vivos.length})</button>
+        <button class="btn btn-ghost" onclick="borrarEquipo('${id}')"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function proponerEquipo(id) {
+  if (enviando) return;
+  const eq = equipos[id];
+  if (!eq) return;
+  const vivos = eq.dorsales.filter(d => participantes[d] && participantes[d].vivo);
+  if (!vivos.length) { toast("Este equipo ya no tiene dorsales vivos"); return; }
+  if (!confirm(`¿Proponer al Panel Central la eliminación del equipo "${eq.nombre}" (${vivos.length} dorsales)?`)) return;
+  enviando = true;
+  try {
+    await enviarConColaOffline("staff_propuestas", {
+      tipo: "equipo",
+      dorsales: vivos,
+      equipo_nombre: eq.nombre,
+      staff_nombre: staffNombre,
+      prueba: document.getElementById("prueba-select-staff").value,
+      estado: "pendiente",
+      creado_en: TS()
+    });
+    toast(`Propuesta del equipo "${eq.nombre}" enviada`);
+  } finally {
+    setTimeout(() => { enviando = false; }, 600);
+  }
+}
+
+async function borrarEquipo(id) {
+  if (!confirm("¿Borrar este equipo? (no afecta a los jugadores, solo a la lista de equipos)")) return;
+  try {
+    await db.collection("equipos").doc(id).update({ activo: false });
+    toast("Equipo eliminado de la lista");
+  } catch(e) { console.error(e); toast("Error al borrar"); }
+}
+
+/* ===== SOS / AYUDA ===== */
+let sosEnviando = false;
+async function pedirAyuda() {
+  if (sosEnviando) return;
+  if (!confirm("¿Enviar aviso de ayuda al Panel Central?")) return;
+  sosEnviando = true;
+  try {
+    await enviarConColaOffline("staff_ayuda", {
+      staff_nombre: staffNombre,
+      prueba: document.getElementById("prueba-select-staff").value,
+      creado_en: TS(),
+      atendido: false
+    });
+    toast("Aviso enviado, esperando ayuda");
+  } finally {
+    setTimeout(() => { sosEnviando = false; }, 3000);
+  }
+}
+
+/* ===== PRESENCIA (heartbeat) ===== */
+function enviarPresencia() {
+  if (!staffNombre) return;
+  db.collection("staff_presencia").doc(idStaffDoc(staffNombre)).set({
+    nombre: staffNombre,
+    ultima_actividad: TS()
+  }, { merge: true }).catch(e => console.error(e));
+}
+
+/* ===== COLA OFFLINE =====
+   Si falla la escritura (sin conexión), se guarda en localStorage y se
+   reintenta en cuanto vuelva la conexión, para no perder ninguna propuesta. */
+const COLA_KEY = "staffColaOffline";
+
+function leerCola() {
+  try { return JSON.parse(lsGet(COLA_KEY) || "[]"); } catch(e) { return []; }
+}
+function guardarCola(cola) {
+  lsSet(COLA_KEY, JSON.stringify(cola));
+}
+
+async function enviarConColaOffline(coleccion, datos) {
+  // creado_en usa serverTimestamp, que no es serializable a localStorage tal
+  // cual: si falla el envío, se sustituye por la hora local al encolar.
+  try {
+    await db.collection(coleccion).add(datos);
+  } catch(e) {
+    console.error("Fallo al enviar, se guarda en cola offline:", e);
+    const cola = leerCola();
+    cola.push({ coleccion, datos: { ...datos, creado_en: null, creado_en_local: Date.now() } });
+    guardarCola(cola);
+    actualizarBannerOffline();
+    toast("Sin conexión: se enviará cuando vuelva la red");
+  }
+}
+
+async function procesarColaOffline() {
+  const cola = leerCola();
+  if (!cola.length) return;
+  const restante = [];
+  for (const item of cola) {
+    try {
+      await db.collection(item.coleccion).add({ ...item.datos, creado_en: TS() });
+    } catch(e) {
+      restante.push(item);
+    }
+  }
+  guardarCola(restante);
+  actualizarBannerOffline();
+  if (restante.length < cola.length) toast(`${cola.length - restante.length} propuesta(s) pendiente(s) enviada(s)`);
+}
+
+function actualizarBannerOffline() {
+  const pendientes = leerCola().length;
+  document.getElementById("offline-banner").classList.toggle("show", pendientes > 0 || !navigator.onLine);
+}
+
+window.addEventListener("online", procesarColaOffline);
+window.addEventListener("offline", actualizarBannerOffline);
+
+/* ===== FIRESTORE LISTENERS ===== */
+function escucharParticipantesStaff() {
+  db.collection("participantes").onSnapshot(snap => {
+    snap.docChanges().forEach(ch => {
+      const d = ch.doc.data();
+      if (ch.type === "removed") delete participantes[d.dorsal];
+      else participantes[d.dorsal] = d;
+    });
+    updateStatsStaff();
+    renderGridStaff();
+    renderEquiposList();
+    if (document.getElementById("crear-equipo-form").style.display === "block") renderGridNuevoEquipo();
+  });
+}
+
+function escucharEquiposStaffApp() {
+  db.collection("equipos").onSnapshot(snap => {
+    equipos = {};
+    snap.forEach(d => { equipos[d.id] = d.data(); });
+    renderEquiposList();
+  });
+}
+
+/* ===== ARRANQUE ===== */
+function iniciarApp() {
+  document.getElementById("prueba-select-staff").value = lsGet("staffPrueba") || "Han cantado bingo";
+  escucharParticipantesStaff();
+  escucharEquiposStaffApp();
+  enviarPresencia();
+  setInterval(enviarPresencia, 25000);
+  procesarColaOffline();
+  setInterval(procesarColaOffline, 20000);
+  actualizarBannerOffline();
+}
+
+// Reentrada automática si ya se identificó antes en este móvil
+window.addEventListener("load", () => {
+  const guardado = lsGet("staffNombre");
+  if (guardado) {
+    staffNombre = guardado;
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("quien-soy").textContent = guardado;
+    iniciarApp();
+  }
+});
+</script>
+</body>
+</html>
