@@ -738,7 +738,7 @@ function renderGrid() {
     if (filtro === 'eliminados') return !p.vivo;
     return true;
   });
-  if (q) lista = lista.filter(p => String(p.dorsal).includes(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
+  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
   grid.innerHTML = lista.map(p => {
     const cls = p.vivo ? ('cell' + (seleccionMulti.has(p.dorsal) ? ' selmulti' : '')) : 'cell elim';
     return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
@@ -1172,7 +1172,7 @@ function renderParticipantes() {
   const list = document.getElementById("part-list");
   const q = (document.getElementById("part-search")?.value||'').toLowerCase();
   let parts = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
-  if (q) parts = parts.filter(p => String(p.dorsal).includes(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
+  if (q) parts = parts.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
   list.innerHTML = parts.map(p => `
     <div class="part-item ${p.vivo?'':'elim'}">
       <div class="part-dot ${p.vivo?'':'dead'}"></div>

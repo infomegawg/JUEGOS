@@ -291,7 +291,7 @@ function renderGridStaff() {
   const grid = document.getElementById("grid");
   const q = document.getElementById("grid-search").value.trim().toLowerCase();
   let lista = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
-  if (q) lista = lista.filter(p => String(p.dorsal).includes(q) || (p.nombre||'').toLowerCase().includes(q));
+  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q));
   grid.innerHTML = lista.map(p => {
     let cls = 'cell';
     if (!p.vivo) cls += ' elim';
@@ -364,7 +364,7 @@ function renderGridNuevoEquipo() {
   const grid = document.getElementById("grid-nuevo-equipo");
   const q = document.getElementById("nuevo-equipo-search").value.trim().toLowerCase();
   let lista = Object.values(participantes).filter(p => p.vivo).sort((a,b) => a.dorsal - b.dorsal);
-  if (q) lista = lista.filter(p => String(p.dorsal).includes(q));
+  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q));
   grid.innerHTML = lista.map(p => {
     const cls = seleccionNuevoEquipo.has(p.dorsal) ? 'cell sel' : 'cell';
     return `<div class="${cls}" onclick="toggleSeleccionNuevoEquipo(${p.dorsal})">${p.dorsal}</div>`;
