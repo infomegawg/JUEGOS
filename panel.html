@@ -1505,8 +1505,22 @@ async function añadirDorsales() {
 async function crearDorsales() {
   const n = parseInt(document.getElementById("num-dorsales").value);
   if (!n || n < 1) { mostrarNotif("Introduce un número válido"); return; }
-  if (!confirm(`¿Crear ${n} participantes (dorsales del 1 al ${n})? Esto borrará los participantes actuales.`)) return;
+  const pin = prompt("Esta acción borra a todos los participantes actuales.\nIntroduce el PIN de acceso para confirmar:");
+  if (pin === null) return;
+  if (pin !== "1402") { mostrarNotif("PIN incorrecto, no se ha creado nada"); return; }
+  if (!confirm(`¿Crear ${n} participantes (dorsales del 1 al ${n})? Esto borrará los participantes actuales.\n\nSe guardará antes un backup del estado actual, por si hace falta consultarlo luego.`)) return;
   try {
+    // Backup del estado actual antes de borrar nada, igual que en Resetear todo.
+    try {
+      const csvPrevio = generarCSVHistorial();
+      const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      await db.collection("backups_historicos").doc(marca).set({
+        contenido: csvPrevio,
+        creado_en: TS(),
+        motivo: "crear-dorsales"
+      });
+    } catch(e) { console.error("No se pudo guardar el backup previo a crear dorsales", e); }
+
     // Borrar todos los participantes y eliminaciones anteriores
     const partSnap = await db.collection("participantes").get();
     const elimSnap = await db.collection("eliminaciones").get();
