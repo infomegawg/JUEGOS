@@ -85,6 +85,18 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 .equipo-card .btns { display: flex; gap: 6px; }
 .equipo-card .btns button { flex: 1; padding: 8px; font-size: 11px; }
 
+/* ===== MIS ENVÍOS ===== */
+.envio-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; border-left-width: 4px; }
+.envio-card.pendiente { border-left-color: var(--naranja); }
+.envio-card.aceptada { border-left-color: var(--verde); }
+.envio-card.descartada { border-left-color: var(--rojo); }
+.envio-card .titulo { font-size: 13px; font-weight: 900; }
+.envio-card .meta { font-size: 11px; color: var(--texto2); margin: 4px 0 6px; }
+.envio-badge { display: inline-block; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 12px; text-transform: uppercase; }
+.envio-badge.pendiente { background: #fff3d6; color: var(--naranja); }
+.envio-badge.aceptada { background: #dcf5e6; color: var(--verde); }
+.envio-badge.descartada { background: #fce8eb; color: var(--rojo); }
+
 /* ===== SOS FLOTANTE ===== */
 #sos-btn {
   position: fixed; right: 14px; bottom: 14px; z-index: 50;
@@ -145,6 +157,7 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 <div class="tabs">
   <div class="tab active" id="tab-grid" onclick="setPantalla('grid')">Participantes</div>
   <div class="tab" id="tab-equipos" onclick="setPantalla('equipos')">Equipos</div>
+  <div class="tab" id="tab-mios" onclick="setPantalla('mios')">Mis envíos <span id="mios-badge" style="display:none;background:var(--naranja);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:2px;">0</span></div>
 </div>
 
 <!-- PANTALLA GRID -->
@@ -175,6 +188,12 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
     </div>
   </div>
   <div id="equipos-list"></div>
+</div>
+
+<!-- PANTALLA MIS ENVÍOS: qué he propuesto y si el panel lo aceptó o descartó -->
+<div class="screen" id="pantalla-mios">
+  <div style="font-size:11px;color:var(--texto2);margin-bottom:10px;">Aquí ves el estado de todo lo que has propuesto, hasta que el Panel Central lo resuelva.</div>
+  <div id="mios-list"></div>
 </div>
 
 <!-- BARRA DE ACCIÓN (aparece al seleccionar dorsales en la pantalla Participantes) -->
@@ -238,6 +257,10 @@ function cambiarNombre() {
   staffNombre = nuevo.trim();
   lsSet("staffNombre", staffNombre);
   document.getElementById("quien-soy").textContent = staffNombre;
+  // El listener de "Mis envíos" filtra por nombre: hay que re-suscribirlo
+  // con el nombre nuevo, si no seguiría mostrando lo del nombre anterior.
+  escucharMisPropuestas();
+  enviarPresencia();
   toast("Nombre actualizado");
 }
 
@@ -252,7 +275,7 @@ function guardarPruebaLocal() {
 
 /* ===== TABS ===== */
 function setPantalla(p) {
-  ['grid','equipos'].forEach(id => {
+  ['grid','equipos','mios'].forEach(id => {
     document.getElementById('tab-'+id).classList.toggle('active', id===p);
     document.getElementById('pantalla-'+id).classList.toggle('active', id===p);
   });
@@ -524,11 +547,51 @@ function escucharEquiposStaffApp() {
   });
 }
 
+/* ===== MIS ENVÍOS: estado de las propuestas de este miembro del staff ===== */
+let dejarDeEscucharMisPropuestas = null;
+function escucharMisPropuestas() {
+  if (dejarDeEscucharMisPropuestas) dejarDeEscucharMisPropuestas();
+  dejarDeEscucharMisPropuestas = db.collection("staff_propuestas")
+    .where("staff_nombre", "==", staffNombre)
+    .onSnapshot(snap => {
+      const propuestas = [];
+      snap.forEach(d => propuestas.push({ id: d.id, ...d.data() }));
+      propuestas.sort((a,b) => (b.creado_en?.seconds||0) - (a.creado_en?.seconds||0));
+      renderMisPropuestas(propuestas);
+    });
+}
+
+function renderMisPropuestas(propuestas) {
+  const cont = document.getElementById("mios-list");
+  const badge = document.getElementById("mios-badge");
+  const pendientes = propuestas.filter(p => p.estado === "pendiente").length;
+  if (badge) {
+    badge.style.display = pendientes ? "inline-block" : "none";
+    badge.textContent = pendientes;
+  }
+  if (!propuestas.length) { cont.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:12px;padding:20px;">Aún no has propuesto nada</div>'; return; }
+  const etiquetas = { pendiente: "Pendiente", aceptada: "Aceptada ✓", descartada: "Descartada ✗" };
+  cont.innerHTML = propuestas.map(p => {
+    const estado = p.estado || "pendiente";
+    const hora = p.creado_en ? new Date(p.creado_en.seconds*1000).toLocaleTimeString('es-ES') : '';
+    const titulo = p.tipo === 'equipo'
+      ? `Equipo ${p.equipo_nombre}`
+      : (p.dorsales.length === 1 ? `Dorsal #${p.dorsales[0]}` : `${p.dorsales.length} dorsales sueltos`);
+    return `<div class="envio-card ${estado}">
+      <div class="titulo">${titulo}</div>
+      <div class="meta">#${p.dorsales.join(', #')}</div>
+      <div class="meta">${p.prueba||'—'} · ${hora}</div>
+      <span class="envio-badge ${estado}">${etiquetas[estado] || estado}</span>
+    </div>`;
+  }).join('');
+}
+
 /* ===== ARRANQUE ===== */
 function iniciarApp() {
   document.getElementById("prueba-select-staff").value = lsGet("staffPrueba") || "Han cantado bingo";
   escucharParticipantesStaff();
   escucharEquiposStaffApp();
+  escucharMisPropuestas();
   enviarPresencia();
   setInterval(enviarPresencia, 25000);
   procesarColaOffline();

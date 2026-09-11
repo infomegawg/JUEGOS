@@ -1107,10 +1107,13 @@ function renderHistorial() {
     const nombre = p ? `${p.nombre||''} ${p.apellidos||''}`.trim() : '—';
     const hora = e.eliminado_en ? new Date(e.eliminado_en.seconds*1000).toLocaleTimeString('es-ES') : '—';
     const badgeCls = e.metodo === 'ruleta' ? 'hb-ruleta' : e.metodo === 'manual' ? 'hb-manual' : 'hb-externo';
+    // Si viene de una propuesta del staff, se muestra quién la propuso en vez
+    // de "Panel-Central" (que solo aprobó), para no perder esa trazabilidad.
+    const quien = e.staff_origen ? `👷 ${e.staff_origen}` : (e.juez || '—');
     return `<div class="hist-item">
       <div class="hist-num">#${e.dorsal}</div>
       <div class="hist-name">${nombre}</div>
-      <div class="hist-meta">${e.prueba||'—'} · ${e.juez||'—'} · ${hora}</div>
+      <div class="hist-meta">${e.prueba||'—'} · ${quien} · ${hora}</div>
       <span class="hist-badge ${badgeCls}">${e.metodo||'—'}</span>
     </div>`;
   }).join('');
@@ -1316,7 +1319,7 @@ function fechaLegible(ts) {
 }
 
 function generarCSVHistorial() {
-  const cabecera = ["Dorsal", "Nombre", "Apellidos", "Estado", "Eliminado en", "Método", "Equipo", "Juez", "Prueba"];
+  const cabecera = ["Dorsal", "Nombre", "Apellidos", "Estado", "Eliminado en", "Método", "Equipo", "Juez", "Propuesto por (staff)", "Prueba"];
   const filas = Object.values(participantes)
     .sort((a, b) => a.dorsal - b.dorsal)
     .map(p => [
@@ -1328,6 +1331,7 @@ function generarCSVHistorial() {
       p.vivo ? "" : (p.metodo || ""),
       p.vivo ? "" : (p.equipo || ""),
       p.vivo ? "" : (p.juez || ""),
+      p.vivo ? "" : (p.staff_origen || ""),
       p.vivo ? "" : (p.prueba || "")
     ]);
   const lineas = [cabecera, ...filas].map(fila => fila.map(csvEscape).join(","));
