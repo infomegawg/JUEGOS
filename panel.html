@@ -1044,9 +1044,18 @@ function renderPresenciaStaff() {
       return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;font-size:11px;">
         <span style="width:8px;height:8px;border-radius:50%;background:${online?'#22c55e':'#999'};display:inline-block;flex-shrink:0;"></span>
         <span style="font-weight:700;">${s.nombre || s.id}</span>
-        <span style="color:var(--texto2);margin-left:auto;">${online ? 'en línea' : 'desconectado'}</span>
+        <span style="color:var(--texto2);margin-left:auto;margin-right:6px;">${online ? 'en línea' : 'desconectado'}</span>
+        <button class="btn btn-ghost" style="width:auto;padding:2px 6px;font-size:10px;" title="Quitar de la lista" onclick="borrarPresenciaStaff('${s.id}')"><i class="ti ti-x"></i></button>
       </div>`;
     }).join('');
+}
+
+async function borrarPresenciaStaff(id) {
+  if (!confirm("¿Quitar a este staff de la lista de conectados? Volverá a aparecer si vuelve a enviar señal desde su móvil.")) return;
+  try {
+    await db.collection("staff_presencia").doc(id).delete();
+    mostrarNotif("Eliminado de la lista de staff");
+  } catch(e) { console.error(e); mostrarNotif("Error al eliminar"); }
 }
 
 // Núcleo reutilizable: usado tanto por el botón manual del panel como al
