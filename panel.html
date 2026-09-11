@@ -377,6 +377,10 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users"></i> Staff conectado</div>
           <div id="staff-presencia-list"><div style="font-size:11px;color:var(--texto2);">Nadie conectado</div></div>
         </div>
+        <div>
+          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users-group"></i> Equipos creados</div>
+          <div id="equipos-admin-list"><div style="font-size:11px;color:var(--texto2);">Sin equipos</div></div>
+        </div>
       </div>
 
       <!-- HISTORIAL -->
@@ -807,6 +811,54 @@ function renderEquiposStaffOptions() {
   }).join('');
   // Si la opción elegida sigue existiendo tras refrescar, se mantiene seleccionada
   if (valorActual) document.getElementById("equipo-select").value = valorActual;
+  renderEquiposAdminList();
+}
+
+// Gestión de equipos desde el panel: a diferencia de la app staff (donde solo
+// quien creó un equipo puede borrarlo), aquí el operador puede editar o
+// disolver cualquier equipo, los haya creado quien los haya creado.
+function renderEquiposAdminList() {
+  const cont = document.getElementById("equipos-admin-list");
+  if (!cont) return;
+  const lista = Object.entries(equiposStaffCache).sort((a,b) => a[1].nombre.localeCompare(b[1].nombre));
+  if (!lista.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Sin equipos</div>'; return; }
+  cont.innerHTML = lista.map(([id, eq]) => {
+    const vivos = eq.dorsales.filter(d => participantes[d] && participantes[d].vivo).length;
+    return `<div style="background:#f3eeff;border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;">
+      <div style="font-size:12px;font-weight:800;color:var(--morado);">👥 ${eq.nombre}</div>
+      <div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">${vivos} vivos de ${eq.dorsales.length} · #${eq.dorsales.join(', #')}</div>
+      <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Creado por ${eq.creado_por||'—'}</div>
+      <div style="display:flex;gap:6px;">
+        <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="editarEquipoStaff('${id}')">Editar</button>
+        <button class="btn btn-rojo" style="flex:1;padding:6px;font-size:10px;" onclick="disolverEquipoStaff('${id}')">Disolver</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function editarEquipoStaff(id) {
+  const eq = equiposStaffCache[id];
+  if (!eq) return;
+  const nuevoNombre = prompt("Nombre del equipo:", eq.nombre);
+  if (nuevoNombre === null) return;
+  const nuevaListaTexto = prompt("Dorsales del equipo, separados por comas:", eq.dorsales.join(", "));
+  if (nuevaListaTexto === null) return;
+  const nuevosDorsales = nuevaListaTexto.split(",").map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n));
+  if (!nuevoNombre.trim() || !nuevosDorsales.length) { mostrarNotif("Nombre o dorsales no válidos"); return; }
+  try {
+    await db.collection("equipos").doc(id).update({ nombre: nuevoNombre.trim(), dorsales: nuevosDorsales });
+    mostrarNotif("Equipo actualizado");
+  } catch(e) { console.error(e); mostrarNotif("Error al actualizar el equipo"); }
+}
+
+async function disolverEquipoStaff(id) {
+  const eq = equiposStaffCache[id];
+  if (!eq) return;
+  if (!confirm(`¿Disolver el equipo "${eq.nombre}"? (no afecta a los jugadores, solo desaparece la agrupación)`)) return;
+  try {
+    await db.collection("equipos").doc(id).update({ activo: false });
+    mostrarNotif(`Equipo ${eq.nombre} disuelto`);
+  } catch(e) { console.error(e); mostrarNotif("Error al disolver el equipo"); }
 }
 
 function escucharEquiposStaff() {

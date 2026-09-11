@@ -402,12 +402,13 @@ function renderEquiposList() {
   if (!lista.length) { cont.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:12px;padding:20px;">Aún no hay equipos creados</div>'; return; }
   cont.innerHTML = lista.map(([id, e]) => {
     const vivos = e.dorsales.filter(d => participantes[d] && participantes[d].vivo);
+    const esMio = e.creado_por === staffNombre;
     return `<div class="equipo-card">
       <div class="nombre">👥 ${e.nombre}</div>
       <div class="meta">${vivos.length} vivos de ${e.dorsales.length} · #${e.dorsales.join(', #')} · creado por ${e.creado_por||'—'}</div>
       <div class="btns">
         <button class="btn btn-naranja" ${vivos.length ? '' : 'disabled'} onclick="proponerEquipo('${id}')">Proponer eliminar (${vivos.length})</button>
-        <button class="btn btn-ghost" onclick="borrarEquipo('${id}')"><i class="ti ti-trash"></i></button>
+        <button class="btn btn-ghost" ${esMio ? '' : 'disabled title="Solo quien lo creó puede borrarlo"'} onclick="borrarEquipo('${id}')"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;
   }).join('');
@@ -438,6 +439,12 @@ async function proponerEquipo(id) {
 }
 
 async function borrarEquipo(id) {
+  const eq = equipos[id];
+  if (!eq) return;
+  if (eq.creado_por !== staffNombre) {
+    toast(`Solo ${eq.creado_por||'quien lo creó'} puede borrar este equipo`);
+    return;
+  }
   if (!confirm("¿Borrar este equipo? (no afecta a los jugadores, solo a la lista de equipos)")) return;
   try {
     await db.collection("equipos").doc(id).update({ activo: false });
