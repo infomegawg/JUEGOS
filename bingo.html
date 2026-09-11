@@ -935,15 +935,13 @@ function renderHistory() {
   }
   historyEl.innerHTML = "";
   const reversed = [...state.history].reverse();
-  reversed.forEach((h, idx) => {
+  reversed.forEach(h => {
     const item = document.createElement("div");
     item.className = "history-item " + h.method;
-    const label = h.method === "ruleta" ? "🎰 RULETA" : "✋ MANUAL";
-    const round = state.history.length - idx;
     const time = h.t.toLocaleTimeString('es-ES');
     item.innerHTML = `
-      <div><span class="num">#${h.num}</span> <span style="opacity:0.4; font-size:10px;">ronda ${round}</span></div>
-      <div class="method">${label}<br><span style="font-size:9px;">${time}</span></div>`;
+      <div><span class="num">#${h.num}</span></div>
+      <div class="method">${time}</div>`;
     historyEl.appendChild(item);
   });
 }
