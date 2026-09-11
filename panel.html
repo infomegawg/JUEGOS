@@ -1395,20 +1395,39 @@ function generarCSVHistorial() {
   return "﻿" + lineas.join("\r\n"); // BOM para que Excel muestre bien los acentos
 }
 
+const BACKUPS_AUTO_MAX = 10; // 10 × 15 min = 2h30 de margen antes de empezar a sobreescribir
+
 async function guardarBackupAutomatico() {
   try {
     const csv = generarCSVHistorial();
     const vivos = Object.values(participantes).filter(p => p.vivo).length;
     const eliminados = Object.values(participantes).length - vivos;
-    await db.collection("backups").doc("historial_actual").set({
+    const datos = {
       contenido: csv,
       actualizado_en: TS(),
       total_participantes: Object.values(participantes).length,
       total_vivos: vivos,
       total_eliminados: eliminados
-    });
+    };
+
+    // Puntero al último estado (se sigue sobreescribiendo, útil para acceso rápido)
+    await db.collection("backups").doc("historial_actual").set(datos);
+
+    // Histórico rotativo: guarda esta foto con su propia fecha y borra las más
+    // antiguas si ya hay más de BACKUPS_AUTO_MAX, así siempre quedan al menos
+    // 10 backups distintos (2h30 de margen) antes de que se pierda el más viejo.
+    const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    await db.collection("backups_auto").doc(marca).set(datos);
+    const snap = await db.collection("backups_auto").orderBy("actualizado_en", "asc").get();
+    if (snap.size > BACKUPS_AUTO_MAX) {
+      const sobrantes = snap.docs.slice(0, snap.size - BACKUPS_AUTO_MAX);
+      const batch = db.batch();
+      sobrantes.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+    }
+
     const info = document.getElementById("backup-info");
-    if (info) info.textContent = `Autoguardado cada 15 min · último: ${new Date().toLocaleTimeString("es-ES")}`;
+    if (info) info.textContent = `Autoguardado cada 15 min (hasta ${BACKUPS_AUTO_MAX} históricos) · último: ${new Date().toLocaleTimeString("es-ES")}`;
   } catch(e) { console.error("Error guardando backup automático", e); }
 }
 
