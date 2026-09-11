@@ -51,11 +51,11 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 #login-screen button { width: 100%; max-width: 320px; }
 
 /* ===== HEADER ===== */
-.header { background: var(--morado); color: #fff; padding: 12px 14px; }
+.header { background: #000; color: #fff; padding: 12px 14px; }
 .header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .header-top .quien { font-size: 13px; font-weight: 900; flex: 1; }
-.header-top .prueba-actual-lbl { font-size: 11px; font-weight: 700; text-align: center; opacity: 0.9; white-space: nowrap; }
 .header-top .cambiar { background: rgba(255,255,255,0.15); color: #fff; padding: 6px 10px; font-size: 10px; border-radius: 6px; flex-shrink: 0; }
+.prueba-actual-heading { text-align: center; font-size: 11px; font-weight: 900; letter-spacing: 2px; opacity: 0.8; margin-bottom: 4px; }
 .header select { font-size: 12px; }
 
 /* ===== TABS ===== */
@@ -138,9 +138,9 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 <div class="header">
   <div class="header-top">
     <div class="quien">👤 <span id="quien-soy">—</span></div>
-    <div class="prueba-actual-lbl">Prueba actual: <span id="prueba-actual-txt">—</span></div>
     <button class="cambiar" onclick="cambiarNombre()">Cambiar</button>
   </div>
+  <div class="prueba-actual-heading">PRUEBA ACTUAL</div>
   <select id="prueba-select-staff" onchange="guardarPruebaLocal()">
     <option value="Han cantado bingo">Han cantado bingo</option>
     <option value="Pollito inglés">Pollito inglés</option>
@@ -276,7 +276,6 @@ function idStaffDoc(nombre) {
 function guardarPruebaLocal() {
   const valor = document.getElementById("prueba-select-staff").value;
   lsSet("staffPrueba", valor);
-  document.getElementById("prueba-actual-txt").textContent = valor;
 }
 
 /* ===== TABS ===== */
