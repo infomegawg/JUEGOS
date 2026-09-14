@@ -78,14 +78,38 @@ input::placeholder { color: var(--texto2); }
 .cell.mar { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--texto2); cursor: default; }
 .cell.mar.clickable { cursor: pointer; }
 .cell.mar.clickable:hover { background: rgba(160,107,255,0.25); border-color: var(--morado2); }
-.cell.barco { background: var(--morado2); color: #1a0a2e; border: 2px solid #d4bbff; box-shadow: 0 0 14px rgba(160,107,255,0.5), inset 0 0 8px rgba(255,255,255,0.4); }
+/* Barcos: cada casilla lleva el color del barco y un borde claro SOLO en los
+   lados exteriores. Los lados que tocan otra casilla del mismo barco pierden
+   el borde y se "puentea" el hueco de la rejilla con un pseudo-elemento, así
+   el barco entero se ve como una sola pieza y no como cuadritos sueltos. */
+.cell.barco {
+  --barco-color: var(--morado2);
+  --barco-borde: #e9dbff;
+  background: var(--barco-color); color: #1a0a2e;
+  border: 3px solid var(--barco-borde);
+  box-shadow: 0 0 14px rgba(160,107,255,0.5);
+}
+.cell.barco.con-arriba { border-top-color: transparent; border-top-left-radius: 0; border-top-right-radius: 0; }
+.cell.barco.con-abajo { border-bottom-color: transparent; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.cell.barco.con-izq { border-left-color: transparent; border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cell.barco.con-der { border-right-color: transparent; border-top-right-radius: 0; border-bottom-right-radius: 0; }
+/* Puentes que rellenan el hueco de 3px entre casillas del mismo barco */
+.cell.barco.con-der::after {
+  content: ''; position: absolute; right: -4px; top: -3px; bottom: -3px; width: 5px;
+  background: var(--barco-color); border-top: 3px solid var(--barco-borde); border-bottom: 3px solid var(--barco-borde);
+}
+.cell.barco.con-abajo::before {
+  content: ''; position: absolute; bottom: -4px; left: -3px; right: -3px; height: 5px;
+  background: var(--barco-color); border-left: 3px solid var(--barco-borde); border-right: 3px solid var(--barco-borde);
+}
 .cell.sugerido { background: rgba(255,122,26,0.28); border: 2px dashed var(--naranja); cursor: pointer; }
 .cell.ancla { background: rgba(255,122,26,0.5); border: 2px solid var(--naranja); }
 .cell.agua { background: rgba(47,111,237,0.35); border: 1px solid var(--azul); color: #cfe0ff; }
 .cell.tocado { background: rgba(255,59,78,0.3); border: 1px solid var(--rojo); color: #ffd7db; }
-.cell.hundido { background: #000; color: var(--rojo); border: 1px solid var(--rojo); }
-.cell.barco.tocado { background: #7a0f22; color: #fff; box-shadow: 0 0 14px rgba(255,59,78,0.6); }
-.cell.barco.hundido { background: #000; color: #ff3b4e; box-shadow: 0 0 14px rgba(255,59,78,0.8); }
+.cell.hundido { background: #000; color: var(--rojo); border: 1px solid #ff3b4e; }
+.cell.barco.tocado { --barco-color: #7a0f22; --barco-borde: #ff8f9c; color: #fff; box-shadow: 0 0 14px rgba(255,59,78,0.6); }
+/* Barco hundido: toda la pieza en negro con calavera */
+.cell.barco.hundido { --barco-color: #000; --barco-borde: #ff3b4e; color: #ff3b4e; box-shadow: 0 0 18px rgba(255,59,78,0.8); }
 
 .pending-info { margin: 14px 0; font-size: 13px; color: var(--texto2); text-align: center; }
 .turno-banner { text-align: center; font-family: var(--font); font-size: 16px; padding: 12px; border-radius: 10px; margin-bottom: 20px; letter-spacing: 1px; border: 1px solid var(--border); }
@@ -107,6 +131,29 @@ input::placeholder { color: var(--texto2); }
 .ficha-barco .celdas-mini span { width: 14px; height: 14px; border-radius: 3px; background: var(--morado2); display: inline-block; }
 .ficha-barco.colocada .celdas-mini span { background: var(--texto2); }
 .ficha-barco .etiqueta { font-size: 11px; color: var(--texto); }
+
+/* ===== HISTORIAL DE JUGADAS (lateral) ===== */
+.log-panel { min-width: 230px; max-width: 280px; display: flex; flex-direction: column; }
+.log-panel h3 { font-family: var(--font); font-size: 13px; margin-bottom: 12px; letter-spacing: 2px; color: #fff; }
+.log-lista { display: flex; flex-direction: column; gap: 6px; max-height: 430px; overflow-y: auto; padding-right: 4px; }
+.log-vacio { font-size: 12px; color: var(--texto2); text-align: center; padding: 16px; }
+.log-item { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-left-width: 4px; border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+.log-item.equipo-a { border-left-color: var(--rojo); }
+.log-item.equipo-b { border-left-color: var(--azul); }
+.log-item .log-equipo { font-weight: 900; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.log-item.equipo-a .log-equipo { color: #ff8f9c; }
+.log-item.equipo-b .log-equipo { color: #9cc3ff; }
+.log-item .log-coord { font-family: var(--font); font-size: 13px; color: #fff; }
+.log-badge { font-size: 9px; font-weight: 900; padding: 3px 7px; border-radius: 10px; text-transform: uppercase; letter-spacing: 1px; }
+.log-badge.agua { background: rgba(47,111,237,0.3); color: #cfe0ff; }
+.log-badge.tocado { background: rgba(255,59,78,0.3); color: #ffd7db; }
+.log-badge.hundido { background: #000; color: #ff3b4e; border: 1px solid #ff3b4e; }
+body.espectador-mode .log-panel { min-width: 320px; max-width: 380px; }
+body.espectador-mode .log-panel h3 { font-size: 22px; }
+body.espectador-mode .log-item { font-size: 16px; padding: 12px 14px; }
+body.espectador-mode .log-item .log-coord { font-size: 18px; }
+body.espectador-mode .log-badge { font-size: 12px; padding: 4px 10px; }
+body.espectador-mode .log-lista { max-height: 620px; }
 
 /* ===== MODO ESPECTADOR (pensado para proyectarse en la pantalla LED) ===== */
 body.espectador-mode { overflow-x: hidden; }
@@ -202,6 +249,10 @@ body.espectador-mode .overlay .ganador { font-size: 120px; }
         <h3>🎯 TABLERO DE ATAQUE</h3>
         <div class="board" id="board-ataque"></div>
       </div>
+      <div class="log-panel">
+        <h3>📋 JUGADAS</h3>
+        <div class="log-lista" id="log-batalla"></div>
+      </div>
     </div>
   </div>
 
@@ -225,6 +276,10 @@ body.espectador-mode .overlay .ganador { font-size: 120px; }
       <div class="board-block">
         <h3 id="espectador-nombre-b">EQUIPO B</h3>
         <div class="board" id="board-espectador-b"></div>
+      </div>
+      <div class="log-panel">
+        <h3>📋 JUGADAS</h3>
+        <div class="log-lista" id="log-espectador"></div>
       </div>
     </div>
   </div>
@@ -344,6 +399,7 @@ async function crearPartida() {
     turno: null,
     ganador: null,
     ultimoEvento: null,
+    historial: [],
     creado_en: TS()
   });
   miEquipo = null;
@@ -496,10 +552,9 @@ function renderColocacionInfo() {
 
 function renderColocacion() {
   const board = document.getElementById("board-colocacion");
-  const ocupadas = new Set(barcosColocados.flatMap(b => b.celdas));
   const celdasSugeridas = new Set(sugerenciasActuales.flatMap(s => s.celdas));
   board.innerHTML = renderBoardHTML({
-    marcarBarco: (id) => ocupadas.has(id),
+    infoBarco: construirInfoBarcos(barcosColocados),
     marcarExtra: (id) => {
       if (anclaPendiente && id === coordId(anclaPendiente.fila, anclaPendiente.col)) return 'ancla';
       if (celdasSugeridas.has(id)) return 'sugerido';
@@ -531,8 +586,33 @@ function renderFlotaSidebar() {
 }
 
 /* ===== RENDER GENÉRICO DE TABLERO 8x8 ===== */
+// Dada una flota, devuelve una función que dice, para cada casilla, si es
+// barco y con qué lados enlaza con otra casilla DEL MISMO barco. Eso permite
+// dibujar cada barco como una pieza continua en vez de cuadritos sueltos.
+function construirInfoBarcos(barcos) {
+  const mapa = new Map(); // celda -> índice del barco al que pertenece
+  (barcos || []).forEach((b, i) => (b.celdas || []).forEach(c => mapa.set(c, i)));
+  return (id) => {
+    if (!mapa.has(id)) return null;
+    const idx = mapa.get(id);
+    const col = LETRAS.indexOf(id[0]);
+    const fila = parseInt(id.slice(1), 10) - 1;
+    const mismoBarco = (f, c) => {
+      if (f < 0 || f > 7 || c < 0 || c > 7) return false;
+      return mapa.get(coordId(f, c)) === idx;
+    };
+    return {
+      arriba: mismoBarco(fila - 1, col),
+      abajo: mismoBarco(fila + 1, col),
+      izq: mismoBarco(fila, col - 1),
+      der: mismoBarco(fila, col + 1)
+    };
+  };
+}
+
 function renderBoardHTML(opts) {
-  // opts: { marcarBarco(id), marcarDisparo(id) -> 'agua'|'tocado'|'hundido'|null,
+  // opts: { infoBarco(id) -> {arriba,abajo,izq,der}|null,
+  //         marcarDisparo(id) -> 'agua'|'tocado'|'hundido'|null,
   //         marcarExtra(id) -> 'sugerido'|'ancla'|null, onClickCell: nombreFuncionOrNull }
   let html = `<div class="cell head"></div>`;
   LETRAS.forEach(l => html += `<div class="cell head">${l}</div>`);
@@ -541,10 +621,16 @@ function renderBoardHTML(opts) {
     for (let col = 0; col < 8; col++) {
       const id = coordId(fila, col);
       let cls = 'cell mar';
-      const esBarco = opts.marcarBarco ? opts.marcarBarco(id) : false;
+      const info = opts.infoBarco ? opts.infoBarco(id) : null;
       const disparo = opts.marcarDisparo ? opts.marcarDisparo(id) : null;
       const extra = opts.marcarExtra ? opts.marcarExtra(id) : null;
-      if (esBarco) cls += ' barco';
+      if (info) {
+        cls += ' barco';
+        if (info.arriba) cls += ' con-arriba';
+        if (info.abajo) cls += ' con-abajo';
+        if (info.izq) cls += ' con-izq';
+        if (info.der) cls += ' con-der';
+      }
       if (disparo) cls += ' ' + disparo;
       if (extra) cls += ' ' + extra;
       const clickable = opts.onClickCell ? ' clickable' : '';
@@ -586,20 +672,36 @@ async function disparar(fila, col) {
       const flotaKey = 'flota' + targetLetra;
       const flota = (d[flotaKey] || []).map(b => ({ celdas: b.celdas, impactos: b.impactos || 0 }));
       let resultado = 'agua';
+      let barcoHundido = null;
       flota.forEach(barco => {
         if (barco.celdas.includes(coord)) {
           barco.impactos = (barco.impactos || 0) + 1;
-          resultado = barco.impactos >= barco.celdas.length ? 'hundido' : 'tocado';
+          if (barco.impactos >= barco.celdas.length) {
+            resultado = 'hundido';
+            barcoHundido = barco;
+          } else {
+            resultado = 'tocado';
+          }
         }
       });
       disparosRecibidos[coord] = resultado;
+      // Si el impacto hunde el barco, TODAS sus casillas pasan a "hundido"
+      // (no solo la última), para que la pieza entera se vea negra con calavera.
+      if (barcoHundido) barcoHundido.celdas.forEach(c => { disparosRecibidos[c] = 'hundido'; });
+
       const totalCeldas = flota.reduce((s,b) => s + b.celdas.length, 0);
       const totalImpactos = flota.reduce((s,b) => s + (b.impactos||0), 0);
       const gano = totalCeldas > 0 && totalImpactos >= totalCeldas;
 
+      const historial = (d.historial || []).concat([{
+        equipoLetra: miEquipo, coord, resultado,
+        hora: new Date().toLocaleTimeString('es-ES')
+      }]);
+
       const actualizacion = {
         [disparosKey]: disparosRecibidos,
         [flotaKey]: flota,
+        historial: historial,
         turno: gano ? null : targetLetra,
         ultimoEvento: { tipo: 'disparo', equipoLetra: miEquipo, coord, resultado, ts: TS() }
       };
@@ -637,19 +739,20 @@ function renderBatalla() {
     banner.className = "turno-banner rival";
   }
 
-  const misCeldasBarco = new Set(miFlota.flatMap(b => b.celdas));
   document.getElementById("board-flota").innerHTML = renderBoardHTML({
-    marcarBarco: (id) => misCeldasBarco.has(id),
+    infoBarco: construirInfoBarcos(miFlota),
     marcarDisparo: (id) => disparosContraMi[id] || null,
     onClickCell: null
   });
 
   const puedeDisparar = d.fase === 'batalla' && d.turno === miEquipo;
   document.getElementById("board-ataque").innerHTML = renderBoardHTML({
-    marcarBarco: null,
+    infoBarco: null,
     marcarDisparo: (id) => disparosQueHago[id] || null,
     onClickCell: puedeDisparar ? 'disparar' : null
   });
+
+  renderLog(d, "log-batalla");
 }
 
 function renderEspectador() {
@@ -675,16 +778,38 @@ function renderEspectador() {
 
   const flotaA = d.flotaA || [];
   const flotaB = d.flotaB || [];
-  const celdasA = new Set(flotaA.flatMap(b => b.celdas));
-  const celdasB = new Set(flotaB.flatMap(b => b.celdas));
   document.getElementById("board-espectador-a").innerHTML = renderBoardHTML({
-    marcarBarco: (id) => celdasA.has(id),
+    infoBarco: construirInfoBarcos(flotaA),
     marcarDisparo: (id) => (d.disparosRecibidosA || {})[id] || null
   });
   document.getElementById("board-espectador-b").innerHTML = renderBoardHTML({
-    marcarBarco: (id) => celdasB.has(id),
+    infoBarco: construirInfoBarcos(flotaB),
     marcarDisparo: (id) => (d.disparosRecibidosB || {})[id] || null
   });
+
+  renderLog(d, "log-espectador");
+}
+
+// Historial de jugadas: lo más reciente arriba, con el equipo que disparó,
+// la coordenada y el resultado.
+function renderLog(d, contenedorId) {
+  const cont = document.getElementById(contenedorId);
+  if (!cont) return;
+  const historial = d.historial || [];
+  if (!historial.length) {
+    cont.innerHTML = '<div class="log-vacio">Todavía no se ha disparado</div>';
+    return;
+  }
+  const etiquetas = { agua: 'Agua', tocado: 'Tocado', hundido: 'Hundido' };
+  cont.innerHTML = historial.slice().reverse().map(j => {
+    const nombre = j.equipoLetra === 'A' ? d.equipoA : d.equipoB;
+    const clase = j.equipoLetra === 'A' ? 'equipo-a' : 'equipo-b';
+    return `<div class="log-item ${clase}">
+      <span class="log-equipo">${nombre || ''}</span>
+      <span class="log-coord">${j.coord}</span>
+      <span class="log-badge ${j.resultado}">${etiquetas[j.resultado] || j.resultado}</span>
+    </div>`;
+  }).join('');
 }
 
 function renderFin() {
@@ -756,7 +881,7 @@ function renderTodo() {
     if (yaListo) {
       document.getElementById("colocacion-espera").style.display = 'block';
       document.getElementById("board-colocacion").innerHTML = renderBoardHTML({
-        marcarBarco: (id) => new Set((miEquipo === 'A' ? d.flotaA : d.flotaB).flatMap(b=>b.celdas)).has(id)
+        infoBarco: construirInfoBarcos(miEquipo === 'A' ? d.flotaA : d.flotaB)
       });
       document.getElementById("btn-confirmar-flota").style.display = 'none';
     } else {
