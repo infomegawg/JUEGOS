@@ -770,7 +770,7 @@ function renderBatalla() {
   const rival = miEquipo === 'A' ? 'B' : 'A';
   document.getElementById("log-batalla-titulo").textContent =
     "📋 JUGADAS DE " + String((rival === 'A' ? d.equipoA : d.equipoB) || 'RIVAL').toUpperCase();
-  renderLog(d, "log-batalla", { soloEquipo: rival });
+  renderLog(d, "log-batalla", { soloEquipo: rival, limite: 10 });
 }
 
 function renderEspectador() {
