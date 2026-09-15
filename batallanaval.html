@@ -133,6 +133,11 @@ input::placeholder { color: var(--texto2); }
 .ficha-barco .etiqueta { font-size: 11px; color: var(--texto); }
 
 /* ===== HISTORIAL DE JUGADAS (lateral) ===== */
+/* La pantalla de batalla necesita más ancho: dos tableros + el panel de jugadas
+   al lado. Sin esto el panel se caía debajo por falta de sitio. */
+body:has(#pantalla-batalla.active) .wrap { max-width: 1560px; }
+#pantalla-batalla .boards-row { flex-wrap: nowrap; }
+@media (max-width: 1400px) { #pantalla-batalla .boards-row { flex-wrap: wrap; } }
 .log-panel { min-width: 230px; max-width: 280px; display: flex; flex-direction: column; }
 .log-panel h3 { font-family: var(--font); font-size: 13px; margin-bottom: 12px; letter-spacing: 2px; color: #fff; }
 .log-lista { display: flex; flex-direction: column; gap: 6px; max-height: 430px; overflow-y: auto; padding-right: 4px; }
