@@ -148,6 +148,16 @@ input::placeholder { color: var(--texto2); }
 .log-badge.agua { background: rgba(47,111,237,0.3); color: #cfe0ff; }
 .log-badge.tocado { background: rgba(255,59,78,0.3); color: #ffd7db; }
 .log-badge.hundido { background: #000; color: #ff3b4e; border: 1px solid #ff3b4e; }
+/* Jugadas de cada equipo, justo debajo de su cuadrícula (modo espectador) */
+.log-bajo-tablero { margin-top: 18px; text-align: left; }
+.log-bajo-tablero h4 { font-family: var(--font); font-size: 13px; margin-bottom: 10px; letter-spacing: 2px; color: #fff; text-align: center; }
+.log-bajo-tablero .log-lista { max-height: none; }
+body.espectador-mode .log-bajo-tablero h4 { font-size: 20px; letter-spacing: 4px; margin-bottom: 14px; }
+body.espectador-mode .log-bajo-tablero .log-item { font-size: 18px; padding: 12px 16px; }
+body.espectador-mode .log-bajo-tablero .log-item .log-coord { font-size: 20px; }
+body.espectador-mode .log-bajo-tablero .log-badge { font-size: 13px; padding: 4px 12px; }
+body.espectador-mode .log-bajo-tablero .log-vacio { font-size: 16px; }
+
 body.espectador-mode .log-panel { min-width: 320px; max-width: 380px; }
 body.espectador-mode .log-panel h3 { font-size: 22px; }
 body.espectador-mode .log-item { font-size: 16px; padding: 12px 14px; }
@@ -250,7 +260,7 @@ body.espectador-mode .overlay .ganador { font-size: 120px; }
         <div class="board" id="board-ataque"></div>
       </div>
       <div class="log-panel">
-        <h3>📋 JUGADAS</h3>
+        <h3 id="log-batalla-titulo">📋 JUGADAS DEL RIVAL</h3>
         <div class="log-lista" id="log-batalla"></div>
       </div>
     </div>
@@ -272,14 +282,18 @@ body.espectador-mode .overlay .ganador { font-size: 120px; }
       <div class="board-block">
         <h3 id="espectador-nombre-a">EQUIPO A</h3>
         <div class="board" id="board-espectador-a"></div>
+        <div class="log-bajo-tablero">
+          <h4>📋 ÚLTIMAS JUGADAS</h4>
+          <div class="log-lista" id="log-espectador-a"></div>
+        </div>
       </div>
       <div class="board-block">
         <h3 id="espectador-nombre-b">EQUIPO B</h3>
         <div class="board" id="board-espectador-b"></div>
-      </div>
-      <div class="log-panel">
-        <h3>📋 JUGADAS</h3>
-        <div class="log-lista" id="log-espectador"></div>
+        <div class="log-bajo-tablero">
+          <h4>📋 ÚLTIMAS JUGADAS</h4>
+          <div class="log-lista" id="log-espectador-b"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -752,7 +766,11 @@ function renderBatalla() {
     onClickCell: puedeDisparar ? 'disparar' : null
   });
 
-  renderLog(d, "log-batalla");
+  // El capitán solo ve las jugadas del rival (las suyas ya las está haciendo él)
+  const rival = miEquipo === 'A' ? 'B' : 'A';
+  document.getElementById("log-batalla-titulo").textContent =
+    "📋 JUGADAS DE " + String((rival === 'A' ? d.equipoA : d.equipoB) || 'RIVAL').toUpperCase();
+  renderLog(d, "log-batalla", { soloEquipo: rival });
 }
 
 function renderEspectador() {
@@ -787,21 +805,29 @@ function renderEspectador() {
     marcarDisparo: (id) => (d.disparosRecibidosB || {})[id] || null
   });
 
-  renderLog(d, "log-espectador");
+  // En espectador, cada equipo tiene sus últimas 4 jugadas bajo su propia cuadrícula
+  renderLog(d, "log-espectador-a", { soloEquipo: 'A', limite: 4 });
+  renderLog(d, "log-espectador-b", { soloEquipo: 'B', limite: 4 });
 }
 
 // Historial de jugadas: lo más reciente arriba, con el equipo que disparó,
 // la coordenada y el resultado.
-function renderLog(d, contenedorId) {
+// opciones.soloEquipo ('A'|'B'): filtra a los disparos hechos por ese equipo.
+// opciones.limite: número máximo de jugadas mostradas (las más recientes).
+function renderLog(d, contenedorId, opciones) {
   const cont = document.getElementById(contenedorId);
   if (!cont) return;
-  const historial = d.historial || [];
+  const op = opciones || {};
+  let historial = d.historial || [];
+  if (op.soloEquipo) historial = historial.filter(j => j.equipoLetra === op.soloEquipo);
   if (!historial.length) {
     cont.innerHTML = '<div class="log-vacio">Todavía no se ha disparado</div>';
     return;
   }
+  historial = historial.slice().reverse();
+  if (op.limite) historial = historial.slice(0, op.limite);
   const etiquetas = { agua: 'Agua', tocado: 'Tocado', hundido: 'Hundido' };
-  cont.innerHTML = historial.slice().reverse().map(j => {
+  cont.innerHTML = historial.map(j => {
     const nombre = j.equipoLetra === 'A' ? d.equipoA : d.equipoB;
     const clase = j.equipoLetra === 'A' ? 'equipo-a' : 'equipo-b';
     return `<div class="log-item ${clase}">
