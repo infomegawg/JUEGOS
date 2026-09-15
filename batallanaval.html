@@ -136,6 +136,20 @@ input::placeholder { color: var(--texto2); }
 .ficha-barco.colocada .celdas-mini span { background: var(--texto2); }
 .ficha-barco .etiqueta { font-size: 11px; color: var(--texto); }
 
+/* ===== FLOTA RIVAL (lateral izquierdo del capitán) ===== */
+.flota-rival { flex-shrink: 0; width: clamp(140px, 12vw, 200px); }
+.flota-rival h3 { font-family: var(--font); font-size: clamp(10px, 0.85vw, 13px); letter-spacing: 1px; color: #fff; margin-bottom: 10px; text-align: center; line-height: 1.4; }
+.barco-rival { display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; margin-bottom: 7px; position: relative; }
+.barco-rival .celdas-mini { display: flex; gap: 3px; }
+.barco-rival .celdas-mini span { width: 13px; height: 13px; border-radius: 3px; background: var(--morado2); }
+.barco-rival .etiqueta { font-size: 10px; color: var(--texto2); white-space: nowrap; }
+.barco-rival.hundido { background: rgba(255,59,78,0.14); border-color: var(--rojo); }
+.barco-rival.hundido .celdas-mini span { background: var(--rojo); }
+.barco-rival.hundido .etiqueta { color: #ff8f9c; text-decoration: line-through; }
+.barco-rival .marca { position: absolute; right: 8px; color: var(--rojo); font-size: 13px; }
+.flota-rival-resumen { margin-top: 12px; padding: 10px; border-radius: 8px; background: rgba(0,0,0,0.3); border: 1px solid var(--border); font-size: 11px; line-height: 1.7; text-align: center; color: var(--texto2); }
+.flota-rival-resumen strong { color: #fff; font-family: var(--font); font-size: 15px; }
+
 /* ===== HISTORIAL DE JUGADAS (lateral) ===== */
 /* PANTALLA DE BATALLA (capitanes) — dos tableros + panel de jugadas SIEMPRE en
    la misma fila, adaptándose a la resolución real del monitor. Ocupa todo el
@@ -146,7 +160,7 @@ body:has(#pantalla-batalla.active) .wrap { max-width: 1800px; padding: 18px 14px
 #pantalla-batalla .board {
   /* Ancho: (100vw - panel de jugadas - huecos - cabeceras) / 16 casillas
      Alto:  (100vh - cabecera, banner y títulos) / 9 filas */
-  --celda: clamp(20px, min(calc((100vw - 400px) / 16), calc((100vh - 250px) / 9)), 52px);
+  --celda: clamp(20px, min(calc((100vw - 620px) / 16), calc((100vh - 250px) / 9)), 52px);
 }
 #pantalla-batalla .board-block h3 { font-size: clamp(11px, 1vw, 15px); margin-bottom: 8px; }
 /* La pantalla de colocación también debe caber de una vez en 1366x768 */
@@ -284,6 +298,12 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
       <button class="btn btn-naranja" onclick="sortearInicio()">🎲 Sortear quién empieza</button>
     </div>
     <div class="boards-row">
+      <!-- Ayuda para el capitán: qué le queda a flote al rival -->
+      <div class="flota-rival" id="flota-rival">
+        <h3 id="flota-rival-titulo">☠️ FLOTA RIVAL</h3>
+        <div id="flota-rival-lista"></div>
+        <div class="flota-rival-resumen" id="flota-rival-resumen"></div>
+      </div>
       <div class="board-block">
         <h3>🛡️ TU FLOTA</h3>
         <div class="board" id="board-flota"></div>
@@ -832,6 +852,8 @@ function renderBatalla() {
     onClickCell: puedeDisparar ? 'disparar' : null
   });
 
+  renderFlotaRival(d);
+
   // El capitán solo ve las jugadas del rival (las suyas ya las está haciendo él)
   const rival = miEquipo === 'A' ? 'B' : 'A';
   document.getElementById("log-batalla-titulo").textContent =
@@ -874,6 +896,49 @@ function renderEspectador() {
   // En espectador, cada equipo tiene sus últimas 4 jugadas bajo su propia cuadrícula
   renderLog(d, "log-espectador-a", { soloEquipo: 'A', limite: 4 });
   renderLog(d, "log-espectador-b", { soloEquipo: 'B', limite: 4 });
+}
+
+// Ayuda visual para el capitán: los barcos que le quedan al rival. Se marcan en
+// rojo los ya hundidos. No revela dónde están, solo cuántos siguen a flote y de
+// cuántos jugadores es cada uno.
+function renderFlotaRival(d) {
+  const cont = document.getElementById("flota-rival-lista");
+  if (!cont) return;
+  const rival = miEquipo === 'A' ? 'B' : 'A';
+  const nombreRival = rival === 'A' ? d.equipoA : d.equipoB;
+  const flotaRival = (rival === 'A' ? d.flotaA : d.flotaB) || [];
+  const impactos = (rival === 'A' ? d.disparosRecibidosA : d.disparosRecibidosB) || {};
+
+  document.getElementById("flota-rival-titulo").textContent =
+    "☠️ FLOTA DE " + String(nombreRival || 'RIVAL').toUpperCase();
+
+  // Cuántos barcos hundidos hay de cada tamaño (un barco está hundido cuando
+  // todas sus casillas han recibido impacto).
+  const hundidosPorTamano = {};
+  flotaRival.forEach(b => {
+    const celdas = b.celdas || [];
+    if (!celdas.length) return;
+    const hundido = celdas.every(c => impactos[c] === 'hundido' || impactos[c] === 'tocado');
+    if (hundido) hundidosPorTamano[celdas.length] = (hundidosPorTamano[celdas.length] || 0) + 1;
+  });
+
+  const pendientes = Object.assign({}, hundidosPorTamano);
+  let jugadoresVivos = 0, barcosVivos = 0;
+  cont.innerHTML = FLOTA_CONFIG.map(longitud => {
+    let hundido = false;
+    if (pendientes[longitud] > 0) { pendientes[longitud]--; hundido = true; }
+    else { jugadoresVivos += longitud; barcosVivos++; }
+    const celdas = Array.from({ length: longitud }).map(() => '<span></span>').join('');
+    return `<div class="barco-rival ${hundido ? 'hundido' : ''}">
+      <div class="celdas-mini">${celdas}</div>
+      <span class="etiqueta">${longitud} jugador${longitud > 1 ? 'es' : ''}</span>
+      ${hundido ? '<span class="marca">☠</span>' : ''}
+    </div>`;
+  }).join('');
+
+  document.getElementById("flota-rival-resumen").innerHTML =
+    `<strong>${barcosVivos}</strong> barco${barcosVivos === 1 ? '' : 's'} a flote<br>` +
+    `<strong>${jugadoresVivos}</strong> jugador${jugadoresVivos === 1 ? '' : 'es'} en pie`;
 }
 
 // Historial de jugadas: lo más reciente arriba, con el equipo que disparó,
