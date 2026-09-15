@@ -903,7 +903,9 @@ function anunciarEvento(d) {
     mostrarOverlayEvento("SORTEO", `EMPIEZA ${nombre.toUpperCase()}`);
   } else if (ev.tipo === 'disparo') {
     const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
-    const resultadoTexto = ev.resultado === 'agua' ? 'Agua' : ev.resultado === 'tocado' ? 'Tocado' : 'Hundido';
+    const resultadoTexto = ev.resultado === 'agua' ? 'Agua'
+      : ev.resultado === 'tocado' ? 'Tocado'
+      : 'Tocado y hundido';
     hablar([`${conEquipo(nombre)} lanza ${ev.coord}`, resultadoTexto]);
     mostrarOverlayEvento(`${nombre.toUpperCase()} LANZA ${ev.coord}`, resultadoTexto.toUpperCase());
   }
