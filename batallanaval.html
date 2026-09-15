@@ -72,7 +72,11 @@ input::placeholder { color: var(--texto2); }
 .boards-row { display: flex; gap: 36px; flex-wrap: wrap; justify-content: center; align-items: flex-start; }
 .board-block { text-align: center; max-width: 100%; }
 .board-block h3 { font-family: var(--font); font-size: 13px; margin-bottom: 12px; letter-spacing: 2px; color: #fff; }
-.board { display: grid; grid-template-columns: 26px repeat(8, minmax(0,44px)); gap: 3px; padding: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; margin: 0 auto; max-width: 100%; width: fit-content; }
+/* Tamaño de casilla fluido: se calcula a partir del alto y el ancho reales de
+   la pantalla (monitores gaming 1080p/1440p y TVs LED de 32" HD 1366x768),
+   para que los dos tableros y el panel de jugadas quepan sin hacer scroll. */
+.board { --celda: 44px; --cab: 26px; --hueco: 3px;
+  display: grid; grid-template-columns: var(--cab) repeat(8, minmax(0, var(--celda))); gap: var(--hueco); padding: 10px; background: rgba(0,0,0,0.25); border: 1px solid var(--border); border-radius: 10px; margin: 0 auto; max-width: 100%; width: fit-content; }
 .cell { width: 100%; aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; border-radius: 5px; position: relative; }
 .cell.head { background: transparent; color: var(--texto2); font-size: 12px; letter-spacing: 1px; }
 .cell.mar { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--texto2); cursor: default; }
@@ -133,11 +137,23 @@ input::placeholder { color: var(--texto2); }
 .ficha-barco .etiqueta { font-size: 11px; color: var(--texto); }
 
 /* ===== HISTORIAL DE JUGADAS (lateral) ===== */
-/* La pantalla de batalla necesita más ancho: dos tableros + el panel de jugadas
-   al lado. Sin esto el panel se caía debajo por falta de sitio. */
-body:has(#pantalla-batalla.active) .wrap { max-width: 1560px; }
-#pantalla-batalla .boards-row { flex-wrap: nowrap; }
-@media (max-width: 1400px) { #pantalla-batalla .boards-row { flex-wrap: wrap; } }
+/* PANTALLA DE BATALLA (capitanes) — dos tableros + panel de jugadas SIEMPRE en
+   la misma fila, adaptándose a la resolución real del monitor. Ocupa todo el
+   ancho disponible y las casillas se encogen o crecen con la pantalla, de modo
+   que en un 1366x768 (TV de 32" HD) entra igual que en un 1440p o 4K. */
+body:has(#pantalla-batalla.active) .wrap { max-width: 1800px; padding: 18px 14px 24px; }
+#pantalla-batalla .boards-row { flex-wrap: nowrap; gap: clamp(12px, 2vw, 40px); }
+#pantalla-batalla .board {
+  /* Ancho: (100vw - panel de jugadas - huecos - cabeceras) / 16 casillas
+     Alto:  (100vh - cabecera, banner y títulos) / 9 filas */
+  --celda: clamp(20px, min(calc((100vw - 400px) / 16), calc((100vh - 250px) / 9)), 52px);
+}
+#pantalla-batalla .board-block h3 { font-size: clamp(11px, 1vw, 15px); margin-bottom: 8px; }
+/* La pantalla de colocación también debe caber de una vez en 1366x768 */
+#pantalla-colocacion .board { --celda: clamp(24px, min(calc((100vw - 320px) / 8), calc((100vh - 330px) / 9)), 48px); }
+#pantalla-batalla .log-panel { min-width: 0; width: clamp(190px, 16vw, 300px); flex-shrink: 0; }
+#pantalla-batalla .log-lista { max-height: calc(100vh - 230px); }
+#pantalla-batalla .turno-banner { font-size: clamp(12px, 1.2vw, 18px); padding: 10px; margin-bottom: 12px; }
 .log-panel { min-width: 230px; max-width: 280px; display: flex; flex-direction: column; }
 .log-panel h3 { font-family: var(--font); font-size: 13px; margin-bottom: 12px; letter-spacing: 2px; color: #fff; }
 .log-lista { display: flex; flex-direction: column; gap: 6px; max-height: 430px; overflow-y: auto; padding-right: 4px; }
@@ -157,11 +173,13 @@ body:has(#pantalla-batalla.active) .wrap { max-width: 1560px; }
 .log-bajo-tablero { margin-top: 18px; text-align: left; }
 .log-bajo-tablero h4 { font-family: var(--font); font-size: 13px; margin-bottom: 10px; letter-spacing: 2px; color: #fff; text-align: center; }
 .log-bajo-tablero .log-lista { max-height: none; }
-body.espectador-mode .log-bajo-tablero h4 { font-size: 20px; letter-spacing: 4px; margin-bottom: 14px; }
-body.espectador-mode .log-bajo-tablero .log-item { font-size: 18px; padding: 12px 16px; }
-body.espectador-mode .log-bajo-tablero .log-item .log-coord { font-size: 20px; }
-body.espectador-mode .log-bajo-tablero .log-badge { font-size: 13px; padding: 4px 12px; }
-body.espectador-mode .log-bajo-tablero .log-vacio { font-size: 16px; }
+body.espectador-mode .log-bajo-tablero { margin-top: clamp(8px, 1.4vh, 20px); }
+body.espectador-mode .log-bajo-tablero h4 { font-size: clamp(12px, 1.6vh, 22px); letter-spacing: 4px; margin-bottom: clamp(6px, 1vh, 14px); }
+body.espectador-mode .log-bajo-tablero .log-lista { gap: clamp(4px, 0.7vh, 10px); }
+body.espectador-mode .log-bajo-tablero .log-item { font-size: clamp(11px, 1.5vh, 20px); padding: clamp(5px, 0.9vh, 13px) clamp(8px, 1vw, 18px); }
+body.espectador-mode .log-bajo-tablero .log-item .log-coord { font-size: clamp(12px, 1.7vh, 22px); }
+body.espectador-mode .log-bajo-tablero .log-badge { font-size: clamp(9px, 1.1vh, 14px); padding: 3px clamp(6px, 0.8vw, 12px); }
+body.espectador-mode .log-bajo-tablero .log-vacio { font-size: clamp(11px, 1.4vh, 17px); padding: 8px; }
 
 body.espectador-mode .log-panel { min-width: 320px; max-width: 380px; }
 body.espectador-mode .log-panel h3 { font-size: 22px; }
@@ -171,19 +189,29 @@ body.espectador-mode .log-badge { font-size: 12px; padding: 4px 10px; }
 body.espectador-mode .log-lista { max-height: 620px; }
 
 /* ===== MODO ESPECTADOR (pensado para proyectarse en la pantalla LED) ===== */
+/* Todo en unidades relativas a la pantalla: en una TV LED de 32" HD (1366x768)
+   los dos tableros y sus jugadas caben enteros sin scroll, y en un monitor
+   grande o 4K crecen solos hasta el tamaño máximo. */
 body.espectador-mode { overflow-x: hidden; }
-body.espectador-mode .wrap { max-width: 1900px; padding-top: 40px; }
-body.espectador-mode .header { padding: 22px 30px; }
-body.espectador-mode .header img.header-logo { height: 72px; }
-body.espectador-mode .header h1 { font-size: 34px; letter-spacing: 10px; }
-body.espectador-mode #pantalla-espectador .boards-row { gap: 90px; }
-body.espectador-mode #pantalla-espectador .board-block h3 { font-size: 26px; letter-spacing: 5px; margin-bottom: 20px; text-shadow: 0 0 16px rgba(255,255,255,0.4); }
-body.espectador-mode #pantalla-espectador .board { grid-template-columns: 50px repeat(8, minmax(0,78px)); gap: 6px; padding: 18px; border-radius: 16px; }
-body.espectador-mode #pantalla-espectador .cell { font-size: 22px; border-radius: 8px; }
-body.espectador-mode #pantalla-espectador .cell.head { font-size: 20px; }
-body.espectador-mode .turno-banner { font-size: 30px; padding: 22px; letter-spacing: 2px; margin-bottom: 30px; }
-body.espectador-mode .overlay .titulo { font-size: 34px; letter-spacing: 8px; }
-body.espectador-mode .overlay .ganador { font-size: 120px; }
+body.espectador-mode .wrap { max-width: 2200px; padding: clamp(10px, 1.6vh, 34px) clamp(10px, 1.4vw, 30px) clamp(10px, 2vh, 40px); }
+body.espectador-mode .header { padding: clamp(6px, 1.2vh, 22px) clamp(12px, 2vw, 30px); }
+body.espectador-mode .header img.header-logo { height: clamp(34px, 5.5vh, 76px); }
+body.espectador-mode .header h1 { font-size: clamp(18px, 2.8vh, 36px); letter-spacing: clamp(3px, 0.6vw, 10px); }
+body.espectador-mode #pantalla-espectador .boards-row { gap: clamp(18px, 4vw, 90px); flex-wrap: nowrap; }
+body.espectador-mode #pantalla-espectador .board-block h3 { font-size: clamp(14px, 2.2vh, 28px); letter-spacing: clamp(2px, 0.4vw, 5px); margin-bottom: clamp(6px, 1.4vh, 20px); text-shadow: 0 0 16px rgba(255,255,255,0.4); }
+body.espectador-mode #pantalla-espectador .board {
+  /* Ancho: (100vw - hueco central - cabeceras y bordes) / 16 casillas
+     Alto:  hueco que queda tras cabecera, banner, títulos y las 4 jugadas */
+  --celda: clamp(22px, min(calc((100vw - 260px) / 16), calc((100vh - 445px) / 9)), 78px);
+  --cab: clamp(24px, 3.4vh, 50px);
+  --hueco: clamp(3px, 0.5vh, 6px);
+  padding: clamp(8px, 1.4vh, 18px); border-radius: 16px;
+}
+body.espectador-mode #pantalla-espectador .cell { font-size: clamp(12px, 2vh, 24px); border-radius: 8px; }
+body.espectador-mode #pantalla-espectador .cell.head { font-size: clamp(11px, 1.8vh, 21px); }
+body.espectador-mode .turno-banner { font-size: clamp(15px, 2.4vh, 32px); padding: clamp(8px, 1.8vh, 22px); letter-spacing: 2px; margin-bottom: clamp(10px, 2.2vh, 30px); }
+body.espectador-mode .overlay .titulo { font-size: clamp(20px, 3.2vh, 36px); letter-spacing: 8px; }
+body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
 </style>
 </head>
 <body>
