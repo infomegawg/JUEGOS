@@ -386,6 +386,12 @@ function init() {
       return;
     }
 
+    if (modo === 'batallanaval') {
+      // Vista de espectador de la Batalla Naval (ambos tableros en directo)
+      window.location.href = 'https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1&led=1';
+      return;
+    }
+
     document.getElementById('modo-grid').style.display = modo === 'grid' ? 'block' : 'none';
     document.querySelector('.header').style.display = 'flex';
     document.querySelector('.app').style.gridTemplateRows = '90px 1fr';

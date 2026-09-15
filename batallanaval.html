@@ -1135,6 +1135,17 @@ partidaRef.onSnapshot(snap => {
 
 initVoz();
 initDesbloqueoAudio();
+
+// Si la pantalla LED nos ha traído aquí desde el Panel Central (modo LED
+// "Batalla Naval"), se vigila ese modo para volver a led.html en cuanto el
+// operador cambie a grid, bingo o apagado.
+if (new URLSearchParams(location.search).get("led") === "1") {
+  db.collection("sesion").doc("actual").onSnapshot(doc => {
+    if (doc.exists && doc.data().modo_led !== 'batallanaval') {
+      window.location.href = 'https://infomegawg.github.io/JUEGOS/led.html';
+    }
+  });
+}
 </script>
 </body>
 </html>
