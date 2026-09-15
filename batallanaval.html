@@ -400,8 +400,12 @@ function initDesbloqueoAudio() {
     document.addEventListener(ev, desbloquearAudio, { once: true }));
 }
 
-function hablar(frases) {
-  if (!window.speechSynthesis) return;
+// alTerminar: se ejecuta cuando acaba la última frase (o enseguida si el
+// navegador no puede hablar), para encadenar lo que venga después.
+function hablar(frases, alTerminar) {
+  if (!window.speechSynthesis) { if (alTerminar) alTerminar(); return; }
+  let yaLlamado = false;
+  const rematar = () => { if (yaLlamado) return; yaLlamado = true; if (alTerminar) alTerminar(); };
   window.speechSynthesis.cancel();
   frases.forEach((f, i) => {
     const msg = new SpeechSynthesisUtterance(f);
@@ -410,8 +414,17 @@ function hablar(frases) {
     msg.pitch = i === frases.length - 1 ? 0.9 : 1.0;
     msg.volume = 1;
     if (vozSeleccionada) msg.voice = vozSeleccionada;
+    if (i === frases.length - 1) { msg.onend = rematar; msg.onerror = rematar; }
     window.speechSynthesis.speak(msg);
   });
+  // Red de seguridad: si la voz está bloqueada o se corta, el "onend" nunca
+  // llega. Se calcula cuánto duraría la locución y se continúa igualmente, para
+  // que lo que va después (el cartel de ganador) no dependa del audio.
+  if (alTerminar) {
+    const caracteres = frases.join(" ").length;
+    const estimado = Math.min(15000, caracteres * 95 + frases.length * 400 + 600);
+    setTimeout(rematar, estimado);
+  }
 }
 
 /* ===== CONSTANTES DE JUEGO ===== */
@@ -898,12 +911,16 @@ function renderFin() {
 }
 
 /* ===== ANUNCIOS DE VOZ + OVERLAY ===== */
+let overlayTurno = 0;
 function mostrarOverlayEvento(titulo, texto, ms) {
   const overlay = document.getElementById("overlay-evento");
   document.getElementById("overlay-titulo").textContent = titulo;
   document.getElementById("overlay-texto").textContent = texto;
   overlay.classList.add("show");
-  setTimeout(() => overlay.classList.remove("show"), ms || 2600);
+  // Cada aviso tiene su turno: el temporizador de uno anterior no puede cerrar
+  // el cartel del siguiente (p. ej. el de ganador que sale justo después).
+  const turno = ++overlayTurno;
+  setTimeout(() => { if (turno === overlayTurno) overlay.classList.remove("show"); }, ms || 2600);
 }
 
 // Los nombres de equipo ya suelen ser "Equipo Rojo"/"Equipo Azul": si el
@@ -926,15 +943,26 @@ function anunciarEvento(d) {
     const resultadoTexto = ev.resultado === 'agua' ? 'Agua'
       : ev.resultado === 'tocado' ? 'Tocado'
       : 'Tocado y hundido';
-    hablar([`${conEquipo(nombre)} lanza ${ev.coord}`, resultadoTexto]);
-    mostrarOverlayEvento(`${nombre.toUpperCase()} LANZA ${ev.coord}`, resultadoTexto.toUpperCase());
+    const frases = [`${conEquipo(nombre)} lanza ${ev.coord}`, resultadoTexto];
+    // Si ese disparo ha acabado la partida, se encadena el anuncio de la flota
+    // destruida y, al callar la voz, el cartel de ganador (ese ya sin audio).
+    const finDePartida = d.fase === 'terminada' && !!d.ganador;
+    if (finDePartida) {
+      const perdedor = d.ganador === 'A' ? d.equipoB : d.equipoA;
+      frases.push(`La flota del ${conEquipo(perdedor)} ha sido destruida`);
+    }
+    mostrarOverlayEvento(`${nombre.toUpperCase()} LANZA ${ev.coord}`, resultadoTexto.toUpperCase(), finDePartida ? 20000 : undefined);
+    hablar(frases, finDePartida ? () => mostrarOverlayGanador(d) : null);
+  } else if (d.fase === 'terminada' && d.ganador) {
+    // Partida terminada sin un disparo asociado (p. ej. al recargar): solo cartel
+    mostrarOverlayGanador(d);
   }
-  if (d.fase === 'terminada' && d.ganador) {
-    const nombreGanador = d.ganador === 'A' ? d.equipoA : d.equipoB;
-    setTimeout(() => {
-      hablar([conEquipo(nombreGanador), "GANADOR"]);
-    }, 2200);
-  }
+}
+
+// Cartel de ganador: aparece tras la locución y NO lleva audio.
+function mostrarOverlayGanador(d) {
+  const nombreGanador = d.ganador === 'A' ? d.equipoA : d.equipoB;
+  mostrarOverlayEvento("GANADOR", nombreGanador.toUpperCase(), 15000);
 }
 
 /* ===== RENDER PRINCIPAL SEGÚN ESTADO ===== */
