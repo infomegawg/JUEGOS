@@ -233,6 +233,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div class="led-btns">
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo.html','_blank')"><i class="ti ti-device-gamepad-2"></i> Bingo</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1','_blank')"><i class="ti ti-anchor"></i> Batalla Naval (ver en directo)</button>
+          <button class="led-btn" onclick="reiniciarBatallaNaval()" style="border-color:#ff3b4e;color:#ffb3ba;"><i class="ti ti-refresh-alert"></i> Reiniciar Batalla Naval</button>
         </div>
       </div>
 
@@ -1330,6 +1331,24 @@ async function guardarPrueba() {
   const prueba = document.getElementById("prueba-select").value;
   await db.collection("sesion").doc("actual").set({ prueba_actual: prueba }, { merge: true });
   mostrarNotif(`Prueba: ${prueba}`);
+}
+
+/* ===== REINICIAR BATALLA NAVAL ===== */
+// Borra la partida actual de Batalla Naval. Al desaparecer el documento, tanto
+// las pantallas de los capitanes como la de espectador vuelven solas a la
+// pantalla inicial (nombres de equipo) y se olvidan del capitán y la flota.
+async function reiniciarBatallaNaval() {
+  const pin = prompt("Esta acción borra la partida de Batalla Naval en curso.\nIntroduce el PIN de acceso para confirmar:");
+  if (pin === null) return;
+  if (pin !== "1402") { mostrarNotif("PIN incorrecto, no se ha reiniciado nada"); return; }
+  if (!confirm("¿Reiniciar la Batalla Naval?\n\nSe borrarán las flotas, los disparos y el historial de jugadas. Los dos capitanes volverán a la pantalla de inicio para empezar de cero.")) return;
+  try {
+    await db.collection("batalla_naval").doc("partida_actual").delete();
+    mostrarNotif("Batalla Naval reiniciada — los capitanes pueden empezar de nuevo");
+  } catch (e) {
+    console.error(e);
+    mostrarNotif("Error al reiniciar la Batalla Naval");
+  }
 }
 
 /* ===== RESETEAR TODO ===== */

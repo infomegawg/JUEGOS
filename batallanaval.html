@@ -907,7 +907,20 @@ function renderTodo() {
 
 /* ===== LISTENER PRINCIPAL ===== */
 partidaRef.onSnapshot(snap => {
-  if (!snap.exists) { ultimaPartida = null; renderTodo(); return; }
+  if (!snap.exists) {
+    // La partida se ha reiniciado desde Panel Central: todo a cero en cada dispositivo
+    ultimaPartida = null;
+    miEquipo = null;
+    barcosColocados = [];
+    anclaPendiente = null;
+    sugerenciasActuales = [];
+    yaTransicionoFase = false;
+    ultimoEventoKey = null;
+    const tag = document.getElementById("equipo-tag");
+    if (tag) tag.style.display = "none";
+    renderTodo();
+    return;
+  }
   const d = snap.data();
   ultimaPartida = d;
 
