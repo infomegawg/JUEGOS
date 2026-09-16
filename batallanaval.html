@@ -231,6 +231,13 @@ body.espectador-mode #pantalla-espectador .board {
   padding: clamp(8px, 1.4vh, 18px); border-radius: 16px;
 }
 body.espectador-mode #pantalla-espectador .cell { font-size: clamp(12px, 2vh, 24px); border-radius: 8px; }
+/* Cada flota con el color de su equipo: rojo el A, azul el B. Los impactos y
+   los hundimientos mandan sobre el color de equipo (tocado en rojo oscuro,
+   hundido todo en negro con calavera). */
+body.espectador-mode #board-espectador-a .cell.barco { --barco-color: #e0344a; --barco-borde: #ffc2c8; color: #2a0006; box-shadow: 0 0 14px rgba(255,59,78,0.55); }
+body.espectador-mode #board-espectador-b .cell.barco { --barco-color: #2f6fed; --barco-borde: #bcd6ff; color: #001028; box-shadow: 0 0 14px rgba(47,111,237,0.55); }
+body.espectador-mode #pantalla-espectador .cell.barco.tocado { --barco-color: #7a0f22; --barco-borde: #ff8f9c; color: #fff; box-shadow: 0 0 14px rgba(255,59,78,0.6); }
+body.espectador-mode #pantalla-espectador .cell.barco.hundido { --barco-color: #000; --barco-borde: #ff3b4e; color: #ff3b4e; box-shadow: 0 0 18px rgba(255,59,78,0.8); }
 body.espectador-mode #pantalla-espectador .cell.head { font-size: clamp(11px, 1.8vh, 21px); }
 body.espectador-mode .turno-banner { font-size: clamp(15px, 2.4vh, 32px); padding: clamp(8px, 1.8vh, 22px); letter-spacing: 2px; margin-bottom: clamp(10px, 2.2vh, 30px); }
 body.espectador-mode .overlay .titulo { font-size: clamp(20px, 3.2vh, 36px); letter-spacing: 8px; }
