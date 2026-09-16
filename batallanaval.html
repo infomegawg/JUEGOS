@@ -891,8 +891,12 @@ function renderEspectador() {
     banner.className = "turno-banner mio";
   }
 
-  const flotaA = d.flotaA || [];
-  const flotaB = d.flotaB || [];
+  // Mientras se están colocando las flotas no se enseña ningún barco en la
+  // pantalla: se vería la colocación de un equipo antes de que el otro termine.
+  // Aparecen las dos a la vez, cuando ambos capitanes han confirmado.
+  const colocando = d.fase === 'colocacion';
+  const flotaA = colocando ? [] : (d.flotaA || []);
+  const flotaB = colocando ? [] : (d.flotaB || []);
   document.getElementById("board-espectador-a").innerHTML = renderBoardHTML({
     infoBarco: construirInfoBarcos(flotaA),
     marcarDisparo: (id) => (d.disparosRecibidosA || {})[id] || null
