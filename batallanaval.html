@@ -128,6 +128,7 @@ input::placeholder { color: var(--texto2); }
 .turno-banner { text-align: center; font-family: var(--font); font-size: 16px; padding: 12px; border-radius: 10px; margin-bottom: 20px; letter-spacing: 1px; border: 1px solid var(--border); }
 .turno-banner.mio { background: rgba(23,201,100,0.15); color: var(--verde); border-color: var(--verde); }
 .turno-banner.rival { background: rgba(160,107,255,0.12); color: var(--morado2); }
+.turno-banner.espera { background: rgba(255,122,26,0.15); color: var(--naranja); border-color: var(--naranja); }
 
 .overlay { position: fixed; inset: 0; background: rgba(2,4,12,0.94); display: none; align-items: center; justify-content: center; flex-direction: column; gap: 14px; z-index: 500; }
 .overlay.show { display: flex; }
@@ -469,6 +470,13 @@ let miEquipo = null; // 'A' | 'B'
 let ultimaPartida = null;
 let primerSnapPartida = true;
 let ultimoEventoKey = null;
+// Retardo obligatorio entre jugadas: tras un disparo, el capitán al que le toca
+// no puede marcar nada hasta que pasan estos segundos (da tiempo a que se oiga
+// la locución y a que el equipo reaccione en la lona física).
+const ESPERA_ENTRE_JUGADAS_MS = 5000;
+let esperaHasta = 0;
+let ticEspera = null;
+let ultimoHistorialLen = null;
 let yaTransicionoFase = false;
 
 // Colocación (local hasta confirmar)
@@ -770,6 +778,7 @@ async function sortearInicio() {
 }
 
 async function disparar(fila, col) {
+  if (Date.now() < esperaHasta) return; // aún en la espera entre jugadas
   if (!ultimaPartida || ultimaPartida.fase !== 'batalla' || ultimaPartida.turno !== miEquipo) return;
   const coord = coordId(fila, col);
   try {
@@ -826,6 +835,33 @@ async function disparar(fila, col) {
   } catch(e) { console.error(e); }
 }
 
+// Arranca (o reinicia) la cuenta atrás y va refrescando el banner cada cuarto
+// de segundo; al agotarse, se vuelve a pintar para habilitar el tablero.
+function iniciarEsperaTurno() {
+  esperaHasta = Date.now() + ESPERA_ENTRE_JUGADAS_MS;
+  if (ticEspera) clearInterval(ticEspera);
+  ticEspera = setInterval(() => {
+    if (Date.now() >= esperaHasta) {
+      clearInterval(ticEspera); ticEspera = null;
+      if (ultimaPartida) renderBatalla();
+    } else {
+      pintarBannerEspera();
+    }
+  }, 250);
+  pintarBannerEspera();
+}
+
+function segundosDeEspera() {
+  return Math.max(0, Math.ceil((esperaHasta - Date.now()) / 1000));
+}
+
+function pintarBannerEspera() {
+  const banner = document.getElementById("turno-banner");
+  if (!banner) return;
+  banner.textContent = "⏳ Prepara tu disparo... " + segundosDeEspera();
+  banner.className = "turno-banner espera";
+}
+
 function renderBatalla() {
   const d = ultimaPartida;
   const soyA = miEquipo === 'A';
@@ -839,10 +875,13 @@ function renderBatalla() {
   document.getElementById("sorteo-bar").style.display = (!d.turno) ? 'block' : 'none';
 
   // Banner de turno
+  const enEsperaDeTurno = Date.now() < esperaHasta;
   const banner = document.getElementById("turno-banner");
   if (!d.turno) {
     banner.textContent = "Ambas flotas listas — falta sortear quién empieza";
     banner.className = "turno-banner rival";
+  } else if (d.turno === miEquipo && enEsperaDeTurno) {
+    pintarBannerEspera();
   } else if (d.turno === miEquipo) {
     banner.textContent = "🎯 ¡Es tu turno! Dispara en el tablero de ataque";
     banner.className = "turno-banner mio";
@@ -857,7 +896,7 @@ function renderBatalla() {
     onClickCell: null
   });
 
-  const puedeDisparar = d.fase === 'batalla' && d.turno === miEquipo;
+  const puedeDisparar = d.fase === 'batalla' && d.turno === miEquipo && !enEsperaDeTurno;
   document.getElementById("board-ataque").innerHTML = renderBoardHTML({
     infoBarco: null,
     marcarDisparo: (id) => disparosQueHago[id] || null,
@@ -1125,6 +1164,18 @@ partidaRef.onSnapshot(snap => {
     partidaRef.update({ fase: 'batalla' }).catch(e => console.error(e));
   }
   if (d.fase !== 'colocacion') yaTransicionoFase = (d.fase !== 'colocacion');
+
+  // Al recibir un disparo nuevo, si el turno pasa a ser mío, arranca la espera
+  // antes de poder marcar. Se mide en el propio dispositivo, así que no depende
+  // de que los dos PCs tengan la hora sincronizada.
+  if (!modoEspectador) {
+    const histLen = (d.historial || []).length;
+    if (ultimoHistorialLen !== null && histLen > ultimoHistorialLen &&
+        d.fase === "batalla" && d.turno === miEquipo) {
+      iniciarEsperaTurno();
+    }
+    ultimoHistorialLen = histLen;
+  }
 
   // Anuncios de voz: se ignora el primer snapshot (carga/recarga de página) y
   // los que aún no están confirmados por el servidor (evita doble aviso).
