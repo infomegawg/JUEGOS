@@ -1015,7 +1015,7 @@ async function confirmarCrearEquipo() {
 }
 
 // Convocatoria por megafonía, solo cuando el operador la pide:
-// "El equipo X está formado por: 1, 2 y 3. Por favor, acudir a la
+// "El equipo Azul, está formado, por, 1, 2, y, 3, por favor acudir a la
 // zona de juego." Cada número va en su propia frase para que se entienda bien.
 function anunciarEquipoFormado(id) {
   const eq = equiposStaffCache[id];
@@ -1034,11 +1034,15 @@ function anunciarEquipoFormado(id) {
   // Si el nombre ya empieza por "Equipo" no se repite la palabra
   // ("El equipo Equipo Azul..." sonaba fatal).
   const nombreDicho = /^equipo\b/i.test(eq.nombre) ? eq.nombre : ("equipo " + eq.nombre);
-  const frases = ["El " + nombreDicho + " está formado por:"];
+  // Cada trozo es una frase suelta para que la voz haga pausa entre ellas:
+  // "El equipo Azul" / "está formado" / "por" / 12 / 45 / ... / "y" / 88 /
+  // "por favor acudir a la zona de juego".
+  const frases = ["El " + nombreDicho, "está formado", "por"];
   dorsales.forEach((n, i) => {
-    frases.push((i === dorsales.length - 1 && dorsales.length > 1) ? ("y " + n) : String(n));
+    if (i === dorsales.length - 1 && dorsales.length > 1) frases.push("y");
+    frases.push(String(n));
   });
-  frases.push("Por favor, acudir a la zona de juego");
+  frases.push("por favor acudir a la zona de juego");
 
   const utterances = frases.map(crear);
   // Mismo apaño que en las eliminaciones múltiples: Chrome corta la voz a los
