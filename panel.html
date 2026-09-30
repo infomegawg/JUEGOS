@@ -1015,7 +1015,7 @@ async function confirmarCrearEquipo() {
 }
 
 // Convocatoria por megafonía, solo cuando el operador la pide:
-// "El equipo X está formado por: 1, 2, 3. Por favor, acudir a la
+// "El equipo X está formado por: 1, 2 y 3. Por favor, acudir a la
 // zona de juego." Cada número va en su propia frase para que se entienda bien.
 function anunciarEquipoFormado(id) {
   const eq = equiposStaffCache[id];
@@ -1035,7 +1035,9 @@ function anunciarEquipoFormado(id) {
   // ("El equipo Equipo Azul..." sonaba fatal).
   const nombreDicho = /^equipo\b/i.test(eq.nombre) ? eq.nombre : ("equipo " + eq.nombre);
   const frases = ["El " + nombreDicho + " está formado por:"];
-  dorsales.forEach((n) => { frases.push(String(n)); });
+  dorsales.forEach((n, i) => {
+    frases.push((i === dorsales.length - 1 && dorsales.length > 1) ? ("y " + n) : String(n));
+  });
   frases.push("Por favor, acudir a la zona de juego");
 
   const utterances = frases.map(crear);
