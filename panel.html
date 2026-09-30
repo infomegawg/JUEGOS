@@ -1015,7 +1015,7 @@ async function confirmarCrearEquipo() {
 }
 
 // Convocatoria por megafonía, solo cuando el operador la pide:
-// "El equipo Azul, está formado, por, 1, 2, y, 3, por favor acudir a la
+// "El equipo Azul, está formado, por, 1, 2, y, 3, por favor, acudir a la
 // zona de juego." Cada número va en su propia frase para que se entienda bien.
 function anunciarEquipoFormado(id) {
   const eq = equiposStaffCache[id];
@@ -1042,7 +1042,7 @@ function anunciarEquipoFormado(id) {
     if (i === dorsales.length - 1 && dorsales.length > 1) frases.push("y");
     frases.push(String(n));
   });
-  frases.push("por favor acudir a la zona de juego");
+  frases.push("por favor", "acudir a la zona de juego");
 
   const utterances = frases.map(crear);
   // Mismo apaño que en las eliminaciones múltiples: Chrome corta la voz a los
