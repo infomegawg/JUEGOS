@@ -42,6 +42,21 @@ html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(-
 .clock { font-family: var(--mono); font-size: 20px; font-weight: 800; color: #ffffff; width: 115px; text-align: center; flex-shrink: 0; }
 .main { display: grid; grid-template-columns: 260px 1fr 280px; overflow: hidden; }
 
+/* En pantallas donde no caben las tres columnas, las secciones NO se cortan
+   por la derecha: la columna que no cabe baja a una fila completa debajo y
+   el panel entero se puede recorrer con scroll. */
+@media (max-width: 1280px) {
+  html, body { overflow: auto; }
+  .app { height: auto; min-height: 100vh; }
+  .main { grid-template-columns: 260px 1fr; overflow: visible; }
+  .sidebar-r { grid-column: 1 / -1; border-left: 0; border-top: 2px solid var(--border2); }
+  .sidebar, .sidebar-r { overflow-y: visible; }
+}
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; }
+  .sidebar { grid-column: 1 / -1; border-right: 0; border-bottom: 2px solid var(--border2); }
+}
+
 /* ===== SIDEBARS ===== */
 .sidebar { background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; }
 .sidebar-r { background: var(--bg2); border-left: 1px solid var(--border); display: flex; flex-direction: column; overflow-y: auto; border-right: none; }
@@ -82,8 +97,8 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .stat .val.t { color: var(--morado); }
 
 /* ===== TABS ===== */
-.tabs { display: flex; border-bottom: 1px solid var(--border); }
-.tab { flex: 1; padding: 10px; font-size: 9px; letter-spacing: 1.5px; text-align: center; cursor: pointer; color: var(--texto2); border-bottom: 2px solid transparent; transition: all .2s; text-transform: uppercase; }
+.tabs { display: flex; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.tab { flex: 1 1 auto; min-width: 72px; padding: 10px 6px; font-size: 9px; letter-spacing: 1px; text-align: center; cursor: pointer; color: var(--texto2); border-bottom: 2px solid transparent; transition: all .2s; text-transform: uppercase; white-space: nowrap; }
 .tab.active { color: var(--morado2); border-bottom-color: var(--morado2); }
 
 /* ===== HISTORIAL ===== */
@@ -408,6 +423,22 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div>
           <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users"></i> Staff conectado</div>
           <div id="staff-presencia-list"><div style="font-size:11px;color:var(--texto2);">Nadie conectado</div></div>
+        </div>
+        <div>
+          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users-plus"></i> Crear equipo</div>
+          <input type="text" id="nuevo-equipo-nombre" placeholder="Nombre del equipo (ej. Equipo Azul)" style="margin-bottom:6px;" />
+          <button class="btn btn-morado" style="width:100%;" onclick="toggleModoCrearEquipo()" id="crear-equipo-toggle-btn">
+            <i class="ti ti-hand-finger"></i> Seleccionar dorsales en el grid
+          </button>
+          <div id="crear-equipo-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#f3eeff;border:1px solid var(--morado);">
+            <div style="font-size:11px;font-weight:700;color:var(--morado);margin-bottom:6px;">
+              Pulsa los dorsales en el grid — <span id="crear-equipo-count">0</span> seleccionados
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-morado" style="flex:1;" onclick="confirmarCrearEquipo()"><i class="ti ti-check"></i> Crear equipo</button>
+              <button class="btn btn-ghost" style="flex:1;" onclick="toggleModoCrearEquipo()">Cancelar</button>
+            </div>
+          </div>
         </div>
         <div>
           <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users-group"></i> Equipos creados</div>
@@ -834,7 +865,7 @@ function renderGrid() {
     if (p.vivo) {
       cls = 'cell' + (seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
     } else {
-      cls = 'cell elim' + (modoMultiSalvar && seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
+      cls = 'cell elim' + ((modoMultiSalvar || modoCrearEquipo) && seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
     }
     return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
   }).join('');
@@ -861,6 +892,14 @@ function setFiltro(f) {
 function clickCell(dorsal) {
   const p = participantes[dorsal];
   if (!p) return;
+  if (modoCrearEquipo) {
+    // Al formar un equipo vale cualquier dorsal, esté vivo o eliminado
+    if (seleccionMulti.has(dorsal)) seleccionMulti.delete(dorsal);
+    else seleccionMulti.add(dorsal);
+    document.getElementById("crear-equipo-count").textContent = seleccionMulti.size;
+    renderGrid();
+    return;
+  }
   if (modoMultiSalvar) {
     if (p.vivo) { mostrarNotif("El jugador #"+dorsal+" ya está vivo"); return; }
     if (seleccionMulti.has(dorsal)) seleccionMulti.delete(dorsal);
@@ -902,6 +941,7 @@ function toggleModoMulti() {
 // automáticamente sus dorsales vivos — el operador ya no tiene que marcarlos
 // uno a uno en el grid.
 let equiposStaffCache = {};
+let modoCrearEquipo = false; // selección de dorsales en el grid para formar un equipo desde el panel
 
 function renderEquiposStaffOptions() {
   const grupo = document.getElementById("equipos-staff-group");
@@ -931,12 +971,92 @@ function renderEquiposAdminList() {
       <div style="font-size:12px;font-weight:800;color:var(--morado);">👥 ${eq.nombre}</div>
       <div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">${vivos} vivos de ${eq.dorsales.length} · #${eq.dorsales.join(', #')}</div>
       <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Creado por ${eq.creado_por||'—'}</div>
+      <button class="btn btn-verde" style="width:100%;padding:6px;font-size:10px;margin-bottom:6px;" onclick="anunciarEquipoFormado('${id}')"><i class="ti ti-volume"></i> Anunciar por megafonía</button>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="editarEquipoStaff('${id}')">Editar</button>
         <button class="btn btn-rojo" style="flex:1;padding:6px;font-size:10px;" onclick="disolverEquipoStaff('${id}')">Disolver</button>
       </div>
     </div>`;
   }).join('');
+}
+
+// Crear un equipo desde el panel: mismo formato de documento que los que crea
+// la app de staff, así que aparece al instante en los móviles de todo el staff.
+function toggleModoCrearEquipo() {
+  modoCrearEquipo = !modoCrearEquipo;
+  seleccionMulti.clear();
+  // Los modos de selección del grid son excluyentes entre sí
+  if (modoCrearEquipo && modoMulti) toggleModoMulti();
+  if (modoCrearEquipo && modoMultiSalvar) toggleModoMultiSalvar();
+  document.getElementById("crear-equipo-bar").style.display = modoCrearEquipo ? "block" : "none";
+  document.getElementById("crear-equipo-toggle-btn").style.opacity = modoCrearEquipo ? "0.5" : "";
+  document.getElementById("crear-equipo-count").textContent = 0;
+  renderGrid();
+}
+
+async function confirmarCrearEquipo() {
+  const nombre = document.getElementById("nuevo-equipo-nombre").value.trim();
+  if (!nombre) { mostrarNotif("Ponle un nombre al equipo"); return; }
+  const dorsales = Array.from(seleccionMulti).sort((a,b) => a - b);
+  if (!dorsales.length) { mostrarNotif("Selecciona los dorsales del equipo en el grid"); return; }
+  try {
+    await db.collection("equipos").add({
+      nombre: nombre,
+      dorsales: dorsales,
+      creado_por: "Panel-Central",
+      prueba: document.getElementById("prueba-select").value,
+      creado_en: TS(),
+      activo: true
+    });
+    document.getElementById("nuevo-equipo-nombre").value = "";
+    toggleModoCrearEquipo();
+    mostrarNotif("Equipo \"" + nombre + "\" creado con " + dorsales.length + " jugadores");
+  } catch(e) { console.error(e); mostrarNotif("Error al crear el equipo"); }
+}
+
+// Convocatoria por megafonía, solo cuando el operador la pide:
+// "El equipo X está formado por los jugadores 1, 2 y 3. Por favor, acudir a la
+// zona de juego." Cada número va en su propia frase para que se entienda bien.
+function anunciarEquipoFormado(id) {
+  const eq = equiposStaffCache[id];
+  if (!eq) return;
+  if (!window.speechSynthesis) { mostrarNotif("Este navegador no reproduce voz"); return; }
+  window.speechSynthesis.cancel();
+
+  const crear = (texto) => {
+    const msg = new SpeechSynthesisUtterance(texto);
+    msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
+    if (vozSeleccionada) msg.voice = vozSeleccionada;
+    return msg;
+  };
+
+  const dorsales = eq.dorsales || [];
+  // Si el nombre ya empieza por "Equipo" no se repite la palabra
+  // ("El equipo Equipo Azul..." sonaba fatal).
+  const nombreDicho = /^equipo\b/i.test(eq.nombre) ? eq.nombre : ("equipo " + eq.nombre);
+  const frases = ["El " + nombreDicho + " está formado por los jugadores"];
+  dorsales.forEach((n, i) => {
+    frases.push((i === dorsales.length - 1 && dorsales.length > 1) ? ("y " + n) : String(n));
+  });
+  frases.push("Por favor, acudir a la zona de juego");
+
+  const utterances = frases.map(crear);
+  // Mismo apaño que en las eliminaciones múltiples: Chrome corta la voz a los
+  // ~15s en colas largas si no se le da un toque cada pocos segundos.
+  const keepAlive = setInterval(() => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }
+  }, 5000);
+  let terminado = false;
+  const finalizar = () => { if (terminado) return; terminado = true; clearInterval(keepAlive); };
+  const ultima = utterances[utterances.length - 1];
+  ultima.onend = finalizar;
+  ultima.onerror = finalizar;
+  setTimeout(finalizar, frases.length * 2500 + 5000);
+  utterances.forEach(u => window.speechSynthesis.speak(u));
+  mostrarNotif("Anunciando al equipo " + eq.nombre);
 }
 
 async function editarEquipoStaff(id) {
