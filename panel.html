@@ -222,6 +222,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div class="led-btns">
           <button class="led-btn active" id="led-grid" onclick="setLED('grid')">Grid</button>
           <button class="led-btn" id="led-bingo" onclick="setLED('bingo')">Bingo</button>
+          <button class="led-btn" id="led-salvacion" onclick="setLED('salvacion')">Salvación</button>
           <button class="led-btn" id="led-batallanaval" onclick="setLED('batallanaval')">Batalla Naval</button>
           <button class="led-btn" id="led-animacion" onclick="setLED('animacion')">Animación</button>
           <button class="led-btn" id="led-apagado" onclick="setLED('apagado')">Apagado</button>
@@ -233,6 +234,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div class="section-title"><i class="ti ti-device-desktop"></i> Apps digitales</div>
         <div class="led-btns">
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo.html','_blank')"><i class="ti ti-device-gamepad-2"></i> Bingo</button>
+          <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo-salvacion.html','_blank')"><i class="ti ti-heart"></i> Bingo Salvación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1','_blank')"><i class="ti ti-anchor"></i> Batalla Naval (ver en directo)</button>
           <button class="led-btn" onclick="reiniciarBatallaNaval()" style="border-color:#ff3b4e;color:#ffb3ba;"><i class="ti ti-refresh-alert"></i> Reiniciar Batalla Naval</button>
         </div>
@@ -249,6 +251,21 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <input type="number" id="bingo-remoto-cantidad" placeholder="Cantidad" min="1" style="flex:1;" />
           <button class="btn btn-naranja" style="flex:1;" onclick="girarBingoMultiRemoto()">
             <i class="ti ti-players"></i> Eliminar varios y girar
+          </button>
+        </div>
+      </div>
+
+      <!-- CONTROL REMOTO BINGO DE SALVACIÓN -->
+      <div class="section">
+        <div class="section-title"><i class="ti ti-remote-control"></i> Control remoto Bingo Salvación</div>
+        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta de salvación en la pantalla LED sin tocar ese portátil (la pantalla debe estar en modo "Salvación")</div>
+        <button class="btn btn-verde" style="margin-bottom:8px;" onclick="girarSalvacionRemoto()">
+          <i class="ti ti-player-play"></i> Girar (1 número)
+        </button>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="salvacion-remoto-cantidad" placeholder="Cantidad" min="1" style="flex:1;" />
+          <button class="btn btn-verde" style="flex:1;" onclick="girarSalvacionMultiRemoto()">
+            <i class="ti ti-players"></i> Salvar varios y girar
           </button>
         </div>
       </div>
@@ -298,6 +315,16 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <button class="btn btn-morado" id="multi-toggle-btn" style="margin-top:8px;" onclick="toggleModoMulti()">
           <i class="ti ti-users"></i> Eliminar varios…
         </button>
+        <button class="btn btn-verde" id="multi-salvar-toggle-btn" style="margin-top:8px;" onclick="toggleModoMultiSalvar()">
+          <i class="ti ti-heart"></i> Salvar varios…
+        </button>
+        <div id="multi-salvar-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#e9fbf1;border:1px solid var(--verde);">
+          <div style="font-size:11px;font-weight:700;color:var(--verde);margin-bottom:6px;">Selecciona dorsales eliminados en el grid — <span id="multi-salvar-count">0</span> seleccionados</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-verde" style="flex:1;" onclick="confirmarSalvacionMultiple()"><i class="ti ti-heart"></i> Salvar seleccionados</button>
+            <button class="btn btn-ghost" style="flex:1;" onclick="toggleModoMultiSalvar()">Cancelar</button>
+          </div>
+        </div>
         <div id="multi-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#fff3d6;border:1px solid var(--naranja);">
           <div style="font-size:11px;font-weight:700;color:var(--naranja);margin-bottom:6px;">Selecciona dorsales en el grid — <span id="multi-count">0</span> seleccionados</div>
           <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
@@ -362,6 +389,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <div class="tabs">
         <div class="tab" id="tab-staff" onclick="setTab('staff')">Staff <span id="staff-badge" style="display:none;background:var(--rojo);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:2px;">0</span></div>
         <div class="tab active" id="tab-hist" onclick="setTab('hist')">Historial</div>
+        <div class="tab" id="tab-salv" onclick="setTab('salv')">Salvados</div>
         <div class="tab" id="tab-part" onclick="setTab('part')">Jugadores</div>
         <div class="tab" id="tab-imp" onclick="setTab('imp')">Importar</div>
       </div>
@@ -388,6 +416,9 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 
       <!-- HISTORIAL -->
       <div id="panel-hist" class="hist-list"></div>
+
+      <!-- HISTORIAL DE SALVACIONES -->
+      <div id="panel-salv" class="hist-list" style="display:none;"></div>
 
       <!-- JUGADORES -->
       <div id="panel-part" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
@@ -471,6 +502,7 @@ const TS = firebase.firestore.FieldValue.serverTimestamp;
 /* ===== ESTADO ===== */
 let participantes = {}; // { dorsal: { nombre, apellidos, email, telefono, vivo } }
 let eliminaciones = []; // historial
+let salvaciones = []; // historial de salvaciones
 let filtro = 'todos';
 let vozSeleccionada = null;
 
@@ -584,6 +616,52 @@ function hablarPanelMultiple(dorsales, onFinish) {
   utterances.forEach(u => window.speechSynthesis.speak(u));
 }
 
+// Igual que hablarPanelMultiple, pero para salvaciones ("habéis sido salvados")
+function hablarPanelMultipleSalvacion(dorsales, onFinish) {
+  if (!window.speechSynthesis) { if (onFinish) onFinish(); return; }
+  window.speechSynthesis.cancel();
+
+  const crear = (texto) => {
+    const msg = new SpeechSynthesisUtterance(texto);
+    msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 1.0; msg.volume = 1;
+    if (vozSeleccionada) msg.voice = vozSeleccionada;
+    return msg;
+  };
+
+  const frases = [];
+  if (dorsales.length === 1) {
+    frases.push(`Jugador ${dorsales[0]}`, "Ha sido salvado");
+  } else {
+    frases.push("Jugadores");
+    dorsales.forEach((n, i) => {
+      const esUltimo = i === dorsales.length - 1;
+      frases.push(esUltimo ? `y ${n}` : `${n}`);
+    });
+    frases.push("Habéis sido salvados");
+  }
+
+  const utterances = frases.map(crear);
+
+  const keepAlive = setInterval(() => {
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }
+  }, 5000);
+
+  let terminado = false;
+  const finalizar = () => {
+    if (terminado) return;
+    terminado = true;
+    clearInterval(keepAlive);
+    if (onFinish) onFinish();
+  };
+  utterances[utterances.length - 1].onend = finalizar;
+  utterances[utterances.length - 1].onerror = finalizar;
+  setTimeout(finalizar, frases.length * 2500 + 5000);
+  utterances.forEach(u => window.speechSynthesis.speak(u));
+}
+
 let tabActual = 'hist';
 let elimDorsalSeleccionado = null;
 
@@ -647,6 +725,7 @@ function init() {
   setInterval(updateClock, 1000);
   escucharParticipantes();
   escucharEliminaciones();
+  escucharSalvaciones();
   escucharSesion();
   escucharLlamadas();
   escucharEquiposStaff();
@@ -681,6 +760,16 @@ function escucharEliminaciones() {
   db.collection("eliminaciones").orderBy("eliminado_en", "desc").onSnapshot(snap => {
     eliminaciones = snap.docs.map(d => d.data());
     renderHistorial();
+  });
+}
+
+// Historial de salvaciones: colección con documento propio por salvamento
+// (a diferencia de "eliminaciones", que solo refleja a los eliminados
+// actuales) para que el registro no desaparezca cuando alguien es salvado.
+function escucharSalvaciones() {
+  db.collection("salvaciones").orderBy("salvado_en", "desc").limit(200).onSnapshot(snap => {
+    salvaciones = snap.docs.map(d => d.data());
+    renderHistorialSalvaciones();
   });
 }
 
@@ -743,7 +832,12 @@ function renderGrid() {
   });
   if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
   grid.innerHTML = lista.map(p => {
-    const cls = p.vivo ? ('cell' + (seleccionMulti.has(p.dorsal) ? ' selmulti' : '')) : 'cell elim';
+    let cls;
+    if (p.vivo) {
+      cls = 'cell' + (seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
+    } else {
+      cls = 'cell elim' + (modoMultiSalvar && seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
+    }
     return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
   }).join('');
 }
@@ -769,6 +863,14 @@ function setFiltro(f) {
 function clickCell(dorsal) {
   const p = participantes[dorsal];
   if (!p) return;
+  if (modoMultiSalvar) {
+    if (p.vivo) { mostrarNotif("El jugador #"+dorsal+" ya está vivo"); return; }
+    if (seleccionMulti.has(dorsal)) seleccionMulti.delete(dorsal);
+    else seleccionMulti.add(dorsal);
+    actualizarContadorMulti();
+    renderGrid();
+    return;
+  }
   if (!p.vivo) { mostrarNotif("El jugador #"+dorsal+" ya está eliminado"); return; }
   if (modoMulti) {
     if (seleccionMulti.has(dorsal)) seleccionMulti.delete(dorsal);
@@ -905,6 +1007,8 @@ function nombreEquipoSeleccionado() {
 
 function actualizarContadorMulti() {
   document.getElementById("multi-count").textContent = seleccionMulti.size;
+  const salvarCount = document.getElementById("multi-salvar-count");
+  if (salvarCount) salvarCount.textContent = seleccionMulti.size;
 }
 
 /* ===== APP STAFF: propuestas pendientes, avisos SOS y presencia ===== */
@@ -1136,6 +1240,68 @@ async function confirmarEliminacionMultiple() {
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar varios"); }
 }
 
+/* ===== SALVACIÓN MÚLTIPLE (selección manual) ===== */
+let modoMultiSalvar = false;
+
+function toggleModoMultiSalvar() {
+  modoMultiSalvar = !modoMultiSalvar;
+  seleccionMulti.clear();
+  // Los dos modos de selección múltiple (eliminar / salvar) son excluyentes:
+  // activar uno cierra el otro para que el grid no quede en un estado ambiguo.
+  if (modoMultiSalvar && modoMulti) toggleModoMulti();
+  document.getElementById("multi-salvar-bar").style.display = modoMultiSalvar ? "block" : "none";
+  document.getElementById("multi-salvar-toggle-btn").style.opacity = modoMultiSalvar ? "0.5" : "";
+  actualizarContadorMulti();
+  renderGrid();
+}
+
+async function ejecutarSalvacionMultiple(dorsales) {
+  const batch = db.batch();
+  const salvacionesRefs = [];
+  dorsales.forEach(dorsal => {
+    batch.delete(db.collection("eliminaciones").doc(String(dorsal)));
+    batch.update(db.collection("participantes").doc(String(dorsal)), {
+      vivo: true, eliminado_en: null, prueba: null, metodo: null, juez: null
+    });
+    const ref = db.collection("salvaciones").doc();
+    salvacionesRefs.push(ref);
+    batch.set(ref, { dorsal: dorsal, metodo: "multiple-panel", juez: "Panel-Central", salvado_en: TS() });
+  });
+  await batch.commit();
+  hablarPanelMultipleSalvacion(dorsales);
+  mostrarNotif(`${dorsales.length} jugadores salvados`);
+}
+
+async function confirmarSalvacionMultiple() {
+  const dorsales = Array.from(seleccionMulti).sort((a,b) => a - b);
+  if (!dorsales.length) { mostrarNotif("No has seleccionado ningún dorsal"); return; }
+  if (!confirm(`¿Salvar a ${dorsales.length} jugadores?\n#${dorsales.join(', #')}`)) return;
+  try {
+    await ejecutarSalvacionMultiple(dorsales);
+    toggleModoMultiSalvar();
+  } catch(e) { console.error(e); mostrarNotif("Error al salvar varios"); }
+}
+
+/* ===== CONTROL REMOTO BINGO DE SALVACIÓN ===== */
+// La app bingo-salvacion.html (abierta en el portátil de la pantalla LED)
+// escucha esta colección, separada de "bingo_comandos" para que un comando
+// del Bingo de Eliminación no dispare por error el de Salvación.
+async function girarSalvacionRemoto() {
+  try {
+    await db.collection("salvacion_comandos").add({ accion: "girar", creado_en: TS() });
+    mostrarNotif("Comando enviado: salvar 1 número");
+  } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
+}
+
+async function girarSalvacionMultiRemoto() {
+  const cantidad = parseInt(document.getElementById("salvacion-remoto-cantidad").value, 10);
+  if (!cantidad || cantidad < 1) { mostrarNotif("Indica cuántos números salvar"); return; }
+  try {
+    await db.collection("salvacion_comandos").add({ accion: "girar_multi", cantidad: cantidad, creado_en: TS() });
+    mostrarNotif(`Comando enviado: salvar ${cantidad} y girar`);
+  } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
+}
+
 /* ===== CONTROL REMOTO BINGO ===== */
 // La app bingo.html (abierta en el portátil de la pantalla LED) escucha esta
 // colección y acciona su propia ruleta al recibir un comando nuevo.
@@ -1179,6 +1345,28 @@ function renderHistorial() {
   }).join('');
 }
 
+// Historial de salvaciones (pestaña "Salvados") — misma estructura visual
+// que el historial de eliminaciones, en verde en vez de rojo/naranja.
+function renderHistorialSalvaciones() {
+  const list = document.getElementById("panel-salv");
+  if (!list) return;
+  if (!salvaciones.length) {
+    list.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:11px;padding:20px;">Sin salvaciones aún</div>';
+    return;
+  }
+  list.innerHTML = salvaciones.map(s => {
+    const p = participantes[s.dorsal];
+    const nombre = p ? `${p.nombre||''} ${p.apellidos||''}`.trim() : '—';
+    const hora = s.salvado_en ? new Date(s.salvado_en.seconds*1000).toLocaleTimeString('es-ES') : '—';
+    return `<div class="hist-item">
+      <div class="hist-num" style="color:var(--verde);">#${s.dorsal}</div>
+      <div class="hist-name">${nombre}</div>
+      <div class="hist-meta">${s.juez || '—'} · ${hora}</div>
+      <span class="hist-badge" style="background:#d7f7e4;color:#0e8f4d;">${s.metodo||'—'}</span>
+    </div>`;
+  }).join('');
+}
+
 /* ===== PARTICIPANTES ===== */
 function renderParticipantes() {
   const list = document.getElementById("part-list");
@@ -1200,10 +1388,10 @@ function renderParticipantes() {
 /* ===== TABS ===== */
 function setTab(t) {
   tabActual = t;
-  ['staff','hist','part','imp'].forEach(id => {
+  ['staff','hist','salv','part','imp'].forEach(id => {
     document.getElementById('tab-'+id).classList.toggle('active', id===t);
     const panel = document.getElementById('panel-'+id);
-    if (panel) panel.style.display = id===t ? (id==='hist'?'block':'flex') : 'none';
+    if (panel) panel.style.display = id===t ? ((id==='hist'||id==='salv')?'block':'flex') : 'none';
   });
 }
 
@@ -1245,15 +1433,30 @@ async function salvarManual() {
   if (!p) { mostrarNotif("Jugador no encontrado"); return; }
   if (p.vivo) { mostrarNotif("El jugador ya está vivo"); return; }
   try {
-    await db.collection("eliminaciones").doc(String(elimDorsalActual)).delete();
-    await db.collection("participantes").doc(String(elimDorsalActual)).update({
-      vivo: true, eliminado_en: null, prueba: null, metodo: null, juez: null
-    });
+    await salvarDorsal(elimDorsalActual, "manual");
     mostrarNotif(`#${elimDorsalActual} salvado y devuelto al juego`);
     document.getElementById("elim-search").value = '';
     document.getElementById("elim-resultado").textContent = '';
     elimDorsalActual = null;
   } catch(e) { console.error(e); mostrarNotif("Error al salvar"); }
+}
+
+// Núcleo reutilizable de salvamento: borra la eliminación, revive al
+// participante y deja constancia en la colección "salvaciones" (con
+// documento propio por evento, para no perder el registro cuando el
+// dorsal vuelva a ser eliminado más adelante).
+async function salvarDorsal(dorsal, metodo) {
+  await db.collection("eliminaciones").doc(String(dorsal)).delete();
+  await db.collection("participantes").doc(String(dorsal)).update({
+    vivo: true, eliminado_en: null, prueba: null, metodo: null, juez: null
+  });
+  await db.collection("salvaciones").add({
+    dorsal: dorsal,
+    metodo: metodo,
+    juez: "Panel-Central",
+    salvado_en: TS()
+  });
+  hablarPanel(`Jugador ${dorsal}, ha sido salvado`);
 }
 
 

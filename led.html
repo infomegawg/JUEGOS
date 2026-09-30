@@ -386,6 +386,13 @@ function init() {
       return;
     }
 
+    if (modo === 'salvacion') {
+      // Bingo de Salvación: misma mecánica que el bingo de eliminación, pero
+      // repescando eliminados. La ruleta se acciona desde el Panel Central.
+      window.location.href = 'https://infomegawg.github.io/JUEGOS/bingo-salvacion.html?led=1';
+      return;
+    }
+
     if (modo === 'batallanaval') {
       // Vista de espectador de la Batalla Naval (ambos tableros en directo)
       window.location.href = 'https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1&led=1';
