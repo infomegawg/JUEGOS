@@ -525,6 +525,15 @@
     margin-left: 6px;
     border: 1px solid rgba(91,255,168,0.3);
   }
+
+/* Indicador del mando a distancia del Panel Central: deja a la vista si esta
+   pestaña obedece o no a los botones del panel (solo obedece si se abrió desde
+   Panel -> Pantalla LED, es decir con ?led=1). */
+#mando-estado { position: fixed; right: 14px; bottom: 14px; z-index: 900; font-family: ui-monospace, monospace;
+  font-size: 12px; font-weight: 800; letter-spacing: 1px; padding: 9px 14px; border-radius: 8px;
+  max-width: 340px; line-height: 1.5; cursor: pointer; transition: opacity .4s; }
+#mando-estado.activo { background: rgba(0,0,0,0.55); color: #6cf09a; border: 1px solid #17c964; }
+#mando-estado.inactivo { background: #7a0f22; color: #fff; border: 1px solid #ff3b4e; box-shadow: 0 0 22px rgba(255,59,78,0.5); }
 </style>
 </head>
 <body>
@@ -647,6 +656,14 @@ window.fbSalvar = async function(dorsal) {
       juez: null,
       salvado_en: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
+    // Registro del salvamento, para que aparezca en el historial del panel
+    // (igual que hace el panel cuando salva a mano o en bloque).
+    await db.collection("salvaciones").add({
+      dorsal: dorsal,
+      metodo: "ruleta",
+      juez: "Bingo-Salvacion",
+      salvado_en: firebase.firestore.FieldValue.serverTimestamp()
+    });
     console.log("Dorsal", dorsal, "salvado en Firebase OK");
   } catch(e) { console.error("Firebase error:", e); }
 };
@@ -671,6 +688,7 @@ if (esInstanciaLED) {
 }
 
 function ejecutarComandoRemoto(d) {
+  console.log("[MANDO] comando recibido:", d);
   if (typeof spin !== "function" || state.spinning) return;
   if (d.accion === "girar") {
     spin();
@@ -1265,6 +1283,23 @@ const fbInitInterval = setInterval(() => {
 }, 300);
 
 document.addEventListener("click", () => { getAudio(); }, { once: true });
+</script>
+<script>
+/* ===== INDICADOR DEL MANDO A DISTANCIA ===== */
+(function() {
+  const el = document.createElement("div");
+  el.id = "mando-estado";
+  el.onclick = () => el.remove();
+  if (esInstanciaLED) {
+    el.className = "activo";
+    el.textContent = "🎮 Mando del panel: ACTIVO";
+    setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 500); }, 6000);
+  } else {
+    el.className = "inactivo";
+    el.innerHTML = "⚠️ Mando del panel: INACTIVO<br><span style=\"font-weight:600;font-size:11px;\">Esta ventana no obedece a los botones del panel.<br>Ábrela desde <b>Panel Central → Pantalla LED → Salvación</b>.</span>";
+  }
+  document.body.appendChild(el);
+})();
 </script>
 </body>
 </html>
