@@ -391,7 +391,6 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <div class="tabs">
         <div class="tab" id="tab-staff" onclick="setTab('staff')">Staff <span id="staff-badge" style="display:none;background:var(--rojo);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:2px;">0</span></div>
         <div class="tab active" id="tab-hist" onclick="setTab('hist')">Historial</div>
-        <div class="tab" id="tab-salv" onclick="setTab('salv')">Salvados</div>
         <div class="tab" id="tab-part" onclick="setTab('part')">Jugadores</div>
         <div class="tab" id="tab-imp" onclick="setTab('imp')">Importar</div>
       </div>
@@ -418,9 +417,6 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 
       <!-- HISTORIAL -->
       <div id="panel-hist" class="hist-list"></div>
-
-      <!-- HISTORIAL DE SALVACIONES -->
-      <div id="panel-salv" class="hist-list" style="display:none;"></div>
 
       <!-- JUGADORES -->
       <div id="panel-part" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
@@ -771,8 +767,7 @@ function escucharEliminaciones() {
 function escucharSalvaciones() {
   db.collection("salvaciones").orderBy("salvado_en", "desc").limit(200).onSnapshot(snap => {
     salvaciones = snap.docs.map(d => d.data());
-    renderHistorialSalvaciones();
-    renderHistorial(); // el historial general las muestra mezcladas con las eliminaciones
+    renderHistorial(); // aparecen mezcladas con las eliminaciones en el historial
   });
 }
 
@@ -1368,28 +1363,6 @@ function renderHistorial() {
   }).join('');
 }
 
-// Historial de salvaciones (pestaña "Salvados") — misma estructura visual
-// que el historial de eliminaciones, en verde en vez de rojo/naranja.
-function renderHistorialSalvaciones() {
-  const list = document.getElementById("panel-salv");
-  if (!list) return;
-  if (!salvaciones.length) {
-    list.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:11px;padding:20px;">Sin salvaciones aún</div>';
-    return;
-  }
-  list.innerHTML = salvaciones.map(s => {
-    const p = participantes[s.dorsal];
-    const nombre = p ? `${p.nombre||''} ${p.apellidos||''}`.trim() : '—';
-    const hora = s.salvado_en ? new Date(s.salvado_en.seconds*1000).toLocaleTimeString('es-ES') : '—';
-    return `<div class="hist-item">
-      <div class="hist-num" style="color:var(--verde);">#${s.dorsal}</div>
-      <div class="hist-name">${nombre}</div>
-      <div class="hist-meta">${s.juez || '—'} · ${hora}</div>
-      <span class="hist-badge" style="background:#d7f7e4;color:#0e8f4d;">${s.metodo||'—'}</span>
-    </div>`;
-  }).join('');
-}
-
 /* ===== PARTICIPANTES ===== */
 function renderParticipantes() {
   const list = document.getElementById("part-list");
@@ -1411,10 +1384,10 @@ function renderParticipantes() {
 /* ===== TABS ===== */
 function setTab(t) {
   tabActual = t;
-  ['staff','hist','salv','part','imp'].forEach(id => {
+  ['staff','hist','part','imp'].forEach(id => {
     document.getElementById('tab-'+id).classList.toggle('active', id===t);
     const panel = document.getElementById('panel-'+id);
-    if (panel) panel.style.display = id===t ? ((id==='hist'||id==='salv')?'block':'flex') : 'none';
+    if (panel) panel.style.display = id===t ? (id==='hist'?'block':'flex') : 'none';
   });
 }
 
