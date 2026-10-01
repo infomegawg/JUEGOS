@@ -60,6 +60,12 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 
 /* ===== TABS ===== */
 .tabs { display: flex; background: #fff; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 10; }
+/* Filtro de la pestaña Participantes: ver solo vivos o solo eliminados */
+.filtros-grid { display: flex; gap: 6px; margin-bottom: 8px; }
+.filtro-btn { flex: 1; padding: 9px 4px; font-size: 12px; font-weight: 800; border-radius: 8px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: var(--texto2); cursor: pointer; }
+.filtro-btn.activo { background: var(--morado); border-color: var(--morado); color: #fff; }
+
 .tab { flex: 1; text-align: center; padding: 12px 4px; font-size: 12px; font-weight: 800; color: var(--texto2); border-bottom: 3px solid transparent; }
 .tab.active { color: var(--morado); border-bottom-color: var(--morado); }
 
@@ -171,6 +177,11 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
     <div class="stat-box stat-elim"><div class="val" id="st-elim">0</div><div class="lbl">Eliminados</div></div>
   </div>
   <input type="text" id="grid-search" placeholder="Buscar dorsal..." oninput="renderGridStaff()" style="margin-bottom:8px;"/>
+  <div class="filtros-grid">
+    <button class="filtro-btn activo" id="fil-todos" onclick="setFiltroStaff('todos')">Todos</button>
+    <button class="filtro-btn" id="fil-vivos" onclick="setFiltroStaff('vivos')">Vivos</button>
+    <button class="filtro-btn" id="fil-elim" onclick="setFiltroStaff('eliminados')">Eliminados</button>
+  </div>
   <div style="font-size:11px;color:var(--texto2);margin-bottom:4px;">Toca los dorsales que quieres proponer para eliminar (<span id="sel-count">0</span> seleccionados)</div>
   <div class="grid" id="grid"></div>
 </div>
@@ -287,11 +298,29 @@ function setPantalla(p) {
 }
 
 /* ===== GRID PARTICIPANTES ===== */
+// Filtro de la vista: "todos", "vivos" o "eliminados". Sirve para encontrar
+// antes a quien se busca cuando hay cientos de dorsales en pantalla.
+let filtroStaff = "todos";
+
+function setFiltroStaff(f) {
+  filtroStaff = f;
+  const ids = { todos: "fil-todos", vivos: "fil-vivos", eliminados: "fil-elim" };
+  Object.values(ids).forEach(id => document.getElementById(id).classList.remove("activo"));
+  document.getElementById(ids[f]).classList.add("activo");
+  renderGridStaff();
+}
+
 function renderGridStaff() {
   const grid = document.getElementById("grid");
   const q = document.getElementById("grid-search").value.trim().toLowerCase();
   let lista = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
   if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q));
+  if (filtroStaff === "vivos") lista = lista.filter(p => p.vivo);
+  else if (filtroStaff === "eliminados") lista = lista.filter(p => !p.vivo);
+  if (!lista.length) {
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:var(--texto2);font-size:12px;padding:20px;">No hay dorsales con este filtro</div>';
+    return;
+  }
   grid.innerHTML = lista.map(p => {
     let cls = 'cell';
     if (!p.vivo) cls += ' elim';
