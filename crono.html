@@ -11,14 +11,20 @@
   --mono: 'Montserrat', sans-serif;
   --verde: #17c964;
   --rojo: #ff3b4e;
+  --morado: #a06bff;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-user-select: none; user-select: none; }
 html, body { height: 100%; overflow: hidden; background: #000; color: #fff; font-family: var(--mono); }
-body.oculta-raton { cursor: none; }
 
-/* El fondo entero hace de semáforo: verde mientras corre, rojo al parar */
+/* =========================================================
+   DOS MODOS EN UN MISMO FICHERO
+   - Sin parámetro: ventana de CONTROL (pantalla del portátil)
+   - Con ?pantalla=1: ventana de TV, solo el crono, nada más
+   ========================================================= */
+
+/* ----- Zona del crono (común a las dos ventanas) ----- */
 .pantalla { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  transition: background .25s ease; background: #0a0618; padding: 11vh 2vw 13vh; }
+  transition: background .25s ease; background: #0a0618; padding: 10vh 2vw 12vh; }
 body.corriendo .pantalla { background: radial-gradient(circle at 50% 50%, #0b4f2c 0%, #02160a 72%); }
 body.parado    .pantalla { background: radial-gradient(circle at 50% 50%, #5e0d1b 0%, #1a0006 72%); }
 body.fin       .pantalla { background: radial-gradient(circle at 50% 50%, #7a0f22 0%, #1a0005 72%); animation: alarma .55s steps(1) infinite; }
@@ -27,48 +33,60 @@ body.fin       .pantalla { background: radial-gradient(circle at 50% 50%, #7a0f2
 .logo { position: fixed; top: 2.2vh; left: 50%; transform: translateX(-50%); height: 8vh; width: auto;
   filter: brightness(0) invert(1); opacity: .85; z-index: 5; }
 
-/* EL DISPLAY: dígitos de siete segmentos dibujados a mano, para que escalen
-   a cualquier tamaño sin pixelarse y se lean desde el fondo de la pista. */
+/* Dígitos de siete segmentos dibujados a mano: escalan sin pixelarse y solo
+   se pintan los segmentos encendidos, como un marcador real. */
 #display { width: 100%; height: 100%; display: block; }
-.seg-off { opacity: .07; }
-.seg-on  { filter: drop-shadow(0 0 2.2vh currentColor); }
+.seg-on { filter: drop-shadow(0 0 2.2vh currentColor); }
 body.corriendo #display { color: #39ff88; }
 body.parado    #display { color: #ff5566; }
 body.fin       #display { color: #ffffff; }
 
-/* Palabra de estado, a un lado para no robarle sitio al número */
 .estado { position: fixed; bottom: 4.5vh; left: 50%; transform: translateX(-50%);
   font-family: var(--font); font-weight: 900; font-size: min(7vh, 6vw); letter-spacing: .14em; z-index: 5; }
 body.corriendo .estado { color: var(--verde); text-shadow: 0 0 3vh rgba(23,201,100,.8); }
 body.parado    .estado { color: var(--rojo);  text-shadow: 0 0 3vh rgba(255,59,78,.8); }
 body.fin       .estado { color: #fff; }
 
-/* Barra de tiempo restante: se entiende de un vistazo, sin leer el número */
 .barra { position: fixed; left: 0; right: 0; bottom: 0; height: 1.8vh; background: rgba(255,255,255,.08); z-index: 6; }
 .barra .relleno { height: 100%; width: 100%; transition: width .2s linear; }
 body.corriendo .barra .relleno { background: var(--verde); }
 body.parado    .barra .relleno { background: var(--rojo); }
 body.fin       .barra .relleno { background: #fff; }
 
-/* Controles del operador: se esconden solos para dejar la TV limpia */
-.controles { position: fixed; bottom: 3.5vh; left: 50%; transform: translateX(-50%);
-  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: center;
-  background: rgba(0,0,0,.78); border: 1px solid rgba(255,255,255,.18); border-radius: 14px;
-  padding: 12px 16px; backdrop-filter: blur(6px); transition: opacity .4s; z-index: 20; max-width: 94vw; }
-.controles.oculto, .ayuda.oculto { opacity: 0; pointer-events: none; }
-.controles button { font-family: var(--mono); font-weight: 800; font-size: 13px; letter-spacing: 1px;
-  padding: 11px 16px; border: 0; border-radius: 9px; cursor: pointer; background: rgba(255,255,255,.14); color: #fff; }
-.controles button:hover { background: rgba(255,255,255,.28); }
-.controles button.verde { background: var(--verde); color: #04210f; }
-.controles button.rojo  { background: var(--rojo); color: #fff; }
-.controles input { font-family: var(--mono); font-weight: 800; font-size: 13px; width: 78px; padding: 11px 8px;
-  border-radius: 9px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; text-align: center; }
-.controles .sep { width: 1px; height: 28px; background: rgba(255,255,255,.2); }
-.controles .etiqueta { font-size: 11px; color: rgba(255,255,255,.6); letter-spacing: 1px; }
+/* ----- VENTANA DE TV: nada más que el crono ----- */
+body.modo-tv { cursor: none; }
+body.modo-tv .panel-control { display: none !important; }
 
-.ayuda { position: fixed; top: 2vh; right: 2vh; font-size: 11px; line-height: 1.9; color: rgba(255,255,255,.55);
-  text-align: right; transition: opacity .4s; z-index: 20; }
-.ayuda b { color: #fff; }
+/* ----- VENTANA DE CONTROL ----- */
+body.modo-control .pantalla { inset: 0 0 auto 0; height: 46vh; padding: 9vh 2vw 2vh; border-bottom: 2px solid rgba(255,255,255,.12); }
+body.modo-control .logo { height: 6vh; top: 1.6vh; }
+body.modo-control .estado { position: static; transform: none; margin-top: 1vh; font-size: 3.4vh; }
+body.modo-control .barra { position: absolute; top: 46vh; bottom: auto; }
+
+.panel-control { position: fixed; top: 48vh; left: 0; right: 0; bottom: 0; overflow-y: auto; padding: 22px; background: #0a0714; }
+.bloque { max-width: 900px; margin: 0 auto 16px; background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 14px; padding: 16px 18px; }
+.bloque h2 { font-family: var(--font); font-size: 13px; letter-spacing: 2px; color: var(--morado); margin-bottom: 12px; text-transform: uppercase; }
+.fila { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+button { font-family: var(--mono); font-weight: 800; font-size: 14px; letter-spacing: 1px;
+  padding: 13px 18px; border: 0; border-radius: 10px; cursor: pointer; background: rgba(255,255,255,.14); color: #fff; }
+button:hover { background: rgba(255,255,255,.26); }
+button.grande { font-size: 18px; padding: 20px 30px; flex: 1; min-width: 220px; }
+button.verde { background: var(--verde); color: #04210f; }
+button.rojo  { background: var(--rojo); color: #fff; }
+button.morado { background: var(--morado); color: #1a0a2e; }
+input[type=number] { font-family: var(--mono); font-weight: 800; font-size: 15px; width: 100px; padding: 13px 10px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); color: #fff; text-align: center; }
+.etiqueta { font-size: 11px; color: rgba(255,255,255,.6); letter-spacing: 1px; }
+.pista { font-size: 12px; color: rgba(255,255,255,.55); line-height: 1.7; margin-top: 10px; }
+.pista b { color: #fff; }
+
+/* Indicador de si la TV está enganchada */
+.estado-tv { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 800; letter-spacing: 1px;
+  padding: 9px 14px; border-radius: 999px; border: 1px solid; }
+.estado-tv.ok { color: #6cf09a; border-color: var(--verde); background: rgba(23,201,100,.12); }
+.estado-tv.no { color: #ffb3ba; border-color: var(--rojo); background: rgba(255,59,78,.12); }
+.punto { width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
 </style>
 </head>
 <body class="parado">
@@ -81,66 +99,94 @@ body.fin       .barra .relleno { background: #fff; }
 
 <div class="barra"><div class="relleno" id="relleno"></div></div>
 
-<div class="ayuda" id="ayuda">
-  <b>ESPACIO</b> arrancar / parar<br />
-  <b>R</b> reiniciar &nbsp;·&nbsp; <b>F</b> pantalla completa<br />
-  <b>↑ ↓</b> sumar o restar 10s<br />
-  <b>H</b> ocultar estos controles
-</div>
+<!-- Todo esto vive SOLO en la ventana del portátil; la TV nunca lo muestra -->
+<div class="panel-control">
 
-<div class="controles" id="controles">
-  <button class="verde" id="btn-principal" onclick="alternar()">▶ ARRANCAR</button>
-  <button onclick="reiniciar()">↺ REINICIAR</button>
-  <div class="sep"></div>
-  <span class="etiqueta">SEGUNDOS</span>
-  <input type="number" id="duracion" value="60" min="3" max="3600" onchange="aplicarDuracion()" />
-  <button onclick="preset(30)">30s</button>
-  <button onclick="preset(60)">1 min</button>
-  <button onclick="preset(120)">2 min</button>
-  <button onclick="preset(180)">3 min</button>
-  <div class="sep"></div>
-  <button onclick="sumar(10)">+10s</button>
-  <button onclick="sumar(-10)">−10s</button>
-  <div class="sep"></div>
-  <button id="btn-sonido" onclick="alternarSonido()">🔊 Aviso final</button>
-  <button onclick="pantallaCompleta()">⛶ Pantalla completa</button>
+  <div class="bloque">
+    <h2>Pantalla de la TV</h2>
+    <div class="fila">
+      <button class="morado" onclick="abrirPantallaTV()">🖥 Abrir pantalla para la TV</button>
+      <span class="estado-tv no" id="estado-tv"><span class="punto"></span><span id="estado-tv-texto">TV no conectada</span></span>
+    </div>
+    <div class="pista">
+      Pulsa el botón, arrastra la ventana que se abre a la televisión y dale a <b>F</b> (o doble clic) para ponerla a pantalla completa.<br />
+      En esa ventana <b>nunca</b> aparecen botones ni textos de control: solo el crono.
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>Crono</h2>
+    <div class="fila">
+      <button class="verde grande" id="btn-principal" onclick="alternar()">▶ ARRANCAR &nbsp;(espacio)</button>
+      <button class="grande" onclick="reiniciar()">↺ REINICIAR &nbsp;(R)</button>
+    </div>
+  </div>
+
+  <div class="bloque">
+    <h2>Duración</h2>
+    <div class="fila">
+      <span class="etiqueta">SEGUNDOS</span>
+      <input type="number" id="duracion" value="60" min="3" max="3600" onchange="aplicarDuracion()" />
+      <button onclick="preset(30)">30s</button>
+      <button onclick="preset(60)">1 min</button>
+      <button onclick="preset(120)">2 min</button>
+      <button onclick="preset(180)">3 min</button>
+      <button onclick="preset(300)">5 min</button>
+      <span style="width:1px;height:28px;background:rgba(255,255,255,.2);"></span>
+      <button onclick="sumar(10)">+10s</button>
+      <button onclick="sumar(-10)">−10s</button>
+      <span style="width:1px;height:28px;background:rgba(255,255,255,.2);"></span>
+      <button id="btn-sonido" onclick="alternarSonido()">🔊 Aviso al acabar</button>
+    </div>
+    <div class="pista">
+      <b>Espacio</b> arranca y para · <b>R</b> reinicia · <b>↑ ↓</b> suman o restan 10 segundos.
+      Funcionan tanto en esta ventana como en la de la TV.
+    </div>
+  </div>
+
 </div>
 
 <script>
 /* =========================================================
    CRONO PARA "LUZ ROJA, LUZ VERDE"
-   Pensado para el portátil conectado a la TV de la tarima.
-   A propósito NO usa internet ni base de datos: si se cae el
-   wifi del recinto en plena prueba, el crono sigue corriendo.
+   Pensado para el portátil conectado por HDMI a la TV de la tarima.
+
+   Dos ventanas, un mismo fichero:
+     · crono.html              -> ventana de control (pantalla del portátil)
+     · crono.html?pantalla=1   -> ventana que se arrastra a la TV
+   Se comunican con BroadcastChannel, que es local del navegador: NO usa
+   internet ni base de datos, así que una caída del wifi del recinto no puede
+   parar la prueba.
    ========================================================= */
 
-const DURACION_POR_DEFECTO = 60;
+const modoTV = new URLSearchParams(location.search).get("pantalla") === "1";
+document.body.classList.add(modoTV ? "modo-tv" : "modo-control");
 
-let duracionTotal = DURACION_POR_DEFECTO;        // segundos configurados
+const CANAL = new BroadcastChannel("crono-omega");
+
+const DURACION_POR_DEFECTO = 60;
+let duracionTotal = DURACION_POR_DEFECTO;   // segundos configurados
 let restanteMs = DURACION_POR_DEFECTO * 1000;
 let corriendo = false;
-let finAbsoluto = 0;                              // instante en que llegaría a cero
+let finAbsoluto = 0;                        // instante en que llegaría a cero
 let sonidoActivo = true;
-let ultimoPintado = "";                           // evita redibujar el SVG sin necesidad
+let ultimoPintado = "";                     // evita redibujar el SVG sin necesidad
+let ultimaFase = "preparados";
 
 const $ = (id) => document.getElementById(id);
 
 /* =========================================================
    DISPLAY DE SIETE SEGMENTOS
-   Cada dígito se dibuja con 7 polígonos, como los de un reloj
-   o un marcador deportivo. Los segmentos apagados se quedan
-   tenues de fondo, igual que en un panel real.
+   Solo se dibujan los segmentos encendidos: nada de "fantasmas"
+   apagados de fondo, que a distancia ensucian la lectura.
    ========================================================= */
 
-// Qué segmentos enciende cada carácter (a=arriba, b=arriba-dcha, c=abajo-dcha,
-// d=abajo, e=abajo-izq, f=arriba-izq, g=central)
 const SEGMENTOS = {
-  "0": "abcdef", "1": "bc",    "2": "abdeg",  "3": "abcdg", "4": "bcfg",
-  "5": "acdfg",  "6": "acdefg","7": "abc",    "8": "abcdefg","9": "abcdfg",
+  "0": "abcdef", "1": "bc",     "2": "abdeg",   "3": "abcdg", "4": "bcfg",
+  "5": "acdfg",  "6": "acdefg", "7": "abc",     "8": "abcdefg", "9": "abcdfg",
   " ": ""
 };
 
-// Geometría de un dígito dentro de una caja de 100 x 180
 const D_ANCHO = 100, D_ALTO = 180, GROSOR = 17, M = 5;
 function poligonosDigito() {
   const g = GROSOR, w = D_ANCHO, h = D_ALTO, m = M, mitad = h / 2;
@@ -158,16 +204,11 @@ function poligonosDigito() {
 }
 const POLIS = poligonosDigito();
 
-// Dibuja un texto tipo "1:23" o "9.4" con dígitos de siete segmentos,
-// ajustando el viewBox para que SIEMPRE ocupe toda la pantalla disponible.
 function pintarDisplay(texto) {
   if (texto === ultimoPintado) return;
   ultimoPintado = texto;
 
-  const SEP_PUNTOS = 34;   // ancho del separador ":"
-  const SEP_PUNTO  = 30;   // ancho del punto decimal "."
-  const HUECO = 14;
-
+  const SEP_PUNTOS = 34, SEP_PUNTO = 30, HUECO = 14;
   let x = 0;
   const piezas = [];
   for (const ch of texto) {
@@ -183,9 +224,8 @@ function pintarDisplay(texto) {
     } else {
       const encendidos = SEGMENTOS[ch] || "";
       piezas.push(`<g transform="translate(${x},0)">`);
-      for (const s of "abcdefg") {
-        const on = encendidos.includes(s);
-        piezas.push(`<polygon class="${on ? "seg-on" : "seg-off"}" points="${POLIS[s]}" fill="currentColor"/>`);
+      for (const s of encendidos) {
+        piezas.push(`<polygon class="seg-on" points="${POLIS[s]}" fill="currentColor"/>`);
       }
       piezas.push(`</g>`);
       x += D_ANCHO + HUECO;
@@ -197,27 +237,30 @@ function pintarDisplay(texto) {
   svg.innerHTML = piezas.join("");
 }
 
-/* ===== TEXTO DEL CRONO ===== */
-// A partir de un minuto se muestra como un reloj (1:23). Por debajo, solo
-// segundos; y en los últimos 10, con décimas, que es cuando se decide todo.
+// A partir de un minuto se lee como un reloj (1:23). Por debajo, segundos; y
+// en los últimos 10, con décimas, que es cuando se decide el sprint.
 function textoCrono(ms) {
   const seg = ms / 1000;
   if (seg >= 60) {
     const m = Math.floor(seg / 60);
-    const s = Math.ceil(seg) % 60;
-    return m + ":" + String(s === 60 ? 0 : s).padStart(2, "0");
+    let s = Math.ceil(seg) % 60;
+    return m + ":" + String(s).padStart(2, "0");
   }
   if (seg >= 10) return String(Math.ceil(seg));
   return seg.toFixed(1);
 }
 
-/* ===== BUCLE ===== */
+/* ===== BUCLE DE PINTADO ===== */
 // El tiempo se mide contra el reloj del sistema, no sumando intervalos, para
-// que no se desfase aunque el navegador vaya justo de recursos.
+// que no se desfase aunque el equipo vaya justo de recursos.
 function tick() {
   if (corriendo) {
     restanteMs = Math.max(0, finAbsoluto - performance.now());
-    if (restanteMs <= 0) { terminar(); return; }
+    if (restanteMs <= 0) {
+      restanteMs = 0;
+      if (!modoTV) { terminar(); return; }   // el final lo decide la ventana de control
+      ponerFase("fin");
+    }
   }
   pintar();
   requestAnimationFrame(tick);
@@ -229,42 +272,116 @@ function pintar() {
   $("relleno").style.width = Math.max(0, Math.min(100, pct)) + "%";
 }
 
-function estadoCuerpo(clase) {
+function ponerFase(fase) {
+  if (fase === ultimaFase) return;
+  ultimaFase = fase;
   document.body.classList.remove("corriendo", "parado", "fin");
-  document.body.classList.add(clase);
+  const textos = { corriendo: "VERDE", parado: "ROJO", fin: "¡TIEMPO!", preparados: "PREPARADOS" };
+  document.body.classList.add(fase === "preparados" ? "parado" : fase);
+  $("estado").textContent = textos[fase];
+  if (!modoTV) {
+    const esCorriendo = fase === "corriendo";
+    $("btn-principal").textContent = esCorriendo ? "⏸ PARAR  (espacio)" : "▶ ARRANCAR  (espacio)";
+    $("btn-principal").className = (esCorriendo ? "rojo" : "verde") + " grande";
+  }
 }
 
-/* ===== CONTROL ===== */
+/* =========================================================
+   SINCRONIZACIÓN ENTRE LAS DOS VENTANAS
+   La ventana de control manda; la de la TV solo obedece y pinta.
+   ========================================================= */
+
+function emitirEstado() {
+  CANAL.postMessage({ tipo: "estado", restanteMs, corriendo, duracionTotal, fase: ultimaFase });
+}
+
+let tvConectada = false;
+let ultimoLatidoTV = 0;
+
+CANAL.onmessage = (ev) => {
+  const d = ev.data || {};
+  if (modoTV) {
+    if (d.tipo === "estado") {
+      duracionTotal = d.duracionTotal;
+      restanteMs = d.restanteMs;
+      corriendo = d.corriendo;
+      if (corriendo) finAbsoluto = performance.now() + restanteMs;
+      ponerFase(d.fase);
+      pintar();
+    }
+  } else {
+    // Mensajes que llegan desde la ventana de la TV
+    if (d.tipo === "hola" || d.tipo === "latido") {
+      ultimoLatidoTV = Date.now();
+      if (!tvConectada) { tvConectada = true; pintarEstadoTV(); }
+      if (d.tipo === "hola") emitirEstado();
+    }
+    if (d.tipo === "comando") ejecutarComando(d.accion);
+    if (d.tipo === "adios") { tvConectada = false; pintarEstadoTV(); }
+  }
+};
+
+function pintarEstadoTV() {
+  const el = $("estado-tv");
+  if (!el) return;
+  el.className = "estado-tv " + (tvConectada ? "ok" : "no");
+  $("estado-tv-texto").textContent = tvConectada ? "TV conectada" : "TV no conectada";
+}
+
+if (modoTV) {
+  CANAL.postMessage({ tipo: "hola" });
+  setInterval(() => CANAL.postMessage({ tipo: "latido" }), 2000);
+  window.addEventListener("beforeunload", () => CANAL.postMessage({ tipo: "adios" }));
+} else {
+  // Si la TV deja de dar señales, se refleja en el indicador
+  setInterval(() => {
+    if (tvConectada && Date.now() - ultimoLatidoTV > 6000) { tvConectada = false; pintarEstadoTV(); }
+  }, 2000);
+}
+
+function abrirPantallaTV() {
+  const ventana = window.open(location.pathname + "?pantalla=1", "cronoTV",
+    "width=1280,height=720,menubar=no,toolbar=no,location=no,status=no");
+  if (!ventana) alert("El navegador ha bloqueado la ventana emergente. Permite las ventanas emergentes de esta página y vuelve a intentarlo.");
+}
+
+/* ===== ACCIONES (solo las ejecuta la ventana de control) ===== */
+function ejecutarComando(accion) {
+  if (accion === "alternar") alternar();
+  else if (accion === "reiniciar") reiniciar();
+  else if (accion === "mas") sumar(10);
+  else if (accion === "menos") sumar(-10);
+}
+
+function mandar(accion) {
+  if (modoTV) CANAL.postMessage({ tipo: "comando", accion });
+  else ejecutarComando(accion);
+}
+
 function alternar() { corriendo ? parar() : arrancar(); }
 
 function arrancar() {
   if (restanteMs <= 0) return;
   corriendo = true;
   finAbsoluto = performance.now() + restanteMs;
-  estadoCuerpo("corriendo");
-  $("estado").textContent = "VERDE";
-  $("btn-principal").textContent = "⏸ PARAR";
-  $("btn-principal").className = "rojo";
+  ponerFase("corriendo");
+  emitirEstado();
 }
 
 function parar() {
   corriendo = false;
   restanteMs = Math.max(0, finAbsoluto - performance.now());
-  estadoCuerpo("parado");
-  $("estado").textContent = "ROJO";
-  $("btn-principal").textContent = "▶ ARRANCAR";
-  $("btn-principal").className = "verde";
+  ponerFase("parado");
   pintar();
+  emitirEstado();
 }
 
 function terminar() {
   corriendo = false;
   restanteMs = 0;
-  estadoCuerpo("fin");
-  $("estado").textContent = "¡TIEMPO!";
-  $("btn-principal").textContent = "▶ ARRANCAR";
-  $("btn-principal").className = "verde";
+  ponerFase("fin");
   pintar();
+  emitirEstado();
   if (sonidoActivo) pitidoFinal();
   requestAnimationFrame(tick);
 }
@@ -272,11 +389,9 @@ function terminar() {
 function reiniciar() {
   corriendo = false;
   restanteMs = duracionTotal * 1000;
-  estadoCuerpo("parado");
-  $("estado").textContent = "PREPARADOS";
-  $("btn-principal").textContent = "▶ ARRANCAR";
-  $("btn-principal").className = "verde";
+  ponerFase("preparados");
   pintar();
+  emitirEstado();
 }
 
 function aplicarDuracion() {
@@ -293,11 +408,9 @@ function sumar(seg) {
   restanteMs = Math.max(0, restanteMs + seg * 1000);
   if (restanteMs > duracionTotal * 1000) duracionTotal = Math.ceil(restanteMs / 1000);
   if (corriendo) finAbsoluto = performance.now() + restanteMs;
-  else if (document.body.classList.contains("fin") && restanteMs > 0) {
-    estadoCuerpo("parado");
-    $("estado").textContent = "ROJO";
-  }
+  else if (ultimaFase === "fin" && restanteMs > 0) ponerFase("parado");
   pintar();
+  emitirEstado();
 }
 
 /* ===== AVISO SONORO AL LLEGAR A CERO ===== */
@@ -324,56 +437,47 @@ function pitidoFinal() {
 
 function alternarSonido() {
   sonidoActivo = !sonidoActivo;
-  $("btn-sonido").textContent = sonidoActivo ? "🔊 Aviso final" : "🔇 Sin aviso";
+  $("btn-sonido").textContent = sonidoActivo ? "🔊 Aviso al acabar" : "🔇 Sin aviso";
 }
 
-/* ===== PANTALLA COMPLETA Y CONTROLES ===== */
+/* ===== PANTALLA COMPLETA ===== */
 function pantallaCompleta() {
   if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(e => console.error(e));
   else document.exitFullscreen();
 }
+// En la TV, un doble clic también pone y quita la pantalla completa
+if (modoTV) document.addEventListener("dblclick", pantallaCompleta);
 
-let controlesVisibles = true;
-function alternarControles() {
-  controlesVisibles = !controlesVisibles;
-  $("controles").classList.toggle("oculto", !controlesVisibles);
-  $("ayuda").classList.toggle("oculto", !controlesVisibles);
-}
-
-// Los controles se esconden solos tras unos segundos sin tocar nada, para que
-// la TV quede limpia; reaparecen al mover el ratón o pulsar una tecla.
-let temporizadorOcultar = null;
-function reactivarControles() {
-  if (!controlesVisibles) return;
-  $("controles").classList.remove("oculto");
-  $("ayuda").classList.remove("oculto");
-  document.body.classList.remove("oculta-raton");
-  clearTimeout(temporizadorOcultar);
-  temporizadorOcultar = setTimeout(() => {
-    $("controles").classList.add("oculto");
-    $("ayuda").classList.add("oculto");
-    document.body.classList.add("oculta-raton");
-  }, 5000);
-}
-document.addEventListener("mousemove", reactivarControles);
-
-/* ===== TECLADO ===== */
-// La barra espaciadora es LA tecla de esta prueba: parar y arrancar al ritmo
-// de la música sin tener que mirar el portátil.
+/* ===== TECLADO (funciona en las dos ventanas) ===== */
 document.addEventListener("keydown", (ev) => {
   if (ev.target.tagName === "INPUT") return;
   const k = ev.key.toLowerCase();
-  if (ev.code === "Space") { ev.preventDefault(); alternar(); reactivarControles(); return; }
-  if (k === "r") { reiniciar(); reactivarControles(); return; }
+  if (ev.code === "Space") { ev.preventDefault(); mandar("alternar"); return; }
+  if (k === "r") { mandar("reiniciar"); return; }
   if (k === "f") { pantallaCompleta(); return; }
-  if (k === "h") { alternarControles(); return; }
-  if (ev.key === "ArrowUp")   { ev.preventDefault(); sumar(10);  reactivarControles(); return; }
-  if (ev.key === "ArrowDown") { ev.preventDefault(); sumar(-10); reactivarControles(); return; }
+  if (ev.key === "ArrowUp")   { ev.preventDefault(); mandar("mas"); return; }
+  if (ev.key === "ArrowDown") { ev.preventDefault(); mandar("menos"); return; }
 });
 
+/* ===== RED DE SEGURIDAD CONTRA LA CONGELACION DE PESTANAS ===== */
+// Los navegadores ralentizan requestAnimationFrame cuando una ventana queda
+// detrás de otra o minimizada. El tiempo se calcula siempre contra el reloj
+// del sistema, así que el valor nunca se desvía; este intervalo además
+// garantiza que el final se detecte aunque el repintado esté dormido.
+setInterval(() => {
+  if (!corriendo) return;
+  restanteMs = Math.max(0, finAbsoluto - performance.now());
+  if (restanteMs <= 0) {
+    if (!modoTV) terminar();
+    else { corriendo = false; restanteMs = 0; ponerFase("fin"); pintar(); }
+  } else {
+    pintar();
+  }
+}, 200);
+
 /* ===== ARRANQUE ===== */
-reiniciar();
-reactivarControles();
+if (!modoTV) { reiniciar(); pintarEstadoTV(); }
+else { ponerFase("preparados"); pintar(); }
 requestAnimationFrame(tick);
 </script>
 </body>
