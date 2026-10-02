@@ -24,13 +24,13 @@ html, body { height: 100%; overflow: hidden; background: #000; color: #fff; font
 
 /* ----- Zona del crono (común a las dos ventanas) ----- */
 .pantalla { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
-  transition: background .25s ease; background: #0a0618; padding: 9.5vh 1.5vw 3.5vh; }
+  transition: background .25s ease; background: #0a0618; padding: 7.5vh 1.5vw 3.5vh; }
 body.corriendo .pantalla { background: radial-gradient(circle at 50% 50%, #0b4f2c 0%, #02160a 72%); }
 body.parado    .pantalla { background: radial-gradient(circle at 50% 50%, #5e0d1b 0%, #1a0006 72%); }
 body.fin       .pantalla { background: radial-gradient(circle at 50% 50%, #7a0f22 0%, #1a0005 72%); animation: alarma .55s steps(1) infinite; }
 @keyframes alarma { 50% { background: radial-gradient(circle at 50% 50%, #ff3b4e 0%, #4a0010 72%); } }
 
-.logo { position: fixed; top: 2.2vh; left: 50%; transform: translateX(-50%); height: 8vh; width: auto;
+.logo { position: fixed; top: 1.4vh; left: 50%; transform: translateX(-50%); height: 5.4vh; width: auto;
   filter: brightness(0) invert(1); opacity: .85; z-index: 5; }
 
 /* Dígitos de siete segmentos dibujados a mano: escalan sin pixelarse y solo
@@ -42,7 +42,7 @@ body.parado    #display { color: #ff5566; }
 body.fin       #display { color: #ffffff; }
 
 /* Estado en las dos esquinas superiores, a los lados del logo */
-.estado { position: fixed; top: 4.2vh; transform: translateY(-50%);
+.estado { position: fixed; top: 3.4vh; transform: translateY(-50%);
   font-family: var(--font); font-weight: 900; font-size: min(4.4vh, 3.4vw); letter-spacing: .16em; z-index: 5; white-space: nowrap; }
 .estado.izq { left: 2.5vw; }
 .estado.der { right: 2.5vw; }
@@ -62,8 +62,8 @@ body.modo-tv .panel-control { display: none !important; }
 
 /* ----- VENTANA DE CONTROL ----- */
 body.modo-control .pantalla { inset: 0 0 auto 0; height: 46vh; padding: 9vh 2vw 2vh; border-bottom: 2px solid rgba(255,255,255,.12); }
-body.modo-control .logo { height: 6vh; top: 1.6vh; }
-body.modo-control .estado { position: absolute; top: 3.2vh; font-size: 2.6vh; }
+body.modo-control .logo { height: 4.4vh; top: 1.2vh; }
+body.modo-control .estado { position: absolute; top: 2.8vh; font-size: 2.4vh; }
 body.modo-control .barra { position: absolute; top: 46vh; bottom: auto; }
 
 .panel-control { position: fixed; top: 48vh; left: 0; right: 0; bottom: 0; overflow-y: auto; padding: 22px; background: #0a0714; }
