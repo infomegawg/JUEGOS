@@ -10,6 +10,7 @@
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
 :root {
@@ -463,6 +464,20 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 
       <!-- IMPORTAR -->
       <div id="panel-imp" style="display:none;padding:14px;flex-direction:column;gap:12px;">
+        <div class="section-title"><i class="ti ti-ticket"></i> Entradas vendidas (Enterticket)</div>
+        <div style="font-size:11px;color:var(--texto2);line-height:1.7;margin-bottom:8px;">
+          Sube el <b>XLSX exportado de Enterticket</b>. Se puede volver a subir tantas veces como quieras
+          mientras se sigan vendiendo entradas: <b>no se pierden las acreditaciones ni los dorsales ya asignados</b>.
+        </div>
+        <input type="file" id="import-entradas-file" accept=".xlsx,.xls" onchange="importarEntradas(this)" style="font-size:11px;" />
+        <div id="import-tipos" style="margin-top:10px;"></div>
+        <button class="btn btn-morado" id="import-confirmar" style="display:none;width:100%;margin-top:6px;" onclick="confirmarImportacionEntradas()">
+          <i class="ti ti-database-import"></i> Importar entradas
+        </button>
+        <div id="import-entradas-estado" style="font-size:11px;margin-top:8px;line-height:1.7;"></div>
+
+        <div class="divider" style="height:0.5px;background:var(--border);margin:14px 0;"></div>
+
         <div class="section-title"><i class="ti ti-upload"></i> Importar participantes</div>
       <div style="margin-bottom:12px;">
         <label>Número de dorsales (sin datos)</label>
@@ -1722,6 +1737,250 @@ async function reiniciarBatallaNaval() {
   } catch (e) {
     console.error(e);
     mostrarNotif("Error al reiniciar la Batalla Naval");
+  }
+}
+
+/* =========================================================
+   IMPORTADOR DE ENTRADAS DE ENTERTICKET
+   Lee el XLSX exportado de Enterticket y crea o actualiza la colección
+   "entradas". Se puede volver a cargar tantas veces como haga falta
+   mientras se sigan vendiendo entradas: fusiona por código SIN tocar lo
+   que ya se haya hecho en la puerta (acreditaciones y dorsales asignados).
+
+   Los datos sensibles (DNI, correo y teléfono) se guardan aparte, en
+   "entradas_privado", que ninguna app lee: así no viajan a los móviles
+   del staff.
+   ========================================================= */
+
+// Fecha del evento, para calcular la edad que tendrá cada asistente ese día
+const FECHA_EVENTO = new Date(2026, 10, 21); // 21 de noviembre de 2026
+
+// Nombres de columna tal y como vienen en el export de Enterticket
+const COL = {
+  codigo: "Código",
+  tipo: "Tipo de entrada",
+  nombre: "Nombre",
+  nacimiento: "Fecha nacimiento",
+  anulada: "Anulada",
+  pagoCompletado: "Pago completado",
+  pagoDevuelto: "Pago devuelto",
+  estadoDevolucion: "Estado solicitud devolución",
+  dni: "DNI",
+  email: "E-mail",
+  telefono: "Teléfono"
+};
+
+let importFilas = null;      // filas leídas del Excel, pendientes de confirmar
+let importTipos = {};        // qué es cada "Tipo de entrada": jugador o espectador
+
+function esSi(v) {
+  return String(v || "").trim().toLowerCase() === "sí" ||
+         String(v || "").trim().toLowerCase() === "si";
+}
+
+// Enterticket escribe las fechas como DD-MM-AAAA
+function fechaDesdeTexto(txt) {
+  const t = String(txt || "").trim();
+  const m = t.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/);
+  if (!m) return null;
+  const d = new Date(+m[3], +m[2] - 1, +m[1]);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function edadEnEvento(fechaNac) {
+  if (!fechaNac) return null;
+  let edad = FECHA_EVENTO.getFullYear() - fechaNac.getFullYear();
+  const cumpleEsteAnio = new Date(FECHA_EVENTO.getFullYear(), fechaNac.getMonth(), fechaNac.getDate());
+  if (FECHA_EVENTO < cumpleEsteAnio) edad--;
+  return edad;
+}
+
+function aISO(d) {
+  if (!d) return null;
+  const p = (n) => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+/* ===== LECTURA DEL FICHERO ===== */
+async function importarEntradas(input) {
+  const fichero = input.files && input.files[0];
+  if (!fichero) return;
+  const estado = document.getElementById("import-entradas-estado");
+  estado.style.color = "var(--texto2)";
+  estado.textContent = "Leyendo " + fichero.name + "...";
+  try {
+    if (typeof XLSX === "undefined") {
+      estado.style.color = "var(--rojo)";
+      estado.textContent = "No se ha podido cargar el lector de Excel. Comprueba la conexión y recarga la página.";
+      return;
+    }
+    const datos = new Uint8Array(await fichero.arrayBuffer());
+    const libro = XLSX.read(datos, { type: "array" });
+    const hoja = libro.Sheets[libro.SheetNames[0]];
+    const filas = XLSX.utils.sheet_to_json(hoja, { defval: "", raw: false });
+    if (!filas.length) {
+      estado.style.color = "var(--rojo)";
+      estado.textContent = "El archivo no tiene filas de datos.";
+      return;
+    }
+    const columnas = Object.keys(filas[0]);
+    const faltan = [COL.codigo, COL.tipo].filter((c) => !columnas.includes(c));
+    if (faltan.length) {
+      estado.style.color = "var(--rojo)";
+      estado.innerHTML = "Al archivo le faltan columnas: <b>" + faltan.join(", ") + "</b>.<br>" +
+        "Al exportar en Enterticket hay que marcar las opciones de información de la venta y de datos de acceso.";
+      return;
+    }
+    const sinCodigo = filas.filter((f) => !String(f[COL.codigo] || "").trim()).length;
+    if (sinCodigo === filas.length) {
+      estado.style.color = "var(--rojo)";
+      estado.innerHTML = "La columna <b>Código</b> viene vacía en las " + filas.length + " filas.<br>" +
+        "El código es lo que lleva el QR de la entrada, sin él no se puede acreditar. " +
+        "Vuelve a exportar en Enterticket marcando <b>datos de acceso</b>.";
+      return;
+    }
+    importFilas = filas;
+    prepararTiposEntrada(filas);
+    estado.style.color = "var(--verde)";
+    estado.textContent = filas.length + " filas leídas. Indica qué tipos son jugadores y pulsa importar.";
+  } catch (e) {
+    console.error(e);
+    estado.style.color = "var(--rojo)";
+    estado.textContent = "No se ha podido leer el archivo: " + e.message;
+  }
+}
+
+/* ===== QUÉ TIPO DE ENTRADA ES JUGADOR Y CUÁL ESPECTADOR ===== */
+// Los nombres de las entradas cambian en cada evento, así que no se pueden
+// dejar fijos en el código: se listan los que traiga el archivo y se eligen.
+function prepararTiposEntrada(filas) {
+  const tipos = [...new Set(filas.map((f) => String(f[COL.tipo] || "").trim()).filter(Boolean))];
+  // El navegador puede tener el almacenamiento bloqueado (modo privado), así
+  // que leer la configuración guardada nunca debe tumbar la importación.
+  let guardado = {};
+  try { guardado = JSON.parse(localStorage.getItem("tiposEntrada") || "{}"); } catch (e) { guardado = {}; }
+  const cont = document.getElementById("import-tipos");
+  cont.innerHTML = tipos.map((t, i) => {
+    const valor = guardado[t] || (/espectador|acompa|publico|público/i.test(t) ? "espectador" : "jugador");
+    importTipos[t] = valor;
+    return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">' +
+      '<div style="flex:1;font-size:11px;color:var(--texto);">' + t + '</div>' +
+      '<select onchange="cambiarTipoEntrada(this,\'' + t.replace(/'/g, "\\'") + '\')" style="width:120px;">' +
+      '<option value="jugador"' + (valor === "jugador" ? " selected" : "") + '>Jugador</option>' +
+      '<option value="espectador"' + (valor === "espectador" ? " selected" : "") + '>Espectador</option>' +
+      '</select></div>';
+  }).join("");
+  document.getElementById("import-confirmar").style.display = tipos.length ? "block" : "none";
+}
+
+function cambiarTipoEntrada(sel, tipo) {
+  importTipos[tipo] = sel.value;
+  try { localStorage.setItem("tiposEntrada", JSON.stringify(importTipos)); } catch (e) { console.warn(e); }
+}
+
+/* ===== IMPORTACIÓN ===== */
+async function confirmarImportacionEntradas() {
+  if (!importFilas) { mostrarNotif("Carga antes el archivo"); return; }
+  const estado = document.getElementById("import-entradas-estado");
+  estado.style.color = "var(--texto2)";
+  estado.textContent = "Comparando con lo que ya hay...";
+
+  try {
+    // Lo que ya está guardado, para saber qué es alta y qué es cambio y para
+    // no pisar las acreditaciones que ya se hayan hecho.
+    const existentesSnap = await db.collection("entradas").get();
+    const existentes = {};
+    existentesSnap.forEach((d) => (existentes[d.id] = d.data()));
+
+    let altas = 0, cambios = 0, anuladas = 0, sinCodigo = 0, repetidas = 0, acreditadasIntactas = 0;
+    const vistos = new Set();
+    let lote = db.batch();
+    let enLote = 0;
+    const commits = [];
+
+    for (const fila of importFilas) {
+      const codigo = String(fila[COL.codigo] || "").trim().toUpperCase();
+      if (!codigo) { sinCodigo++; continue; }
+      if (vistos.has(codigo)) { repetidas++; continue; }
+      vistos.add(codigo);
+
+      const nac = fechaDesdeTexto(fila[COL.nacimiento]);
+      const edad = edadEnEvento(nac);
+      const tipoTexto = String(fila[COL.tipo] || "").trim();
+      const anulada = esSi(fila[COL.anulada]);
+      const devuelta = esSi(fila[COL.pagoDevuelto]) ||
+        /devuelt|aprobad/i.test(String(fila[COL.estadoDevolucion] || ""));
+
+      const datos = {
+        codigo: codigo,
+        tipo: importTipos[tipoTexto] || "jugador",
+        tipo_entrada: tipoTexto,
+        nombre: String(fila[COL.nombre] || "").trim(),
+        fecha_nacimiento: aISO(nac),
+        edad_evento: edad,
+        menor: edad !== null && edad < 18,
+        anulada: anulada,
+        devuelta: devuelta,
+        pago_completado: esSi(fila[COL.pagoCompletado]),
+        valida: !anulada && !devuelta,
+        importado_en: TS()
+      };
+
+      const previo = existentes[codigo];
+      if (!previo) altas++;
+      else {
+        cambios++;
+        // La acreditación y el dorsal son del evento, no del Excel: se dejan
+        // tal cual estaban. Por eso se usa merge y no se escriben esos campos.
+        if (previo.acreditada) acreditadasIntactas++;
+      }
+      if (anulada || devuelta) anuladas++;
+
+      lote.set(db.collection("entradas").doc(codigo), datos, { merge: true });
+      enLote++;
+
+      // Los datos personales que el staff no necesita ver van aparte
+      const dni = String(fila[COL.dni] || "").trim();
+      const email = String(fila[COL.email] || "").trim();
+      const tel = String(fila[COL.telefono] || "").trim();
+      if (dni || email || tel) {
+        lote.set(db.collection("entradas_privado").doc(codigo),
+          { codigo: codigo, dni: dni, email: email, telefono: tel }, { merge: true });
+        enLote++;
+      }
+
+      if (enLote >= 400) {
+        commits.push(lote.commit());
+        lote = db.batch();
+        enLote = 0;
+      }
+    }
+    if (enLote) commits.push(lote.commit());
+    estado.textContent = "Guardando...";
+    await Promise.all(commits);
+
+    const menores = importFilas.filter((f) => {
+      const e = edadEnEvento(fechaDesdeTexto(f[COL.nacimiento]));
+      return e !== null && e < 18;
+    }).length;
+
+    estado.style.color = "var(--verde)";
+    estado.innerHTML =
+      "<b>Importación terminada</b><br>" +
+      "Altas nuevas: <b>" + altas + "</b><br>" +
+      "Actualizadas: <b>" + cambios + "</b>" +
+      (acreditadasIntactas ? " (de ellas " + acreditadasIntactas + " ya acreditadas, sin tocar)" : "") + "<br>" +
+      "Anuladas o devueltas: <b>" + anuladas + "</b><br>" +
+      "Menores de 18 el día del evento: <b>" + menores + "</b>" +
+      (sinCodigo ? "<br>Filas sin código, omitidas: <b>" + sinCodigo + "</b>" : "") +
+      (repetidas ? "<br>Códigos repetidos en el archivo, omitidos: <b>" + repetidas + "</b>" : "");
+    mostrarNotif("Entradas importadas: " + (altas + cambios));
+    importFilas = null;
+    document.getElementById("import-entradas-file").value = "";
+  } catch (e) {
+    console.error(e);
+    estado.style.color = "var(--rojo)";
+    estado.textContent = "Error al importar: " + e.message;
   }
 }
 

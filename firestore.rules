@@ -1,0 +1,75 @@
+rules_version = '2';
+
+// =============================================================
+//  REGLAS DE SEGURIDAD — Los Juegos de Omega
+//
+//  Pegar en: consola de Firebase -> Firestore Database -> Reglas
+//  Proyecto: los-juegos-de-omega
+//
+//  QUÉ CAMBIA
+//  Hoy la base de datos está abierta: cualquiera con el enlace de una de las
+//  apps puede leerla entera (y escribir en ella). Con estas reglas hay que
+//  haber entrado con usuario y contraseña para poder leer o escribir nada.
+//
+//  IMPORTANTE — ORDEN DE LOS PASOS
+//  1) Activar el acceso por correo y contraseña y crear los usuarios.
+//  2) Desplegar las apps ya con pantalla de acceso.
+//  3) Y SOLO ENTONCES pegar estas reglas.
+//  Si se pegan antes, las apps dejan de funcionar hasta que entren con usuario.
+// =============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---- Quién ha entrado ----
+    function identificado() {
+      return request.auth != null;
+    }
+
+    // ---- Datos del evento ----
+    // Participantes, eliminaciones, salvaciones, equipos, sesión, bingos,
+    // batalla naval, staff... Todo lo que mueven las apps durante el evento.
+    match /participantes/{dorsal}      { allow read, write: if identificado(); }
+    match /eliminaciones/{dorsal}      { allow read, write: if identificado(); }
+    match /eliminaciones_multiples/{d} { allow read, write: if identificado(); }
+    match /salvaciones/{id}            { allow read, write: if identificado(); }
+    match /equipos/{id}                { allow read, write: if identificado(); }
+    match /sesion/{id}                 { allow read, write: if identificado(); }
+    match /llamadas/{id}               { allow read, write: if identificado(); }
+    match /bingo_comandos/{id}         { allow read, write: if identificado(); }
+    match /salvacion_comandos/{id}     { allow read, write: if identificado(); }
+    match /batalla_naval/{id}          { allow read, write: if identificado(); }
+    match /staff_propuestas/{id}       { allow read, write: if identificado(); }
+    match /staff_ayuda/{id}            { allow read, write: if identificado(); }
+    match /staff_presencia/{id}        { allow read, write: if identificado(); }
+
+    // ---- Copias de seguridad ----
+    // Se pueden crear y leer, pero no borrar: que un fallo o un clic de más
+    // no deje al evento sin ningún respaldo.
+    match /backups/{id}            { allow read, create, update: if identificado(); allow delete: if false; }
+    match /backups_auto/{id}       { allow read, create, update: if identificado(); allow delete: if identificado(); }
+    match /backups_historicos/{id} { allow read, create, update: if identificado(); allow delete: if false; }
+
+    // ---- Entradas vendidas (datos personales) ----
+    // Nombre, fecha de nacimiento y código de entrada de cada asistente.
+    // Solo para quien ha entrado con usuario. Nunca se borran desde las apps:
+    // una entrada que ya no vale se marca como anulada, no se elimina.
+    match /entradas/{codigo} {
+      allow read, create, update: if identificado();
+      allow delete: if false;
+    }
+
+    // ---- Datos sensibles separados a propósito ----
+    // DNI, correo y teléfono viven aquí, fuera de la colección que se
+    // sincroniza con los móviles del staff. Ninguna app los lee: solo se
+    // consultan desde la consola si hiciera falta.
+    match /entradas_privado/{codigo} {
+      allow read, write: if false;
+    }
+
+    // ---- Todo lo demás, cerrado ----
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}
