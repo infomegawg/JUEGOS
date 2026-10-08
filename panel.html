@@ -481,6 +481,55 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         </div>
         <div style="font-size:11px;color:var(--texto2);margin-top:4px;">Suma N dorsales nuevos a los existentes</div>
       </div>
+        <div class="divider" style="height:0.5px;background:var(--border);margin:8px 0;"></div>
+
+        <!-- GENERADOR DE DORSALES -->
+        <div class="section-title" style="margin-bottom:8px;"><i class="ti ti-qrcode"></i> Generar dorsales para imprimir</div>
+        <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:8px;">
+          <div style="flex:1;">
+            <label>Desde</label>
+            <input type="number" id="dorsal-desde" value="1" min="1" max="999" />
+          </div>
+          <div style="flex:1;">
+            <label>Hasta</label>
+            <input type="number" id="dorsal-hasta" value="500" min="1" max="999" />
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:flex-end;margin-bottom:8px;">
+          <div style="flex:1;">
+            <label>Modo</label>
+            <select id="dorsal-modo" style="width:100%;">
+              <option value="doblar" selected>Doblar y plastificar</option>
+              <option value="dos">2 distintos por folio</option>
+            </select>
+          </div>
+          <div style="flex:1;">
+            <label>Tamaño QR</label>
+            <select id="dorsal-qr" style="width:100%;">
+              <option value="35">3,5 cm</option>
+              <option value="40" selected>4 cm</option>
+              <option value="45">4,5 cm</option>
+              <option value="50">5 cm</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-morado" style="flex:1;padding:9px;font-size:11px;" onclick="abrirGeneradorDorsales(false)">
+            <i class="ti ti-printer"></i> Generar e imprimir
+          </button>
+          <button class="btn btn-ghost" style="flex:1;padding:9px;font-size:11px;" onclick="abrirGeneradorDorsales(true)">
+            Solo muestra
+          </button>
+        </div>
+        <div style="font-size:10px;color:var(--texto2);margin-top:6px;line-height:1.6;">
+          Se abre en otra ventana lista para imprimir, en A5 apaisado. El QR lleva
+          <span style="color:var(--morado2);font-family:var(--mono)">JUGADOR001</span>…
+          En modo "doblar", cada folio lleva el mismo dorsal dos veces (el de arriba girado) para
+          plegarlo y plastificarlo. Imprime antes la muestra y escanéala con el móvil.
+        </div>
+
+        <div class="divider" style="height:0.5px;background:var(--border);margin:12px 0 8px;"></div>
+
         <div style="font-size:11px;color:var(--texto2);line-height:1.7;">
           Sube un archivo CSV con columnas:<br>
           <span style="color:var(--morado2);font-family:var(--mono)">dorsal, nombre, apellidos, email, telefono</span>
@@ -1674,6 +1723,25 @@ async function reiniciarBatallaNaval() {
     console.error(e);
     mostrarNotif("Error al reiniciar la Batalla Naval");
   }
+}
+
+/* ===== GENERADOR DE DORSALES ===== */
+// La hoja imprimible vive en su propia página (dorsales.html) para que al
+// imprimir no salgan el grid ni las barras laterales del panel. Desde aquí
+// solo se eligen las opciones y se abre ya configurada.
+function abrirGeneradorDorsales(soloMuestra) {
+  const desde = parseInt(document.getElementById("dorsal-desde").value, 10);
+  const hasta = parseInt(document.getElementById("dorsal-hasta").value, 10);
+  const modo = document.getElementById("dorsal-modo").value;
+  const qr = document.getElementById("dorsal-qr").value;
+  if (isNaN(desde) || isNaN(hasta) || desde < 1 || hasta < desde || hasta > 999) {
+    mostrarNotif("Revisa el rango de dorsales (1 a 999)");
+    return;
+  }
+  const url = "https://infomegawg.github.io/JUEGOS/dorsales.html?desde=" + desde +
+    "&hasta=" + hasta + "&modo=" + modo + "&qr=" + qr + (soloMuestra ? "&muestra=1" : "");
+  window.open(url, "_blank");
+  mostrarNotif(soloMuestra ? "Muestra de dorsales abierta" : "Generando dorsales " + desde + " a " + hasta);
 }
 
 /* ===== RESETEAR TODO ===== */
