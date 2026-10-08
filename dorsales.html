@@ -75,8 +75,8 @@ button.verde { background: var(--verde); color: #04210f; }
 .hoja .aviso-pliegue { position: absolute; left: 3mm; top: 50%; transform: translateY(-50%);
   font-family: var(--mono); font-size: 2.6mm; color: #bbb; letter-spacing: .5mm; background: #fff; padding: 0 1mm; }
 
-.dorsal .centro { flex: 1; align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: 0; }
-.dorsal .numero { font-family: var(--font); font-weight: 900; line-height: .8; color: #000; letter-spacing: -2.5mm; white-space: nowrap; }
+.dorsal .centro { flex: 1; align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; }
+.dorsal .numero { font-family: var(--font); font-weight: 900; line-height: .8; color: #000; letter-spacing: -2.5mm; white-space: nowrap; transform-origin: center center; }
 
 /* Tamaño de partida; encajarNumeros() lo ajusta luego al hueco real */
 .dorsal .numero { font-size: 70mm; }
@@ -2502,6 +2502,20 @@ function htmlDorsal(n, tamQr, girado) {
   </div>`;
 }
 
+// La tipografía Orbitron llega de la red unos instantes después que el HTML.
+// Si se mide antes de que esté lista, se calcula con la letra de reserva (más
+// estrecha) y al aparecer la buena el número se sale del dorsal. Por eso se
+// vuelve a encajar en cuanto las fuentes están cargadas, y otra vez justo
+// antes de imprimir.
+let fuentesListas = false;
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(() => { fuentesListas = true; encajarNumeros(); });
+} else {
+  fuentesListas = true;
+}
+window.addEventListener("beforeprint", encajarNumeros);
+window.addEventListener("resize", encajarNumeros);
+
 function construir(desde, hasta, modo, tamQr) {
   const contenedor = document.getElementById("hojas");
   contenedor.innerHTML = "";
@@ -2534,26 +2548,38 @@ function construir(desde, hasta, modo, tamQr) {
 function encajarNumeros() {
   // Tope de estirado vertical. Con 3 cifras el ancho se agota mucho antes que
   // el alto, así que el número se estira en vertical (como los marcadores de
-  // pabellón) para llenar el dorsal sin salirse por los lados. 1 = sin estirar.
+  // pabellón) para llenar el dorsal sin salirse por los lados.
   const MAX_ESTIRADO = 1.75;
-  document.querySelectorAll(".dorsal").forEach((dorsal) => {
-    const centro = dorsal.querySelector(".centro");
-    const numero = dorsal.querySelector(".numero");
-    if (!centro || !numero) return;
-    const anchoDisponible = centro.clientWidth * 0.995;
-    const altoDisponible = centro.clientHeight * 0.98;
-    numero.style.transform = "none";
-    numero.style.fontSize = "100mm";
-    const caja = numero.getBoundingClientRect();
-    if (!caja.width || !caja.height) return;
-    const porAncho = (anchoDisponible / caja.width) * 100;
-    const porAlto = (altoDisponible / caja.height) * 100;
-    const tam = Math.floor(Math.min(porAncho, porAlto));
-    numero.style.fontSize = tam + "mm";
-    // Lo que sobra de alto se usa estirando, hasta el tope
-    const altoReal = numero.getBoundingClientRect().height;
-    const estirado = Math.min(altoDisponible / altoReal, MAX_ESTIRADO);
-    if (estirado > 1.02) numero.style.transform = "scaleY(" + estirado.toFixed(3) + ")";
+  const dorsales = document.querySelectorAll(".dorsal");
+  if (!dorsales.length) return;
+
+  // TODOS los dorsales llevan el mismo tamaño de número. Si se midiera uno a
+  // uno, el 001 saldría más grande que el 002 (el "1" es más estrecho) y la
+  // tirada quedaría descuadrada. Se calcula con el número más ancho posible.
+  const centro = dorsales[0].querySelector(".centro");
+  const numero = dorsales[0].querySelector(".numero");
+  if (!centro || !numero) return;
+  const anchoDisponible = centro.clientWidth * 0.96;
+  const altoDisponible = centro.clientHeight * 0.94;
+
+  const textoOriginal = numero.textContent;
+  numero.style.transform = "none";
+  numero.style.fontSize = "100mm";
+  numero.textContent = "000";          // los dígitos más anchos de esta tipografía
+  const anchoRef = numero.getBoundingClientRect().width;
+  const altoRef = numero.getBoundingClientRect().height;
+  numero.textContent = textoOriginal;
+  if (!anchoRef || !altoRef) return;
+
+  const tam = Math.floor(Math.min((anchoDisponible / anchoRef) * 100, (altoDisponible / altoRef) * 100));
+  const altoConEseTam = altoRef * (tam / 100);
+  const estirado = Math.min(altoDisponible / altoConEseTam, MAX_ESTIRADO);
+
+  dorsales.forEach((dorsal) => {
+    const n = dorsal.querySelector(".numero");
+    if (!n) return;
+    n.style.fontSize = tam + "mm";
+    n.style.transform = estirado > 1.02 ? "scaleY(" + estirado.toFixed(3) + ")" : "none";
   });
 }
 
