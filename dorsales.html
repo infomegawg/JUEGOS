@@ -4,10 +4,11 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Generador de dorsales — Los Juegos de Omega</title>
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800;900&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=Montserrat:wght@400;600;700;800;900&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet" />
 <style>
 :root {
   --font: 'Orbitron', monospace;
+  --dorsal: 'Anton', 'Montserrat', Impact, sans-serif;
   --mono: 'Montserrat', sans-serif;
   --morado: #7018cc;
   --morado2: #a06bff;
@@ -76,7 +77,7 @@ button.verde { background: var(--verde); color: #04210f; }
   font-family: var(--mono); font-size: 2.6mm; color: #bbb; letter-spacing: .5mm; background: #fff; padding: 0 1mm; }
 
 .dorsal .centro { flex: 1; align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: 0; overflow: hidden; }
-.dorsal .numero { font-family: var(--font); font-weight: 900; line-height: .8; color: #000; letter-spacing: -2.5mm; white-space: nowrap; transform-origin: center center; }
+.dorsal .numero { font-family: var(--dorsal); font-weight: 400; line-height: .78; color: #000; letter-spacing: 0.5mm; white-space: nowrap; transform-origin: center center; }
 
 /* Tamaño de partida; encajarNumeros() lo ajusta luego al hueco real */
 .dorsal .numero { font-size: 70mm; }
@@ -2549,7 +2550,7 @@ function encajarNumeros() {
   // Tope de estirado vertical. Con 3 cifras el ancho se agota mucho antes que
   // el alto, así que el número se estira en vertical (como los marcadores de
   // pabellón) para llenar el dorsal sin salirse por los lados.
-  const MAX_ESTIRADO = 1.75;
+  const MAX_ESTIRADO = 1.25;
   const dorsales = document.querySelectorAll(".dorsal");
   if (!dorsales.length) return;
 
