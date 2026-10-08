@@ -44,21 +44,23 @@ button.verde { background: var(--verde); color: #04210f; }
 /* ===== HOJAS DE DORSALES ===== */
 #hojas { background: #e9e6f2; padding: 24px 0; }
 .hoja {
-  width: 210mm; height: 297mm; overflow: hidden; background: #fff; margin: 0 auto 20px; padding: 7mm;
-  display: flex; flex-direction: column; gap: 5mm; box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  width: 210mm; height: 297mm; overflow: hidden; background: #fff; margin: 0 auto 20px; padding: 4mm;
+  display: flex; flex-direction: column; gap: 3mm; box-shadow: 0 10px 40px rgba(0,0,0,.4);
 }
 /* DORSAL A5 APAISADO: lateral izquierdo con logo y QR, resto para el número */
 .dorsal {
-  flex: 1; border: 1mm dashed #ccc; border-radius: 3mm; padding: 5mm 6mm;
-  display: flex; flex-direction: row; align-items: center; gap: 5mm;
+  flex: 1; border: 0.8mm dashed #ddd; border-radius: 3mm; padding: 3mm 4mm;
+  display: flex; flex-direction: row; align-items: center; gap: 3mm;
   color: #000; background: #fff; position: relative; overflow: hidden;
 }
 .dorsal .lateral {
-  width: 46mm; flex-shrink: 0; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 3mm;
-  border-right: 0.4mm solid #ddd; padding-right: 4mm; align-self: stretch;
+  width: 34mm; flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2.5mm;
+  border-right: 0.4mm solid #eee; padding-right: 2mm; align-self: stretch;
 }
-.dorsal .lateral img { width: 40mm; height: auto; display: block; }
+.dorsal .lateral img { width: 30mm; height: auto; display: block; }
+.dorsal .lateral .etiqueta { font-family: var(--mono); font-weight: 900; font-size: 3.4mm;
+  letter-spacing: 1.6mm; color: #999; margin: 0; }
 .dorsal .qr { background: #fff; line-height: 0; }
 .dorsal .qr svg { display: block; }
 .dorsal .codigo { font-family: var(--mono); font-weight: 800; font-size: 3.4mm; letter-spacing: .6mm; color: #777; }
@@ -73,9 +75,8 @@ button.verde { background: var(--verde); color: #04210f; }
 .hoja .aviso-pliegue { position: absolute; left: 3mm; top: 50%; transform: translateY(-50%);
   font-family: var(--mono); font-size: 2.6mm; color: #bbb; letter-spacing: .5mm; background: #fff; padding: 0 1mm; }
 
-.dorsal .centro { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 0; }
-.dorsal .etiqueta { font-family: var(--mono); font-weight: 900; font-size: 5mm; letter-spacing: 4mm; color: #888; margin-bottom: 1mm; }
-.dorsal .numero { font-family: var(--font); font-weight: 900; line-height: .82; color: #000; letter-spacing: -1mm; white-space: nowrap; }
+.dorsal .centro { flex: 1; align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: 0; }
+.dorsal .numero { font-family: var(--font); font-weight: 900; line-height: .8; color: #000; letter-spacing: -2.5mm; white-space: nowrap; }
 
 /* Tamaño de partida; encajarNumeros() lo ajusta luego al hueco real */
 .dorsal .numero { font-size: 70mm; }
@@ -121,10 +122,10 @@ button.verde { background: var(--verde); color: #04210f; }
       <div>
         <label>TAMAÑO DEL QR</label>
         <select id="tamQr">
+          <option value="25">2,5 cm</option>
+          <option value="30" selected>3 cm</option>
           <option value="35">3,5 cm</option>
-          <option value="40" selected>4 cm</option>
-          <option value="45">4,5 cm</option>
-          <option value="50">5 cm</option>
+          <option value="40">4 cm</option>
         </select>
       </div>
     </div>
@@ -2491,11 +2492,11 @@ function htmlDorsal(n, tamQr, girado) {
   return `<div class="dorsal${girado ? " girado" : ""}">
     <div class="lateral">
       <img src="${LOGO}" alt="Los Juegos de Omega" />
+      <div class="etiqueta">JUGADOR</div>
       <div class="qr">${svgQR(codigoDorsal(n), tamQr)}</div>
       <div class="codigo">${codigoDorsal(n)}</div>
     </div>
     <div class="centro">
-      <div class="etiqueta">JUGADOR</div>
       <div class="numero">${numero}</div>
     </div>
   </div>`;
@@ -2531,20 +2532,28 @@ function construir(desde, hasta, modo, tamQr) {
 // de dos o de tres cifras. Se calcula midiendo de verdad, en vez de fijar un
 // tamaño a ojo que luego se sale por los lados en los números más anchos.
 function encajarNumeros() {
-  const MM = 96 / 25.4;
+  // Tope de estirado vertical. Con 3 cifras el ancho se agota mucho antes que
+  // el alto, así que el número se estira en vertical (como los marcadores de
+  // pabellón) para llenar el dorsal sin salirse por los lados. 1 = sin estirar.
+  const MAX_ESTIRADO = 1.75;
   document.querySelectorAll(".dorsal").forEach((dorsal) => {
     const centro = dorsal.querySelector(".centro");
     const numero = dorsal.querySelector(".numero");
     if (!centro || !numero) return;
-    const anchoDisponible = centro.clientWidth * 0.96;
-    const altoDisponible = centro.clientHeight * 0.80;   // deja sitio a "JUGADOR"
+    const anchoDisponible = centro.clientWidth * 0.995;
+    const altoDisponible = centro.clientHeight * 0.98;
+    numero.style.transform = "none";
     numero.style.fontSize = "100mm";
-    const anchoA100 = numero.getBoundingClientRect().width;
-    const altoA100 = numero.getBoundingClientRect().height;
-    if (!anchoA100 || !altoA100) return;
-    const porAncho = (anchoDisponible / anchoA100) * 100;
-    const porAlto = (altoDisponible / altoA100) * 100;
-    numero.style.fontSize = Math.floor(Math.min(porAncho, porAlto)) + "mm";
+    const caja = numero.getBoundingClientRect();
+    if (!caja.width || !caja.height) return;
+    const porAncho = (anchoDisponible / caja.width) * 100;
+    const porAlto = (altoDisponible / caja.height) * 100;
+    const tam = Math.floor(Math.min(porAncho, porAlto));
+    numero.style.fontSize = tam + "mm";
+    // Lo que sobra de alto se usa estirando, hasta el tope
+    const altoReal = numero.getBoundingClientRect().height;
+    const estirado = Math.min(altoDisponible / altoReal, MAX_ESTIRADO);
+    if (estirado > 1.02) numero.style.transform = "scaleY(" + estirado.toFixed(3) + ")";
   });
 }
 
@@ -2602,7 +2611,7 @@ function generarMuestra() {
     document.getElementById("desde").value = num("desde", 1);
     document.getElementById("hasta").value = num("hasta", 500);
     document.getElementById("modo").value = p.get("modo") === "dos" ? "dos" : "doblar";
-    document.getElementById("tamQr").value = String(num("qr", 40));
+    document.getElementById("tamQr").value = String(num("qr", 30));
     if (p.get("muestra") === "1") generarMuestra(); else generar();
   } else {
     generarMuestra();
