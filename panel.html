@@ -10,6 +10,7 @@
 <!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <style>
@@ -593,6 +594,102 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+
+/* =========================================================
+   ACCESO A LA BASE DE DATOS
+   Hasta ahora cualquiera con el enlace podía leer y escribir en la base del
+   evento. Con esto hay que entrar una vez con usuario y contraseña; la
+   sesión se queda guardada en ese navegador, así que no hay que volver a
+   escribirla al día siguiente ni al abrir otra de las apps.
+
+   Este bloque es el mismo en todas las apps: entrando una vez, quedan
+   desbloqueadas todas las del evento en ese dispositivo.
+   ========================================================= */
+
+const auth = firebase.auth();
+let sesionIniciada = false;
+
+// Pantalla de acceso, creada desde el propio código para que todas las apps
+// la tengan igual sin tocar el HTML de cada una.
+function montarPantallaAcceso() {
+  if (document.getElementById("acceso-screen")) return;
+  const capa = document.createElement("div");
+  capa.id = "acceso-screen";
+  capa.innerHTML =
+    '<div class="acceso-caja">' +
+      '<div class="acceso-titulo">ACCESO</div>' +
+      '<div class="acceso-sub">Los Juegos de Omega</div>' +
+      '<input id="acceso-email" type="email" autocomplete="username" placeholder="Usuario" />' +
+      '<input id="acceso-pass" type="password" autocomplete="current-password" placeholder="Contraseña" />' +
+      '<button id="acceso-btn">ENTRAR</button>' +
+      '<div id="acceso-error"></div>' +
+      '<div class="acceso-pista">Solo hay que escribirlo una vez en cada dispositivo.</div>' +
+    '</div>';
+  const estilo = document.createElement("style");
+  estilo.textContent =
+    '#acceso-screen{position:fixed;inset:0;background:#08010f;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:' +
+      '"Montserrat",system-ui,sans-serif;}' +
+    '.acceso-caja{width:100%;max-width:340px;display:flex;flex-direction:column;gap:12px;}' +
+    '.acceso-titulo{font-family:"Orbitron",monospace;font-weight:900;font-size:22px;letter-spacing:6px;color:#fff;text-align:center;}' +
+    '.acceso-sub{font-size:11px;letter-spacing:3px;color:#a06bff;text-align:center;text-transform:uppercase;margin-bottom:10px;}' +
+    '#acceso-screen input{width:100%;padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,.25);' +
+      'background:rgba(255,255,255,.08);color:#fff;font-size:16px;font-weight:700;text-align:center;}' +
+    '#acceso-screen button{width:100%;padding:15px;border:0;border-radius:10px;background:#7018cc;color:#fff;' +
+      'font-weight:800;font-size:15px;letter-spacing:2px;cursor:pointer;}' +
+    '#acceso-screen button:disabled{opacity:.5;cursor:default;}' +
+    '#acceso-error{color:#ff8f9c;font-size:12px;text-align:center;min-height:16px;font-weight:700;}' +
+    '.acceso-pista{color:rgba(255,255,255,.45);font-size:11px;text-align:center;line-height:1.6;}';
+  document.head.appendChild(estilo);
+  document.body.appendChild(capa);
+
+  const entrar = async () => {
+    const email = document.getElementById("acceso-email").value.trim();
+    const pass = document.getElementById("acceso-pass").value;
+    const error = document.getElementById("acceso-error");
+    const boton = document.getElementById("acceso-btn");
+    if (!email || !pass) { error.textContent = "Escribe el usuario y la contraseña"; return; }
+    boton.disabled = true;
+    error.textContent = "Entrando...";
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+      error.textContent = "Entrando...";
+      location.reload();
+    } catch (e) {
+      console.error(e);
+      const textos = {
+        "auth/invalid-email": "Ese usuario no tiene formato de correo",
+        "auth/user-not-found": "Usuario o contraseña incorrectos",
+        "auth/wrong-password": "Usuario o contraseña incorrectos",
+        "auth/invalid-credential": "Usuario o contraseña incorrectos",
+        "auth/too-many-requests": "Demasiados intentos, espera un momento",
+        "auth/network-request-failed": "Sin conexión: comprueba los datos del móvil"
+      };
+      error.textContent = textos[e.code] || ("No se ha podido entrar: " + e.code);
+      boton.disabled = false;
+    }
+  };
+  document.getElementById("acceso-btn").addEventListener("click", entrar);
+  capa.addEventListener("keydown", (ev) => { if (ev.key === "Enter") entrar(); });
+}
+
+function quitarPantallaAcceso() {
+  const capa = document.getElementById("acceso-screen");
+  if (capa) capa.remove();
+}
+
+// Mientras no haya sesión, la app no arranca ni lee nada de la base.
+auth.onAuthStateChanged((usuario) => {
+  if (usuario) { sesionIniciada = true; quitarPantallaAcceso(); }
+  else montarPantallaAcceso();
+});
+
+// Cerrar sesión en este dispositivo (por ejemplo, si se pierde un móvil)
+function cerrarSesionOmega() {
+  if (confirm("¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir usuario y contraseña.")) {
+    auth.signOut().then(() => location.reload());
+  }
+}
+
 const TS = firebase.firestore.FieldValue.serverTimestamp;
 
 /* ===== ESTADO ===== */
