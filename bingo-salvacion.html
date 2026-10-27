@@ -782,14 +782,14 @@ const esInstanciaLED = new URLSearchParams(location.search).get("led") === "1";
    para que la LED y la app muestren exactamente los mismos números.
    De escribir en Firebase y de poner la voz se encarga una sola
    instancia: la LED si está abierta (lo anuncia con un latido cada
-   5 s), y si no hay ninguna LED, la app que esté abierta.
+   30 s), y si no hay ninguna LED, la app que esté abierta.
    --------------------------------------------------------- */
 let ultimoLatidoLED = 0;      // momento (reloj local) del último latido recibido
 let valorLatidoPrevio = null; // para detectar latidos nuevos sin comparar relojes
 
 function soyPrincipal() {
   if (esInstanciaLED) return true;
-  return (Date.now() - ultimoLatidoLED) > 15000;
+  return (Date.now() - ultimoLatidoLED) > 90000;
 }
 
 // El latido ya no viaja en el documento de sesión: tiene el suyo propio
@@ -800,7 +800,7 @@ if (esInstanciaLED) {
     .set({ visto_en: Date.now() })
     .catch(e => console.warn("latido LED:", e));
   latir();
-  setInterval(latir, 5000);
+  setInterval(latir, 30000);
 } else {
   // Las demás pantallas vigilan si hay una LED viva para cederle el mando.
   db.collection("presencia").doc("led_salvacion").onSnapshot(doc => {
