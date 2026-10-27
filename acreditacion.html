@@ -10627,16 +10627,22 @@ function pintarFicha() {
   $("paso-entrada").style.display = "none";
   $("paso-ficha").style.display = "block";
 
-  if (menorDe16) {
+  // Un jugador menor de 16 no puede participar: lo dicen las bases
+  if (menorDe16 && e.tipo !== "espectador") {
     bloque.innerHTML = '<div class="avisomenor" style="border-color:var(--rojo);color:#ffc2c8;">' +
       '<b>MENOR DE 16 AÑOS</b><br>No puede participar según las bases del evento. ' +
-      'Puede entrar como espectador si lo acompaña un adulto responsable.</div>';
+      'Puede quedarse como espectador si lo acompaña un adulto responsable.</div>';
     acciones.innerHTML = '<button class="btn btn-rojo" onclick="volverAInicio()">No acreditar</button>';
     vibrar([200, 80, 200]);
     return;
   }
 
-  if (esMenor && e.tipo !== "espectador") {
+  if (esMenor && e.tipo === "espectador") {
+    // Un espectador menor sí entra, pero acompañado
+    bloque.innerHTML = '<div class="avisomenor"><b>ESPECTADOR MENOR DE EDAD (' + e.edad_evento + ' años)</b><br>' +
+      'Debe entrar acompañado de un adulto responsable. No participa en las pruebas.</div>';
+  } else if (esMenor) {
+    // Jugador de 16 o 17: no se le da el dorsal sin el papel firmado
     bloque.innerHTML = '<div class="avisomenor"><b>TIENE ' + e.edad_evento + ' AÑOS</b><br>' +
       'Antes de darle el dorsal hay que recoger la <b>autorización firmada</b> del padre, madre o tutor ' +
       'y una <b>fotocopia de su DNI</b>.' +
