@@ -91,6 +91,12 @@ input[type=text], input[type=number], select {
 #resultado .detalle { font-size: 15px; opacity: .95; line-height: 1.5; max-width: 420px; }
 #resultado .dorsalgrande { font-family: var(--font); font-size: 72px; font-weight: 900; margin: 8px 0; }
 #resultado .btns { margin-top: 22px; width: 100%; max-width: 360px; }
+#resultado .btns .btn + .btn { margin-top: 8px; }
+#res-confirmar { background: #fff; color: #111; }
+/* Aviso de menor: imposible de pasar por alto */
+#resultado.menor { background: #7a3b00; }
+#resultado .avisomenor-grande { background: rgba(0,0,0,.28); border-radius: 12px; padding: 14px;
+  margin-top: 14px; font-size: 15px; line-height: 1.5; font-weight: 800; max-width: 420px; }
 
 /* ===== CÁMARA ===== */
 #camara { display: none; position: fixed; inset: 0; z-index: 7000; background: #000; }
@@ -217,7 +223,10 @@ input[type=text], input[type=number], select {
   <div class="titulo" id="res-titulo"></div>
   <div class="dorsalgrande" id="res-dorsal" style="display:none;"></div>
   <div class="detalle" id="res-detalle"></div>
-  <div class="btns"><button class="btn" id="res-btn" onclick="cerrarResultado()">SIGUIENTE</button></div>
+  <div class="btns">
+    <button class="btn" id="res-confirmar" style="display:none;"></button>
+    <button class="btn" id="res-btn" onclick="cerrarResultado()">SIGUIENTE</button>
+  </div>
 </div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
@@ -10601,6 +10610,11 @@ function estaDentro(e) {
   return !!e.acreditada && e.dentro !== false;
 }
 
+// Vale tanto el campo que trae el importador como la edad calculada
+function esMenorEntrada(e) {
+  return e.menor === true || (typeof e.edad_evento === "number" && e.edad_evento < 18);
+}
+
 async function marcarSalida(codigo, e) {
   try {
     await db.collection("entradas").doc(codigo).update({
@@ -10609,7 +10623,8 @@ async function marcarSalida(codigo, e) {
     if (entradas[codigo]) entradas[codigo].dentro = false;
     vibrar(60);
     mostrarResultado("ok", "←", "Salida registrada",
-      (e.nombre || codigo) + (e.dorsal ? "<br>Dorsal <b>" + e.dorsal + "</b> · sigue siendo suyo" : ""));
+      (e.nombre || codigo) + (e.dorsal ? "<br>Dorsal <b>" + e.dorsal + "</b> · sigue siendo suyo" : "") +
+      (esMenorEntrada(e) ? "<br><b>Menor: debe irse acompañado</b>" : ""));
     pintarCifras();
   } catch (err) {
     console.error(err);
@@ -10693,6 +10708,18 @@ async function abrirEntrada(codigo) {
         (e.nombre || codigo) + "<br>Salió a las <b>" + hs + "</b>");
       return;
     }
+    // Un menor no puede salir solo del recinto: hay que comprobar quién se lo
+    // lleva antes de dar la salida por buena, así que se pide confirmación.
+    if (esMenorEntrada(e)) {
+      vibrar([200, 100, 200, 100, 200]);
+      pedirConfirmacion("menor", "⚠", "ES MENOR DE EDAD",
+        (e.nombre || codigo) + " · " + (e.edad_evento != null ? e.edad_evento + " años" : "menor") +
+        '<div class="avisomenor-grande">No puede salir solo del recinto.<br>' +
+        'Comprueba que lo recoge o lo acompaña un adulto responsable.</div>',
+        "SALE ACOMPAÑADO · REGISTRAR SALIDA",
+        () => marcarSalida(codigo, e));
+      return;
+    }
     await marcarSalida(codigo, e);
     return;
   }
@@ -10703,6 +10730,16 @@ async function abrirEntrada(codigo) {
       ? e.acreditada_en.toDate().toLocaleTimeString("es-ES") : "antes";
     // Si había salido, lo normal es que esté volviendo a entrar
     if (!estaDentro(e)) {
+      if (esMenorEntrada(e)) {
+        vibrar([200, 100, 200]);
+        pedirConfirmacion("menor", "⚠", "ES MENOR DE EDAD",
+          (e.nombre || codigo) + " · " + (e.edad_evento != null ? e.edad_evento + " años" : "menor") +
+          '<div class="avisomenor-grande">Vuelve a entrar.<br>' +
+          'Comprueba que entra acompañado de un adulto responsable.</div>',
+          "ENTRA ACOMPAÑADO · REGISTRAR ENTRADA",
+          () => marcarReentrada(codigo, e));
+        return;
+      }
       vibrar(60);
       await marcarReentrada(codigo, e);
       return;
@@ -10896,6 +10933,8 @@ function mostrarResultado(clase, icono, titulo, detalle, dorsal) {
   r.className = "ver " + clase;
   // Mientras se comprueba no se ofrece "siguiente": aún no hay nada que cerrar
   $("res-btn").style.display = (clase === "") ? "none" : "block";
+  $("res-btn").textContent = "SIGUIENTE";
+  $("res-confirmar").style.display = "none";
   $("res-icono").textContent = icono;
   $("res-titulo").textContent = titulo;
   $("res-detalle").innerHTML = detalle || "";
@@ -10903,9 +10942,24 @@ function mostrarResultado(clase, icono, titulo, detalle, dorsal) {
   if (dorsal) { d.textContent = dorsal; d.style.display = "block"; } else { d.style.display = "none"; }
 }
 
+// Igual que mostrarResultado, pero con un botón que hay que pulsar para
+// seguir adelante. Se usa con los menores: la salida no se registra sola.
+function pedirConfirmacion(clase, icono, titulo, detalle, textoBoton, alConfirmar) {
+  mostrarResultado(clase, icono, titulo, detalle);
+  const b = $("res-confirmar");
+  b.style.display = "block";
+  b.textContent = textoBoton;
+  b.onclick = () => { b.style.display = "none"; b.onclick = null; alConfirmar(); };
+  $("res-btn").textContent = "CANCELAR";
+}
+
 function cerrarResultado() {
   $("resultado").className = "";
   $("res-btn").style.display = "block";
+  $("res-btn").textContent = "SIGUIENTE";
+  const b = $("res-confirmar");
+  b.style.display = "none";
+  b.onclick = null;
   ultimaLectura = { texto: null, momento: 0 };
 }
 
