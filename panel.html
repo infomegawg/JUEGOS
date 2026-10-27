@@ -1570,43 +1570,65 @@ async function confirmarSalvacionMultiple() {
   } catch(e) { console.error(e); mostrarNotif("Error al salvar varios"); }
 }
 
-/* ===== CONTROL REMOTO BINGO DE SALVACIÓN ===== */
-// La app bingo-salvacion.html (abierta en el portátil de la pantalla LED)
-// escucha esta colección, separada de "bingo_comandos" para que un comando
-// del Bingo de Eliminación no dispare por error el de Salvación.
-async function girarSalvacionRemoto() {
+/* ===== CONTROL REMOTO DE LOS BINGOS =====
+   El panel decide AQUÍ a quién le toca y manda los dorsales dentro del
+   comando. Antes solo mandaba "gira", y cada pantalla abierta sorteaba por
+   su cuenta: la LED enseñaba unos números, la app cantaba otros y las dos
+   escribían en Firebase, duplicando eliminaciones. */
+
+// Dorsales vivos / eliminados según los participantes reales del evento.
+function dorsalesVivos() {
+  return Object.values(participantes).filter(p => p.vivo).map(p => Number(p.dorsal)).filter(n => !isNaN(n));
+}
+function dorsalesEliminados() {
+  return Object.values(participantes).filter(p => !p.vivo).map(p => Number(p.dorsal)).filter(n => !isNaN(n));
+}
+function elegirAlAzar(pool, cantidad) {
+  const barajado = [...pool].sort(() => Math.random() - 0.5);
+  return barajado.slice(0, Math.min(cantidad, barajado.length));
+}
+
+async function enviarComandoBingo(coleccion, accion, ganadores, textoOk) {
   try {
-    await db.collection("salvacion_comandos").add({ accion: "girar", creado_en: TS() });
-    mostrarNotif("Comando enviado: salvar 1 número");
+    await db.collection(coleccion).add({ accion: accion, ganadores: ganadores, creado_en: TS() });
+    mostrarNotif(textoOk);
   } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
+}
+
+/* ----- Bingo de Salvación ----- */
+async function girarSalvacionRemoto() {
+  const pool = dorsalesEliminados();
+  if (!pool.length) { mostrarNotif("No hay ningún eliminado al que salvar"); return; }
+  const g = elegirAlAzar(pool, 1);
+  await enviarComandoBingo("salvacion_comandos", "girar", g, "Comando enviado: salvar 1 jugador");
 }
 
 async function girarSalvacionMultiRemoto() {
   const cantidad = parseInt(document.getElementById("salvacion-remoto-cantidad").value, 10);
-  if (!cantidad || cantidad < 1) { mostrarNotif("Indica cuántos números salvar"); return; }
-  try {
-    await db.collection("salvacion_comandos").add({ accion: "girar_multi", cantidad: cantidad, creado_en: TS() });
-    mostrarNotif(`Comando enviado: salvar ${cantidad} y girar`);
-  } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
+  if (!cantidad || cantidad < 1) { mostrarNotif("Indica cuántos jugadores salvar"); return; }
+  const pool = dorsalesEliminados();
+  if (!pool.length) { mostrarNotif("No hay ningún eliminado al que salvar"); return; }
+  const g = elegirAlAzar(pool, cantidad);
+  if (g.length < cantidad) mostrarNotif(`Solo hay ${g.length} eliminados: se salvan todos`);
+  await enviarComandoBingo("salvacion_comandos", "girar_multi", g, `Comando enviado: salvar ${g.length} y girar`);
 }
 
-/* ===== CONTROL REMOTO BINGO ===== */
-// La app bingo.html (abierta en el portátil de la pantalla LED) escucha esta
-// colección y acciona su propia ruleta al recibir un comando nuevo.
+/* ----- Bingo de Eliminación ----- */
 async function girarBingoRemoto() {
-  try {
-    await db.collection("bingo_comandos").add({ accion: "girar", creado_en: TS() });
-    mostrarNotif("Comando enviado: girar 1 número");
-  } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
+  const pool = dorsalesVivos();
+  if (!pool.length) { mostrarNotif("No queda ningún jugador vivo"); return; }
+  const g = elegirAlAzar(pool, 1);
+  await enviarComandoBingo("bingo_comandos", "girar", g, "Comando enviado: eliminar 1 jugador");
 }
 
 async function girarBingoMultiRemoto() {
   const cantidad = parseInt(document.getElementById("bingo-remoto-cantidad").value, 10);
-  if (!cantidad || cantidad < 1) { mostrarNotif("Indica cuántos números eliminar"); return; }
-  try {
-    await db.collection("bingo_comandos").add({ accion: "girar_multi", cantidad: cantidad, creado_en: TS() });
-    mostrarNotif(`Comando enviado: eliminar ${cantidad} y girar`);
-  } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
+  if (!cantidad || cantidad < 1) { mostrarNotif("Indica cuántos jugadores eliminar"); return; }
+  const pool = dorsalesVivos();
+  if (!pool.length) { mostrarNotif("No queda ningún jugador vivo"); return; }
+  const g = elegirAlAzar(pool, cantidad);
+  if (!confirm(`Se van a eliminar ${g.length} jugadores de los ${pool.length} que quedan vivos.\n\n¿Seguro?`)) return;
+  await enviarComandoBingo("bingo_comandos", "girar_multi", g, `Comando enviado: eliminar ${g.length} y girar`);
 }
 
 /* ===== HISTORIAL ===== */

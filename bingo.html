@@ -870,7 +870,54 @@ window.fbEliminar = async function(dorsal, prueba, metodo) {
    ========================================================= */
 const esInstanciaLED = new URLSearchParams(location.search).get("led") === "1";
 
+/* ---------------------------------------------------------
+   QUIÉN MANDA ENTRE VARIAS PANTALLAS
+   El ganador se decide UNA sola vez y viaja dentro del comando,
+   para que la LED y la app muestren exactamente los mismos números.
+   De escribir en Firebase y de poner la voz se encarga una sola
+   instancia: la LED si está abierta (lo anuncia con un latido cada
+   5 s), y si no hay ninguna LED, la app que esté abierta.
+   --------------------------------------------------------- */
+let ultimoLatidoLED = 0;      // momento (reloj local) del último latido recibido
+let valorLatidoPrevio = null; // para detectar latidos nuevos sin comparar relojes
+
+function soyPrincipal() {
+  if (esInstanciaLED) return true;
+  return (Date.now() - ultimoLatidoLED) > 15000;
+}
+
+// Registra un latido recibido desde el documento de sesión.
+window.registrarLatidoLED = function(data) {
+  const v = data && data["led_bingo_latido"];
+  if (v && v !== valorLatidoPrevio) {
+    valorLatidoPrevio = v;
+    ultimoLatidoLED = Date.now();
+  }
+};
+
 if (esInstanciaLED) {
+  const latir = () => db.collection("sesion").doc("actual")
+    .set({ "led_bingo_latido": Date.now() }, { merge: true })
+    .catch(e => console.warn("latido LED:", e));
+  latir();
+  setInterval(latir, 5000);
+}
+
+// Publica la jugada con los ganadores ya decididos, para que todas las
+// pantallas animen y canten exactamente los mismos números. Si no se puede
+// publicar (sin conexión), se ejecuta en local para no dejar el juego parado.
+async function publicarJugada(accion, ganadores) {
+  try {
+    await db.collection("bingo_comandos").add({
+      accion: accion, ganadores: ganadores, creado_en: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) {
+    console.warn("No se pudo publicar la jugada, se ejecuta en local:", e);
+    if (accion === "girar") spin(ganadores[0]); else spinMulti(ganadores);
+  }
+}
+
+{
   let primerSnapComandos = true;
   db.collection("bingo_comandos").orderBy("creado_en", "desc").limit(1)
     .onSnapshot(snap => {
@@ -889,14 +936,20 @@ function ejecutarComandoRemoto(d) {
   // nadie lo pidiera en ese momento, y desincronizaba voz y pantalla.
   if (typeof spin !== "function" || state.spinning) return;
 
+  // Los ganadores vienen decididos en el comando. Los comandos antiguos sin
+  // "ganadores" se sortean aquí, pero entonces cada pantalla saca los suyos.
   if (d.accion === "girar") {
-    spin();
+    spin(Array.isArray(d.ganadores) ? d.ganadores[0] : undefined);
   } else if (d.accion === "girar_multi") {
-    const active = activeNumbers();
-    if (!active.length) return;
-    const count = Math.min(parseInt(d.cantidad, 10) || 1, active.length);
-    const shuffled = [...active].sort(() => Math.random() - 0.5);
-    const winners = shuffled.slice(0, count);
+    let winners = Array.isArray(d.ganadores) ? d.ganadores : null;
+    if (!winners) {
+      const active = activeNumbers();
+      if (!active.length) return;
+      const count = Math.min(parseInt(d.cantidad, 10) || 1, active.length);
+      winners = [...active].sort(() => Math.random() - 0.5).slice(0, count);
+    }
+    winners = winners.filter(n => !state.eliminated.has(n));
+    if (!winners.length) return;
     spinMulti(winners);
   }
 }
@@ -918,12 +971,26 @@ window.fbEscuchar = function() {
   db.collection("sesion").doc("actual").onSnapshot((doc) => {
     if (doc.exists) {
       const data = doc.data();
+      if (window.registrarLatidoLED) window.registrarLatidoLED(data);
       if (data.total && data.total !== state.total) {
         state.total = data.total;
         render();
         console.log("Total jugadores actualizado desde Firebase:", data.total);
       }
     }
+  });
+
+  // 1b. Escuchar qué dorsales existen realmente, para no sortear números
+  //     que no corresponden a ningún jugador.
+  db.collection("participantes").onSnapshot((snap) => {
+    const set = new Set();
+    snap.forEach(doc => {
+      const n = parseInt(doc.id, 10);
+      if (!isNaN(n)) set.add(n);
+    });
+    state.dorsales = set;
+    render();
+    console.log("Dorsales reales cargados:", set.size);
   });
 
   // 2. Escuchar eliminaciones en tiempo real (de cualquier prueba)
@@ -989,6 +1056,9 @@ window.fbReset = async function() {
 
 const state = {
   total: 500,
+  // Dorsales que existen de verdad en la colección "participantes".
+  // Mientras sea null aún no han cargado y se usa el rango 1..total.
+  dorsales: null,
   eliminated: new Set(),
   history: [],
   spinning: false,
@@ -1015,12 +1085,13 @@ const statLast = $("statLast");
 
 // ===== RENDER GRID =====
 function render() {
-  const total = state.total;
+  const dorsales = todosLosDorsales();
+  const total = dorsales.length;
   grid.style.gridTemplateColumns = `repeat(35, 1fr)`;
 
   grid.innerHTML = "";
   const frag = document.createDocumentFragment();
-  for (let i = 1; i <= total; i++) {
+  for (const i of dorsales) {
     const c = document.createElement("div");
     c.className = "cell";
     c.dataset.n = i;
@@ -1036,13 +1107,14 @@ function render() {
 
 function updateStats() {
   const elim = state.eliminated.size;
-  statTotal.textContent = state.total;
-  statActive.textContent = state.total - elim;
+  const totalReal = todosLosDorsales().length;
+  statTotal.textContent = totalReal;
+  statActive.textContent = totalReal - elim;
   statEliminated.textContent = elim;
   const last = state.history[state.history.length - 1];
   statLast.textContent = last ? last.num : "—";
-  spinBtn.disabled = (state.total - elim) === 0;
-  megaSpinBtn.disabled = (state.total - elim) === 0;
+  spinBtn.disabled = activeNumbers().length === 0;
+  megaSpinBtn.disabled = activeNumbers().length === 0;
 }
 window.updateStats = updateStats;
 
@@ -1082,13 +1154,22 @@ function manualEliminate(n, cellEl) {
   if (window.fbEliminar) window.fbEliminar(n, "Han cantado bingo", "manual");
 }
 
-function activeNumbers() {
+// Lista ordenada de dorsales que participan. Si todavía no han llegado los
+// participantes desde Firebase, se cae al rango 1..total como antes.
+function todosLosDorsales() {
+  if (state.dorsales && state.dorsales.size) {
+    return Array.from(state.dorsales).sort((a, b) => a - b);
+  }
   const arr = [];
-  for (let i = 1; i <= state.total; i++) if (!state.eliminated.has(i)) arr.push(i);
+  for (let i = 1; i <= state.total; i++) arr.push(i);
   return arr;
 }
 
-function spin() {
+function activeNumbers() {
+  return todosLosDorsales().filter(n => !state.eliminated.has(n));
+}
+
+function spin(ganadorFijado) {
   if (state.spinning) return;
   const active = activeNumbers();
   if (active.length === 0) return;
@@ -1098,7 +1179,8 @@ function spin() {
   megaSpinBtn.disabled = true;
   grid.classList.add("spinning");
 
-  const winner = cryptoRandomChoice(active);
+  const winner = (typeof ganadorFijado === "number" && active.includes(ganadorFijado))
+    ? ganadorFijado : cryptoRandomChoice(active);
 
   const cells = Array.from(grid.querySelectorAll(".cell"));
   const activeCells = cells.filter(c => !c.classList.contains("eliminated"));
@@ -1143,11 +1225,9 @@ function spin() {
         state.eliminated.add(winner);
         addHistory(winner, "ruleta");
         updateStats();
-        state.spinning = false;
-        grid.classList.remove("spinning");
-        spinBtn.disabled = false;
-        megaSpinBtn.disabled = false;
-        if (window.fbEliminar) window.fbEliminar(winner, "Han cantado bingo", "ruleta");
+        // El bloqueo NO se libera aquí: sigue hasta que se cierra el overlay
+        // (finalizarJugada), para que un segundo comando no pise esta jugada.
+        if (soyPrincipal() && window.fbEliminar) window.fbEliminar(winner, "Han cantado bingo", "ruleta");
       }, 3200);
     }
   }
@@ -1218,10 +1298,8 @@ function spinMulti(winners) {
           if (window.fbEliminar) window.fbEliminar(num, "Han cantado bingo", "ruleta-multiple");
         });
         updateStats();
-        state.spinning = false;
-        grid.classList.remove("spinning");
-        spinBtn.disabled = false;
-        megaSpinBtn.disabled = false;
+        // El bloqueo NO se libera aquí: sigue hasta que se cierra el overlay
+        // (finalizarJugada), para que un segundo comando no pise esta jugada.
         megaSpinBtn.textContent = "🎰 RULETA";
         megaSpinBtn.style.background = "";
         megaSpinBtn.style.boxShadow = "";
@@ -1304,7 +1382,18 @@ function hablarMultiEliminacion(nums) {
   }
 }
 
+// Libera el bloqueo de la jugada. Se llama al cerrar el overlay, no al
+// terminar el giro: así dos comandos seguidos no se solapan ni pisan la voz.
+function finalizarJugada() {
+  state.spinning = false;
+  grid.classList.remove("spinning");
+  spinBtn.disabled = false;
+  megaSpinBtn.disabled = false;
+  updateStats();
+}
+
 function hideOverlay() {
+  finalizarJugada();
   clearTimeout(overlayAutoCloseId);
   overlay.classList.remove("show");
   winnerNumber.style.fontSize = "";
@@ -1371,8 +1460,14 @@ multiBtn.addEventListener("click", () => {
   multiBtn.style.opacity = "0.6";
 });
 
-spinBtn.addEventListener("click", spin);
+spinBtn.addEventListener("click", () => {
+  if (state.spinning) return;
+  const active = activeNumbers();
+  if (!active.length) return;
+  publicarJugada("girar", [cryptoRandomChoice(active)]);
+});
 megaSpinBtn.addEventListener("click", () => {
+  if (state.spinning) return;
   if (pendingMulti) {
     const winners = pendingMulti;
     pendingMulti = null;
@@ -1381,9 +1476,11 @@ megaSpinBtn.addEventListener("click", () => {
     megaSpinBtn.style.background = "";
     multiBtn.textContent = "⚡ Eliminar varios…";
     multiBtn.style.opacity = "";
-    spinMulti(winners);
+    publicarJugada("girar_multi", winners);
   } else {
-    spin();
+    const active = activeNumbers();
+    if (!active.length) return;
+    publicarJugada("girar", [cryptoRandomChoice(active)]);
   }
 });
 
@@ -1568,6 +1665,8 @@ window.speechSynthesis.onvoiceschanged = cargarVoces;
 cargarVoces();
 
 function hablarEliminacion(num) {
+  // Habla una sola pantalla: la LED si está abierta, si no, esta.
+  if (typeof soyPrincipal === "function" && !soyPrincipal()) return;
   if (!state.soundOn) return;
   window.speechSynthesis.cancel();
 

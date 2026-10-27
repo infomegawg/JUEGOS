@@ -561,6 +561,7 @@
       <button class="btn btn-primary" id="spinBtn">🎰 GIRAR RULETA</button>
       <button class="btn btn-info" id="multiBtn" style="margin-top:10px;">⚡ Salvar varios…</button>
       <button class="btn btn-ghost" id="resetBtn" style="margin-top:10px;">↻ Vaciar historial</button>
+      <div id="avisoSinEliminados" style="display:none;margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(255,80,80,0.12);border:1px solid rgba(255,80,80,0.45);font-size:12px;line-height:1.5;color:#ffb3b3;">⚠ No hay ningún jugador eliminado ahora mismo, así que no hay a quién salvar. La ruleta se activa sola en cuanto el staff elimine al primero.</div>
     </div>
     <div>
       <h3>🎙 Voz</h3>
@@ -775,7 +776,54 @@ window.fbSalvar = async function(dorsal) {
    ========================================================= */
 const esInstanciaLED = new URLSearchParams(location.search).get("led") === "1";
 
+/* ---------------------------------------------------------
+   QUIÉN MANDA ENTRE VARIAS PANTALLAS
+   El ganador se decide UNA sola vez y viaja dentro del comando,
+   para que la LED y la app muestren exactamente los mismos números.
+   De escribir en Firebase y de poner la voz se encarga una sola
+   instancia: la LED si está abierta (lo anuncia con un latido cada
+   5 s), y si no hay ninguna LED, la app que esté abierta.
+   --------------------------------------------------------- */
+let ultimoLatidoLED = 0;      // momento (reloj local) del último latido recibido
+let valorLatidoPrevio = null; // para detectar latidos nuevos sin comparar relojes
+
+function soyPrincipal() {
+  if (esInstanciaLED) return true;
+  return (Date.now() - ultimoLatidoLED) > 15000;
+}
+
+// Registra un latido recibido desde el documento de sesión.
+window.registrarLatidoLED = function(data) {
+  const v = data && data["led_salvacion_latido"];
+  if (v && v !== valorLatidoPrevio) {
+    valorLatidoPrevio = v;
+    ultimoLatidoLED = Date.now();
+  }
+};
+
 if (esInstanciaLED) {
+  const latir = () => db.collection("sesion").doc("actual")
+    .set({ "led_salvacion_latido": Date.now() }, { merge: true })
+    .catch(e => console.warn("latido LED:", e));
+  latir();
+  setInterval(latir, 5000);
+}
+
+// Publica la jugada con los ganadores ya decididos, para que todas las
+// pantallas animen y canten exactamente los mismos números. Si no se puede
+// publicar (sin conexión), se ejecuta en local para no dejar el juego parado.
+async function publicarJugada(accion, ganadores) {
+  try {
+    await db.collection("salvacion_comandos").add({
+      accion: accion, ganadores: ganadores, creado_en: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch (e) {
+    console.warn("No se pudo publicar la jugada, se ejecuta en local:", e);
+    if (accion === "girar") spin(ganadores[0]); else spinMulti(ganadores);
+  }
+}
+
+{
   let primerSnapComandos = true;
   db.collection("salvacion_comandos").orderBy("creado_en", "desc").limit(1)
     .onSnapshot(snap => {
@@ -790,14 +838,25 @@ if (esInstanciaLED) {
 function ejecutarComandoRemoto(d) {
   console.log("[MANDO] comando recibido:", d);
   if (typeof spin !== "function" || state.spinning) return;
+  if (state.eliminated.size === 0) {
+    console.warn("[MANDO] comando ignorado: no hay eliminados a los que salvar");
+    return;
+  }
+  // Los ganadores vienen decididos en el comando, para que todas las
+  // pantallas salven exactamente a los mismos jugadores.
   if (d.accion === "girar") {
-    spin();
+    spin(Array.isArray(d.ganadores) ? d.ganadores[0] : undefined);
   } else if (d.accion === "girar_multi") {
-    const pool = Array.from(state.eliminated);
-    if (!pool.length) return;
-    const count = Math.min(parseInt(d.cantidad, 10) || 1, pool.length);
-    const shuffled = [...pool].sort(() => Math.random() - 0.5);
-    spinMulti(shuffled.slice(0, count));
+    let winners = Array.isArray(d.ganadores) ? d.ganadores : null;
+    if (!winners) {
+      const pool = Array.from(state.eliminated);
+      if (!pool.length) return;
+      const count = Math.min(parseInt(d.cantidad, 10) || 1, pool.length);
+      winners = [...pool].sort(() => Math.random() - 0.5).slice(0, count);
+    }
+    winners = winners.filter(n => state.eliminated.has(n));
+    if (!winners.length) return;
+    spinMulti(winners);
   }
 }
 
@@ -806,6 +865,7 @@ window.fbEscuchar = function() {
   db.collection("sesion").doc("actual").onSnapshot((doc) => {
     if (doc.exists) {
       const data = doc.data();
+      if (window.registrarLatidoLED) window.registrarLatidoLED(data);
       if (data.total && data.total !== state.total) {
         state.total = data.total;
         renderGridFull();
@@ -909,6 +969,8 @@ function updateStats() {
   spinBtn.disabled = state.eliminated.size === 0;
   megaSpinBtn.disabled = state.eliminated.size === 0;
   badge.textContent = state.eliminated.size + " ELIMINADOS";
+  const aviso = document.getElementById("avisoSinEliminados");
+  if (aviso) aviso.style.display = state.eliminated.size === 0 ? "block" : "none";
 }
 window.updateStats = updateStats;
 
@@ -951,7 +1013,7 @@ function manualSave(n, cellEl) {
   }, 500);
 }
 
-function spin() {
+function spin(ganadorFijado) {
   if (state.spinning) return;
   const pool = Array.from(state.eliminated);
   if (pool.length === 0) return;
@@ -961,7 +1023,8 @@ function spin() {
   megaSpinBtn.disabled = true;
   grid.classList.add("spinning");
 
-  const winner = cryptoRandomChoice(pool);
+  const winner = (typeof ganadorFijado === "number" && pool.includes(ganadorFijado))
+    ? ganadorFijado : cryptoRandomChoice(pool);
   const cells = Array.from(grid.querySelectorAll(".cell"));
   let clearPrev = null;
 
@@ -994,11 +1057,9 @@ function spin() {
         state.savedCount++;
         addHistory(winner, "ruleta");
         updateStats();
-        state.spinning = false;
-        grid.classList.remove("spinning");
-        spinBtn.disabled = false;
-        megaSpinBtn.disabled = false;
-        if (window.fbSalvar) window.fbSalvar(winner);
+        // El bloqueo NO se libera aquí: sigue hasta que se cierra el overlay
+        // (finalizarJugada), para que un segundo comando no pise esta jugada.
+        if (soyPrincipal() && window.fbSalvar) window.fbSalvar(winner);
       }, 3200);
     }
   }
@@ -1046,13 +1107,11 @@ function spinMulti(winners) {
           markCellAlive(num, false);
           state.savedCount++;
           addHistory(num, "ruleta");
-          if (window.fbSalvar) window.fbSalvar(num);
+          if (soyPrincipal() && window.fbSalvar) window.fbSalvar(num);
         });
         updateStats();
-        state.spinning = false;
-        grid.classList.remove("spinning");
-        spinBtn.disabled = false;
-        megaSpinBtn.disabled = false;
+        // El bloqueo NO se libera aquí: sigue hasta que se cierra el overlay
+        // (finalizarJugada), para que un segundo comando no pise esta jugada.
         megaSpinBtn.textContent = "🎰 RULETA";
         megaSpinBtn.style.background = "";
         multiBtn.textContent = "⚡ Salvar varios…";
@@ -1104,7 +1163,18 @@ function showMultiOverlay(nums) {
   rainConfetti();
 }
 
+// Igual que en el bingo de eliminación: la jugada sigue "en curso" hasta
+// que se cierra el overlay, para que un segundo comando no pise la voz.
+function finalizarJugada() {
+  state.spinning = false;
+  grid.classList.remove("spinning");
+  spinBtn.disabled = false;
+  megaSpinBtn.disabled = false;
+  updateStats();
+}
+
 function hideOverlay() {
+  finalizarJugada();
   clearTimeout(overlayAutoCloseId);
   overlay.classList.remove("show");
   winnerNumber.style.fontSize = "";
@@ -1163,8 +1233,14 @@ multiBtn.addEventListener("click", () => {
   multiBtn.style.opacity = "0.6";
 });
 
-spinBtn.addEventListener("click", spin);
+spinBtn.addEventListener("click", () => {
+  if (state.spinning) return;
+  const pool = Array.from(state.eliminated);
+  if (!pool.length) return;
+  publicarJugada("girar", [cryptoRandomChoice(pool)]);
+});
 megaSpinBtn.addEventListener("click", () => {
+  if (state.spinning) return;
   if (pendingMulti) {
     const winners = pendingMulti;
     pendingMulti = null;
@@ -1172,9 +1248,11 @@ megaSpinBtn.addEventListener("click", () => {
     megaSpinBtn.style.background = "";
     multiBtn.textContent = "⚡ Salvar varios…";
     multiBtn.style.opacity = "";
-    spinMulti(winners);
+    publicarJugada("girar_multi", winners);
   } else {
-    spin();
+    const pool = Array.from(state.eliminated);
+    if (!pool.length) return;
+    publicarJugada("girar", [cryptoRandomChoice(pool)]);
   }
 });
 
@@ -1336,6 +1414,8 @@ function hacerFrase(texto, rate = 0.95, pitch = 1.0) {
 }
 
 function hablarSalvacion(nums) {
+  // Habla una sola pantalla: la LED si está abierta, si no, esta.
+  if (typeof soyPrincipal === "function" && !soyPrincipal()) return;
   if (!state.soundOn) return;
   window.speechSynthesis.cancel();
 
