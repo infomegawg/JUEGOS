@@ -71,6 +71,7 @@ input[type=text], input[type=number], select {
 #resultado { position: fixed; inset: 0; z-index: 8000; display: none; flex-direction: column;
   align-items: center; justify-content: center; padding: 24px; text-align: center; }
 #resultado.ver { display: flex; }
+#resultado        { background: #140b24; }
 #resultado.ok    { background: #0b6b38; }
 #resultado.aviso { background: #8a4b00; }
 #resultado.error { background: #7a0f22; }
@@ -10441,6 +10442,7 @@ let camStream = null;
 let camActiva = false;
 let ultimaLectura = { texto: null, momento: 0 };
 let ultimas = [];
+let consultaNum = 0;        // para descartar respuestas de escaneos ya superados
 
 const $ = (id) => document.getElementById(id);
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -10567,17 +10569,29 @@ function buscarEntradaManual() {
 }
 
 async function abrirEntrada(codigo) {
-  // Siempre se pregunta por el estado actual de la entrada, no vale la copia
-  // que tenga este móvil: si otro puesto acaba de acreditarla, hay que verlo.
-  // Sin cobertura, Firestore responde con su copia local y sigue funcionando.
-  let e = null;
-  try {
-    const doc = await db.collection("entradas").doc(codigo).get();
-    if (doc.exists) { e = doc.data(); entradas[codigo] = e; }
-  } catch (err) {
-    console.error(err);
-    e = entradas[codigo] || null;   // último recurso
+  const miConsulta = ++consultaNum;
+
+  // Se avisa en el acto de que se está comprobando. Antes no se mostraba nada
+  // mientras se consultaba, y con la red del móvil la respuesta podía tardar
+  // lo bastante como para aparecer cuando ya se había escaneado la siguiente.
+  mostrarResultado("", "⏳", "Comprobando...", codigo);
+
+  // La copia que mantiene el listener va al día en tiempo real, incluidas las
+  // acreditaciones que acaba de hacer este mismo móvil, así que se usa primero
+  // porque es instantánea. Solo si no la hay se pregunta al servidor.
+  let e = entradas[codigo] || null;
+  if (!e) {
+    try {
+      const doc = await db.collection("entradas").doc(codigo).get();
+      if (doc.exists) { e = doc.data(); entradas[codigo] = e; }
+    } catch (err) {
+      console.error(err);
+    }
   }
+
+  // Si mientras se consultaba se ha escaneado otra cosa, esta respuesta ya no
+  // vale: se descarta en vez de pisar lo que haya en pantalla.
+  if (miConsulta !== consultaNum) return;
 
   if (!e) {
     vibrar([200, 80, 200]);
@@ -10601,6 +10615,9 @@ async function abrirEntrada(codigo) {
     return;
   }
 
+  // La entrada es válida: se quita el aviso de "comprobando" y se pasa a la ficha
+  $("resultado").className = "";
+  $("res-btn").style.display = "block";
   entradaActual = Object.assign({ codigo: codigo }, e);
   pintarFicha();
 }
@@ -10777,6 +10794,8 @@ function apuntarUltima(nombre, dorsal) {
 function mostrarResultado(clase, icono, titulo, detalle, dorsal) {
   const r = $("resultado");
   r.className = "ver " + clase;
+  // Mientras se comprueba no se ofrece "siguiente": aún no hay nada que cerrar
+  $("res-btn").style.display = (clase === "") ? "none" : "block";
   $("res-icono").textContent = icono;
   $("res-titulo").textContent = titulo;
   $("res-detalle").innerHTML = detalle || "";
@@ -10786,6 +10805,7 @@ function mostrarResultado(clase, icono, titulo, detalle, dorsal) {
 
 function cerrarResultado() {
   $("resultado").className = "";
+  $("res-btn").style.display = "block";
   ultimaLectura = { texto: null, momento: 0 };
 }
 
