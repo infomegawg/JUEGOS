@@ -35,7 +35,7 @@ input, select, button { font-family: var(--mono); font-weight: 700; }
 .sinred.ver { display: block; }
 
 /* ===== CONTADORES ===== */
-.cifras { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 10px 12px; }
+.cifras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 12px 6px; }
 .cifra { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 8px 4px; text-align: center; }
 .cifra .n { font-family: var(--font); font-size: 19px; font-weight: 900; }
 .cifra .t { font-size: 9px; color: var(--texto2); letter-spacing: .5px; text-transform: uppercase; margin-top: 2px; }
@@ -43,6 +43,17 @@ input, select, button { font-family: var(--mono); font-weight: 700; }
 .cifra.esp .n { color: #6cc0ff; }
 .cifra.pen .n { color: var(--naranja); }
 .cifra.men .n { color: var(--rojo); }
+.cifra.dentro { background: rgba(23,201,100,.12); border-color: var(--verde); }
+.cifra.dentro .n { color: var(--verde); font-size: 24px; }
+.cifra.sal .n { color: var(--texto2); }
+
+/* Selector de modo */
+.modos { display: flex; gap: 8px; padding: 0 12px 10px; }
+.modo { flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 10px;
+  background: transparent; color: var(--texto2); font-size: 13px; font-weight: 900; letter-spacing: 1px; }
+.modo.on { background: var(--morado); border-color: var(--morado); color: #fff; }
+#modo-salida.on { background: var(--naranja); border-color: var(--naranja); color: #150a00; }
+body.en-salida .cab { background: #3a1c00; }
 
 /* ===== PASOS ===== */
 .paso { padding: 0 12px 12px; }
@@ -138,10 +149,18 @@ input[type=text], input[type=number], select {
 
 <div class="contenido">
   <div class="cifras">
+    <div class="cifra dentro"><div class="n" id="c-dentro">0</div><div class="t">Dentro ahora</div></div>
     <div class="cifra jug"><div class="n" id="c-jug">0</div><div class="t">Jugadores</div></div>
     <div class="cifra esp"><div class="n" id="c-esp">0</div><div class="t">Espectadores</div></div>
     <div class="cifra pen"><div class="n" id="c-pen">0</div><div class="t">Pendientes</div></div>
+    <div class="cifra sal"><div class="n" id="c-sal">0</div><div class="t">Han salido</div></div>
     <div class="cifra men"><div class="n" id="c-men">0</div><div class="t">Menores</div></div>
+  </div>
+
+  <!-- Qué se está haciendo: dar entrada o marcar salida -->
+  <div class="modos">
+    <button class="modo on" id="modo-entrada" onclick="cambiarModo('entrada')">ENTRADA</button>
+    <button class="modo" id="modo-salida" onclick="cambiarModo('salida')">SALIDA</button>
   </div>
 
   <!-- PASO 1: ENTRADA -->
@@ -10443,6 +10462,7 @@ let camActiva = false;
 let ultimaLectura = { texto: null, momento: 0 };
 let ultimas = [];
 let consultaNum = 0;        // para descartar respuestas de escaneos ya superados
+let modo = "entrada";       // 'entrada' = acreditar · 'salida' = marcar que se va
 
 const $ = (id) => document.getElementById(id);
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
@@ -10474,9 +10494,10 @@ function interpretar(texto) {
 /* ===== CÁMARA ===== */
 async function abrirCamara(modo) {
   modoCamara = modo;
-  $("cam-titulo").textContent = modo === "entrada" ? "ESCANEAR ENTRADA" : "ESCANEAR DORSAL";
-  $("cam-ayuda").textContent = modo === "entrada"
-    ? "Apunta al QR de la entrada, en el móvil o impresa"
+  $("cam-titulo").textContent = modoCamara === "entrada"
+    ? (modo === "salida" ? "REGISTRAR SALIDA" : "ESCANEAR ENTRADA") : "ESCANEAR DORSAL";
+  $("cam-ayuda").textContent = modoCamara === "entrada"
+    ? (modo === "salida" ? "Apunta al QR de quien se va" : "Apunta al QR de la entrada, en el móvil o impresa")
     : "Apunta al QR del dorsal que vas a entregar";
   $("camara").classList.add("ver");
   try {
@@ -10560,6 +10581,58 @@ function avisoEnCamara(texto) {
   requestAnimationFrame(bucleCamara);
 }
 
+/* ===== MODO ENTRADA / SALIDA ===== */
+// La salida solo sirve para saber cuánta gente hay dentro en cada momento.
+// No quita la acreditación ni libera el dorsal: ese sigue siendo suyo.
+function cambiarModo(nuevo) {
+  modo = nuevo;
+  volverAInicio();
+  $("modo-entrada").classList.toggle("on", nuevo === "entrada");
+  $("modo-salida").classList.toggle("on", nuevo === "salida");
+  document.body.classList.toggle("en-salida", nuevo === "salida");
+  const boton = document.querySelector("#paso-entrada .btn-grande");
+  if (boton) boton.textContent = nuevo === "salida" ? "ESCANEAR SALIDA" : "ESCANEAR ENTRADA";
+}
+
+// Se considera que alguien está dentro si está acreditado y no ha marcado
+// salida. Las entradas acreditadas antes de existir la salida no tienen el
+// campo, y se cuentan como que están dentro.
+function estaDentro(e) {
+  return !!e.acreditada && e.dentro !== false;
+}
+
+async function marcarSalida(codigo, e) {
+  try {
+    await db.collection("entradas").doc(codigo).update({
+      dentro: false, salida_en: TS(), salida_por: puesto || "—"
+    });
+    if (entradas[codigo]) entradas[codigo].dentro = false;
+    vibrar(60);
+    mostrarResultado("ok", "←", "Salida registrada",
+      (e.nombre || codigo) + (e.dorsal ? "<br>Dorsal <b>" + e.dorsal + "</b> · sigue siendo suyo" : ""));
+    pintarCifras();
+  } catch (err) {
+    console.error(err);
+    mostrarResultado("error", "✖", "No se ha podido guardar la salida", err.message);
+  }
+}
+
+async function marcarReentrada(codigo, e) {
+  try {
+    await db.collection("entradas").doc(codigo).update({
+      dentro: true, reentrada_en: TS(), reentrada_por: puesto || "—"
+    });
+    if (entradas[codigo]) entradas[codigo].dentro = true;
+    vibrar(60);
+    mostrarResultado("ok", "✓", "Ha vuelto a entrar",
+      (e.nombre || codigo) + (e.dorsal ? "<br>Dorsal <b>" + e.dorsal + "</b>" : ""));
+    pintarCifras();
+  } catch (err) {
+    console.error(err);
+    mostrarResultado("error", "✖", "No se ha podido registrar", err.message);
+  }
+}
+
 /* ===== BUSCAR LA ENTRADA ===== */
 function buscarEntradaManual() {
   const v = $("codigo-manual").value.trim().toUpperCase();
@@ -10605,13 +10678,40 @@ async function abrirEntrada(codigo) {
       (e.anulada ? "Está anulada." : "Tiene una devolución.") + "<br>" + (e.nombre || ""));
     return;
   }
+  // ---- Modo SALIDA ----
+  if (modo === "salida") {
+    if (!e.acreditada) {
+      vibrar([200, 80, 200]);
+      mostrarResultado("error", "✖", "No ha entrado",
+        (e.nombre || codigo) + "<br>Esta entrada todavía no se ha acreditado.");
+      return;
+    }
+    if (!estaDentro(e)) {
+      const hs = e.salida_en && e.salida_en.toDate ? e.salida_en.toDate().toLocaleTimeString("es-ES") : "antes";
+      vibrar([120, 60, 120]);
+      mostrarResultado("aviso", "⚠", "Ya había salido",
+        (e.nombre || codigo) + "<br>Salió a las <b>" + hs + "</b>");
+      return;
+    }
+    await marcarSalida(codigo, e);
+    return;
+  }
+
+  // ---- Modo ENTRADA, con la entrada ya acreditada ----
   if (e.acreditada) {
-    vibrar([120, 60, 120, 60, 120]);
     const hora = e.acreditada_en && e.acreditada_en.toDate
       ? e.acreditada_en.toDate().toLocaleTimeString("es-ES") : "antes";
+    // Si había salido, lo normal es que esté volviendo a entrar
+    if (!estaDentro(e)) {
+      vibrar(60);
+      await marcarReentrada(codigo, e);
+      return;
+    }
+    vibrar([120, 60, 120, 60, 120]);
     mostrarResultado("aviso", "⚠", "Ya estaba acreditada",
       (e.nombre || "") + "<br>Acreditada a las <b>" + hora + "</b> en <b>" + (e.acreditada_por || "—") + "</b>" +
-      (e.dorsal ? "<br>Dorsal <b>" + e.dorsal + "</b>" : ""));
+      (e.dorsal ? "<br>Dorsal <b>" + e.dorsal + "</b>" : "") +
+      "<br><span style=\"opacity:.8\">Está dentro del recinto</span>");
     return;
   }
 
@@ -10705,7 +10805,7 @@ async function acreditarEspectador() {
   if (!e) return;
   try {
     await db.collection("entradas").doc(e.codigo).update({
-      acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—", dorsal: null
+      acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—", dorsal: null, dentro: true
     });
     apuntarUltima(e.nombre, null);
     vibrar(80);
@@ -10750,7 +10850,7 @@ async function asignarDorsal(dorsal) {
       if (datosDorsal.entrada_codigo) throw new Error("DORSAL_OCUPADO:" + datosDorsal.entrada_codigo);
 
       tx.update(refEntrada, {
-        acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—", dorsal: dorsal
+        acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—", dorsal: dorsal, dentro: true
       });
       tx.update(refDorsal, {
         entrada_codigo: e.codigo,
@@ -10824,19 +10924,22 @@ function escuchar() {
 }
 
 function pintarCifras() {
-  let jug = 0, esp = 0, pen = 0, men = 0;
+  let jug = 0, esp = 0, pen = 0, men = 0, dentro = 0, salidos = 0;
   Object.values(entradas).forEach((e) => {
     if (e.anulada || e.devuelta || e.valida === false) return;
     if (e.acreditada) {
       if (e.tipo === "espectador") esp++; else jug++;
+      if (estaDentro(e)) dentro++; else salidos++;
     } else {
       pen++;
       if (e.menor) men++;
     }
   });
+  $("c-dentro").textContent = dentro;
   $("c-jug").textContent = jug;
   $("c-esp").textContent = esp;
   $("c-pen").textContent = pen;
+  $("c-sal").textContent = salidos;
   $("c-men").textContent = men;
 }
 
