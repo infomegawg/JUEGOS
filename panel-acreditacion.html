@@ -523,7 +523,8 @@ async function deshacer(codigo) {
         const refD = db.collection("participantes").doc(String(datos.dorsal));
         const docD = await tx.get(refD);
         if (docD.exists && docD.data().entrada_codigo === codigo) {
-          tx.update(refD, { entrada_codigo: BORRAR(), acreditado_en: BORRAR(), acreditado_por: BORRAR() });
+          tx.update(refD, { entrada_codigo: BORRAR(), acreditado_en: BORRAR(),
+            acreditado_por: BORRAR(), nombre: "" });
         }
       }
       tx.update(refE, {
@@ -563,7 +564,8 @@ async function cambiarDorsal(codigo) {
         const refViejo = db.collection("participantes").doc(String(anterior));
         const docViejo = await tx.get(refViejo);
         if (docViejo.exists && docViejo.data().entrada_codigo === codigo) {
-          tx.update(refViejo, { entrada_codigo: BORRAR(), acreditado_en: BORRAR(), acreditado_por: BORRAR() });
+          tx.update(refViejo, { entrada_codigo: BORRAR(), acreditado_en: BORRAR(),
+            acreditado_por: BORRAR(), nombre: "" });
         }
       }
       tx.update(refNuevo, { entrada_codigo: codigo, nombre: docE.data().nombre || "",
