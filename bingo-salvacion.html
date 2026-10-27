@@ -792,21 +792,22 @@ function soyPrincipal() {
   return (Date.now() - ultimoLatidoLED) > 15000;
 }
 
-// Registra un latido recibido desde el documento de sesión.
-window.registrarLatidoLED = function(data) {
-  const v = data && data["led_salvacion_latido"];
-  if (v && v !== valorLatidoPrevio) {
-    valorLatidoPrevio = v;
-    ultimoLatidoLED = Date.now();
-  }
-};
+// El latido ya no viaja en el documento de sesión: tiene el suyo propio
+// ("presencia/led_salvacion") para no tocar nunca modo_led.
 
 if (esInstanciaLED) {
-  const latir = () => db.collection("sesion").doc("actual")
-    .set({ "led_salvacion_latido": Date.now() }, { merge: true })
+  const latir = () => db.collection("presencia").doc("led_salvacion")
+    .set({ visto_en: Date.now() })
     .catch(e => console.warn("latido LED:", e));
   latir();
   setInterval(latir, 5000);
+} else {
+  // Las demás pantallas vigilan si hay una LED viva para cederle el mando.
+  db.collection("presencia").doc("led_salvacion").onSnapshot(doc => {
+    if (!doc.exists) return;
+    const v = doc.data().visto_en;
+    if (v && v !== valorLatidoPrevio) { valorLatidoPrevio = v; ultimoLatidoLED = Date.now(); }
+  }, e => console.warn("presencia LED:", e));
 }
 
 // Publica la jugada con los ganadores ya decididos, para que todas las
@@ -865,7 +866,6 @@ window.fbEscuchar = function() {
   db.collection("sesion").doc("actual").onSnapshot((doc) => {
     if (doc.exists) {
       const data = doc.data();
-      if (window.registrarLatidoLED) window.registrarLatidoLED(data);
       if (data.total && data.total !== state.total) {
         state.total = data.total;
         renderGridFull();
@@ -1447,7 +1447,11 @@ const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('led') === '1') {
   const db2 = firebase.firestore();
   db2.collection('sesion').doc('actual').onSnapshot(doc => {
-    if (doc.exists && doc.data().modo_led !== 'salvacion') {
+    // Solo se obedece al servidor: un snapshot con escrituras locales
+    // pendientes puede llegar incompleto y provocar un bucle de recargas.
+    if (!doc.exists || (doc.metadata||{}).hasPendingWrites || (doc.metadata||{}).fromCache) return;
+    const modo = doc.data().modo_led;
+    if (modo && modo !== 'salvacion') {
       window.location.href = 'https://infomegawg.github.io/JUEGOS/led.html';
     }
   });

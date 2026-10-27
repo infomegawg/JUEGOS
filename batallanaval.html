@@ -1300,7 +1300,10 @@ initDesbloqueoAudio();
 // operador cambie a grid, bingo o apagado.
 if (new URLSearchParams(location.search).get("led") === "1") {
   db.collection("sesion").doc("actual").onSnapshot(doc => {
-    if (doc.exists && doc.data().modo_led !== 'batallanaval') {
+    // Solo se obedece al servidor: un snapshot incompleto haría un bucle.
+    if (!doc.exists || (doc.metadata||{}).hasPendingWrites || (doc.metadata||{}).fromCache) return;
+    const modoActual = doc.data().modo_led;
+    if (modoActual && modoActual !== 'batallanaval') {
       window.location.href = 'https://infomegawg.github.io/JUEGOS/led.html';
     }
   });
