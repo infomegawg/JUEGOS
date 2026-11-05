@@ -386,6 +386,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <!-- RESETEAR -->
       <div class="section">
         <button class="btn btn-ghost" onclick="resetearTodo()"><i class="ti ti-refresh"></i> Resetear todo</button>
+        <button class="btn btn-ghost" onclick="dejarACero()"><i class="ti ti-eraser"></i> Dejar a cero (antes del evento)</button>
       </div>
     </div>
 
@@ -2206,6 +2207,86 @@ function abrirGeneradorDorsales(soloMuestra) {
 }
 
 /* ===== RESETEAR TODO ===== */
+/* ===== DEJAR A CERO ANTES DEL EVENTO =====
+   "Resetear todo" sirve durante el evento: borra las eliminaciones y revive
+   a todos, pero deja el resto. Esto es para empezar de limpio después de un
+   ensayo: borra también salvaciones, equipos, propuestas y avisos del staff,
+   y deshace las acreditaciones.
+   NO borra las entradas vendidas ni los dorsales: esos se quedan. */
+
+async function dejarACero() {
+  const pin = prompt("DEJAR TODO A CERO\n\n" +
+    "Borra eliminaciones, salvaciones, equipos y lo enviado por el staff, y\n" +
+    "deshace las acreditaciones (todo el mundo fuera del recinto, sin dorsal).\n\n" +
+    "Las entradas vendidas y los dorsales NO se borran.\n\n" +
+    "Esto es para dejar limpio después de un ensayo. NO lo uses con el evento\n" +
+    "en marcha: perderías las acreditaciones de la puerta.\n\n" +
+    "Introduce el PIN para confirmar:");
+  if (pin === null) return;
+  if (pin !== "1402") { mostrarNotif("PIN incorrecto, no se ha borrado nada"); return; }
+  if (!confirm("Última confirmación: ¿dejar la base de datos a cero para empezar de limpio?")) return;
+
+  const aviso = (t) => { mostrarNotif(t); const el = document.getElementById("import-status"); if (el) el.textContent = t; };
+
+  try {
+    // 1. Copia de seguridad de lo que hay ahora, por si acaso.
+    try {
+      const marca = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+      await db.collection("backups_historicos").doc(marca).set({
+        contenido: generarCSVHistorial(), creado_en: TS(), motivo: "dejar-a-cero"
+      });
+    } catch(e) { console.error("No se pudo guardar el backup previo", e); }
+
+    // 2. Colecciones que se vacían enteras.
+    let borrados = 0;
+    for (const col of ["eliminaciones", "eliminaciones_multiples", "salvaciones",
+                       "equipos", "staff_propuestas", "staff_ayuda", "staff_presencia"]) {
+      aviso("Limpiando " + col + "…");
+      borrados += await vaciarColeccion(col);
+    }
+
+    // 3. Dorsales: todos vivos, sin dueño y dentro del juego.
+    aviso("Dejando los dorsales libres…");
+    const partSnap = await db.collection("participantes").get();
+    const BORRAR = firebase.firestore.FieldValue.delete();
+    await porLotes(partSnap.docs, (lote, d) => lote.update(d.ref, {
+      vivo: true, eliminado_en: null, prueba: null, metodo: null, juez: null,
+      nombre: "", entrada_codigo: BORRAR, acreditado_en: BORRAR,
+      acreditado_por: BORRAR, en_juego: BORRAR
+    }));
+
+    // 4. Entradas: siguen vendidas, pero nadie está acreditado ni dentro.
+    aviso("Deshaciendo las acreditaciones…");
+    const entSnap = await db.collection("entradas").get();
+    await porLotes(entSnap.docs, (lote, d) => lote.update(d.ref, {
+      acreditada: BORRAR, acreditada_en: BORRAR, acreditada_por: BORRAR,
+      dorsal: BORRAR, dentro: BORRAR, salida_en: BORRAR, salida_por: BORRAR,
+      reentrada_en: BORRAR, reentrada_por: BORRAR
+    }));
+
+    await db.collection("sesion").doc("actual").set({ activa: true, reseteado_en: TS() }, { merge: true });
+
+    aviso("Todo a cero: " + partSnap.size + " dorsales libres, " +
+          entSnap.size + " entradas sin acreditar, " + borrados + " registros borrados");
+  } catch(e) { console.error(e); mostrarNotif("Error al dejar a cero: " + e.message); }
+}
+
+// Borra una colección entera y devuelve cuántos documentos tenía.
+async function vaciarColeccion(nombre) {
+  const snap = await db.collection(nombre).get();
+  await porLotes(snap.docs, (lote, d) => lote.delete(d.ref));
+  return snap.size;
+}
+
+// Firestore admite 500 operaciones por lote: se parte en trozos de 400.
+async function porLotes(docs, accion) {
+  for (let i = 0; i < docs.length; i += 400) {
+    const lote = db.batch();
+    docs.slice(i, i + 400).forEach(d => accion(lote, d));
+    await lote.commit();
+  }
+}
+
 async function resetearTodo() {
   const pin = prompt("Esta acción borra el historial de la sesión actual.\nIntroduce el PIN de acceso para confirmar:");
   if (pin === null) return;
