@@ -240,7 +240,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div class="section-title"><i class="ti ti-device-tv"></i> Pantalla LED</div>
         <div class="led-btns">
           <button class="led-btn active" id="led-grid" onclick="setLED('grid')">Grid</button>
-          <button class="led-btn" id="led-bingo" onclick="setLED('bingo')">Bingo</button>
+          <button class="led-btn" id="led-bingo" onclick="setLED('bingo')">Bingo Eliminación</button>
           <button class="led-btn" id="led-salvacion" onclick="setLED('salvacion')">Salvación</button>
           <button class="led-btn" id="led-batallanaval" onclick="setLED('batallanaval')">Batalla Naval</button>
           <button class="led-btn" id="led-animacion" onclick="setLED('animacion')">Animación</button>
@@ -252,28 +252,13 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <div class="section">
         <div class="section-title"><i class="ti ti-device-desktop"></i> Apps digitales</div>
         <div class="led-btns">
-          <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo.html','_blank')"><i class="ti ti-device-gamepad-2"></i> Bingo</button>
+          <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo.html','_blank')"><i class="ti ti-skull"></i> Bingo Eliminación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo-salvacion.html','_blank')"><i class="ti ti-heart"></i> Bingo Salvación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/crono.html','_blank')"><i class="ti ti-stopwatch"></i> Crono Luz Roja/Verde</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/acreditacion.html','_blank')"><i class="ti ti-id-badge-2"></i> Acreditación (puerta)</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/panel-acreditacion.html','_blank')"><i class="ti ti-chart-bar"></i> Panel de acreditación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1','_blank')"><i class="ti ti-anchor"></i> Batalla Naval (ver en directo)</button>
           <button class="led-btn" onclick="reiniciarBatallaNaval()" style="border-color:#ff3b4e;color:#ffb3ba;"><i class="ti ti-refresh-alert"></i> Reiniciar Batalla Naval</button>
-        </div>
-      </div>
-
-      <!-- CONTROL REMOTO BINGO -->
-      <div class="section">
-        <div class="section-title"><i class="ti ti-remote-control"></i> Control remoto Bingo</div>
-        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta que se ve en la pantalla LED sin tocar ese portátil (la pantalla debe estar en modo "Bingo")</div>
-        <button class="btn btn-morado" style="margin-bottom:8px;" onclick="girarBingoRemoto()">
-          <i class="ti ti-player-play"></i> Girar (1 número)
-        </button>
-        <div style="display:flex;gap:6px;">
-          <input type="number" id="bingo-remoto-cantidad" placeholder="Cantidad" min="1" style="flex:1;" />
-          <button class="btn btn-naranja" style="flex:1;" onclick="girarBingoMultiRemoto()">
-            <i class="ti ti-players"></i> Eliminar varios y girar
-          </button>
         </div>
       </div>
 
@@ -288,6 +273,21 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <input type="number" id="salvacion-remoto-cantidad" placeholder="Cantidad" min="1" style="flex:1;" />
           <button class="btn btn-verde" style="flex:1;" onclick="girarSalvacionMultiRemoto()">
             <i class="ti ti-players"></i> Salvar varios y girar
+          </button>
+        </div>
+      </div>
+
+      <!-- CONTROL REMOTO BINGO -->
+      <div class="section">
+        <div class="section-title"><i class="ti ti-skull"></i> Control remoto Bingo Eliminación</div>
+        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta que se ve en la pantalla LED sin tocar ese portátil (la pantalla debe estar en modo "Bingo Eliminación")</div>
+        <button class="btn btn-morado" style="margin-bottom:8px;" onclick="girarBingoRemoto()">
+          <i class="ti ti-player-play"></i> Girar (1 número)
+        </button>
+        <div style="display:flex;gap:6px;">
+          <input type="number" id="bingo-remoto-cantidad" placeholder="Cantidad" min="1" style="flex:1;" />
+          <button class="btn btn-naranja" style="flex:1;" onclick="girarBingoMultiRemoto()">
+            <i class="ti ti-players"></i> Eliminar varios y girar
           </button>
         </div>
       </div>

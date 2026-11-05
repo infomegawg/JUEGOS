@@ -784,31 +784,44 @@ const esInstanciaLED = new URLSearchParams(location.search).get("led") === "1";
    instancia: la LED si está abierta (lo anuncia con un latido cada
    30 s), y si no hay ninguna LED, la app que esté abierta.
    --------------------------------------------------------- */
-let ultimoLatidoLED = 0;      // momento (reloj local) del último latido recibido
-let valorLatidoPrevio = null; // para detectar latidos nuevos sin comparar relojes
 
-function soyPrincipal() {
-  if (esInstanciaLED) return true;
-  return (Date.now() - ultimoLatidoLED) > 90000;
+/* ---------------------------------------------------------
+   QUIÉN CANTA Y QUIÉN GUARDA
+   El ganador se decide una sola vez y viaja dentro del comando, así que
+   todas las pantallas animan los mismos números. Pero guardar en la base de
+   datos y poner la voz le toca a UNA sola, o saldría el resultado por
+   duplicado.
+   Esa pantalla no se decide de antemano: la primera que "coge" la jugada se
+   queda con ella, dejando su marca en el propio comando. La pantalla LED lo
+   intenta al instante y las demás esperan un segundo y medio, de modo que
+   manda la LED si está encendida y, si no lo está, lo hace cualquier otra.
+   --------------------------------------------------------- */
+let yoMandoEstaJugada = false;
+
+async function reclamarJugada(id) {
+  // Una jugada hecha a mano en esta misma pantalla es suya, sin más.
+  if (!id) { yoMandoEstaJugada = true; return; }
+  if (!esInstanciaLED) await new Promise(r => setTimeout(r, 1500));
+  try {
+    yoMandoEstaJugada = await db.runTransaction(async (tx) => {
+      const ref = db.collection("salvacion_comandos").doc(id);
+      const doc = await tx.get(ref);
+      if (!doc.exists || doc.data().llevada_por) return false;
+      tx.update(ref, {
+        llevada_por: esInstanciaLED ? "pantalla LED" : "app",
+        llevada_en: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return true;
+    });
+  } catch(e) {
+    console.warn("[MANDO] no se pudo coger la jugada:", e);
+    yoMandoEstaJugada = false;
+  }
+  console.log(yoMandoEstaJugada
+    ? "[MANDO] esta pantalla canta y guarda esta jugada"
+    : "[MANDO] otra pantalla lleva esta jugada: aquí solo se anima");
 }
 
-// El latido ya no viaja en el documento de sesión: tiene el suyo propio
-// ("presencia/led_salvacion") para no tocar nunca modo_led.
-
-if (esInstanciaLED) {
-  const latir = () => db.collection("presencia").doc("led_salvacion")
-    .set({ visto_en: Date.now() })
-    .catch(e => console.warn("latido LED:", e));
-  latir();
-  setInterval(latir, 30000);
-} else {
-  // Las demás pantallas vigilan si hay una LED viva para cederle el mando.
-  db.collection("presencia").doc("led_salvacion").onSnapshot(doc => {
-    if (!doc.exists) return;
-    const v = doc.data().visto_en;
-    if (v && v !== valorLatidoPrevio) { valorLatidoPrevio = v; ultimoLatidoLED = Date.now(); }
-  }, e => console.warn("presencia LED:", e));
-}
 
 // Publica la jugada con los ganadores ya decididos, para que todas las
 // pantallas animen y canten exactamente los mismos números. Si no se puede
@@ -831,13 +844,15 @@ async function publicarJugada(accion, ganadores) {
       if (primerSnapComandos) { primerSnapComandos = false; return; }
       snap.docChanges().forEach(ch => {
         if (ch.type !== "added") return;
-        ejecutarComandoRemoto(ch.doc.data());
+        ejecutarComandoRemoto(ch.doc.data(), ch.doc.id);
       });
     });
 }
 
-function ejecutarComandoRemoto(d) {
+function ejecutarComandoRemoto(d, id) {
   console.log("[MANDO] comando recibido:", d);
+  yoMandoEstaJugada = false;
+  reclamarJugada(id);
   if (typeof spin !== "function" || state.spinning) return;
   if (state.eliminated.size === 0) {
     console.warn("[MANDO] comando ignorado: no hay eliminados a los que salvar");
@@ -1059,7 +1074,7 @@ function spin(ganadorFijado) {
         updateStats();
         // El bloqueo NO se libera aquí: sigue hasta que se cierra el overlay
         // (finalizarJugada), para que un segundo comando no pise esta jugada.
-        if (soyPrincipal() && window.fbSalvar) window.fbSalvar(winner);
+        if (yoMandoEstaJugada && window.fbSalvar) window.fbSalvar(winner);
       }, 3200);
     }
   }
@@ -1107,7 +1122,7 @@ function spinMulti(winners) {
           markCellAlive(num, false);
           state.savedCount++;
           addHistory(num, "ruleta");
-          if (soyPrincipal() && window.fbSalvar) window.fbSalvar(num);
+          if (yoMandoEstaJugada && window.fbSalvar) window.fbSalvar(num);
         });
         updateStats();
         // El bloqueo NO se libera aquí: sigue hasta que se cierra el overlay
@@ -1415,7 +1430,7 @@ function hacerFrase(texto, rate = 0.95, pitch = 1.0) {
 
 function hablarSalvacion(nums) {
   // Habla una sola pantalla: la LED si está abierta, si no, esta.
-  if (typeof soyPrincipal === "function" && !soyPrincipal()) return;
+  if (!yoMandoEstaJugada) return;
   if (!state.soundOn) return;
   window.speechSynthesis.cancel();
 
@@ -1476,27 +1491,14 @@ document.addEventListener("click", () => { getAudio(); }, { once: true });
   el.onclick = (ev) => { if (ev.target.id !== "btn-tomar-mando") el.remove(); };
   if (esInstanciaLED) {
     el.className = "activo";
-    el.textContent = "🎮 Mando del panel: ACTIVO";
+    el.textContent = "🎮 Pantalla principal · esta es la que canta y guarda";
     setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 500); }, 6000);
   } else {
-    el.className = "inactivo";
-    el.innerHTML = "⚠️ Mando del panel: INACTIVO<br>" +
-      "<span style=\"font-weight:600;font-size:11px;\">Esta ventana no obedece a los botones del panel.</span>" +
-      "<br><button id=\"btn-tomar-mando\">Activar el mando aquí</button>" +
-      "<span style=\"display:block;font-weight:600;font-size:10px;opacity:.85;margin-top:6px;\">" +
-      "Hazlo solo en el ordenador de la pantalla LED, y con el Salvación cerrado en los demás:<br>" +
-      "si dos ventanas tienen el mando, la ruleta giraría dos veces.</span>";
-    // Al pulsar, recarga la misma app con ?led=1 (que es lo que hace el panel
-    // al abrirla desde Pantalla LED) y ya obedece al mando.
-    setTimeout(() => {
-      const btn = document.getElementById("btn-tomar-mando");
-      if (btn) btn.onclick = (ev) => {
-        ev.stopPropagation();
-        const u = new URL(location.href);
-        u.searchParams.set("led", "1");
-        location.href = u.toString();
-      };
-    }, 0);
+    el.className = "activo";
+    el.innerHTML = "🎮 Esta ventana obedece al panel<br>" +
+      "<span style=\"font-weight:600;font-size:11px;\">Si hay una pantalla LED encendida, canta y guarda ella; " +
+      "aquí verás lo mismo, sin voz.</span>";
+    setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 8000); }, 8000);
   }
   document.body.appendChild(el);
 })();
