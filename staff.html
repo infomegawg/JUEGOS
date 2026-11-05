@@ -10988,10 +10988,18 @@ window.addEventListener("offline", actualizarBannerOffline);
 
 /* ===== FIRESTORE LISTENERS ===== */
 function escucharParticipantesStaff() {
+// Un dorsal que no se ha acreditado y ha quedado fuera de juego no se pinta
+// en ningún sitio: no es un eliminado, es un dorsal que nadie ha recogido.
+// Si el campo no existe, el dorsal está en juego (así los datos anteriores
+// a este cambio siguen valiendo).
+function fueraDeJuego(d) {
+  return d && d.en_juego === false;
+}
+
   db.collection("participantes").onSnapshot(snap => {
     snap.docChanges().forEach(ch => {
       const d = ch.doc.data();
-      if (ch.type === "removed") delete participantes[d.dorsal];
+      if (ch.type === "removed" || fueraDeJuego(d)) delete participantes[d.dorsal];
       else participantes[d.dorsal] = d;
     });
     updateStatsStaff();

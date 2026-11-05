@@ -10893,7 +10893,10 @@ async function asignarDorsal(dorsal) {
         entrada_codigo: e.codigo,
         nombre: datosDorsal.nombre || e.nombre || "",
         acreditado_en: TS(),
-        acreditado_por: puesto || "—"
+        acreditado_por: puesto || "—",
+        // Si la acreditación ya se había cerrado y esta persona llega
+        // tarde, su dorsal vuelve al grid en cuanto se le acredita.
+        en_juego: true
       });
     });
 

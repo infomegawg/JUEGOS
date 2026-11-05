@@ -511,7 +511,8 @@ function init() {
   db.collection('participantes').onSnapshot(snap => {
     snap.docChanges().forEach(ch => {
       const d = ch.doc.data();
-      if (ch.type === 'removed') {
+      // Fuera de juego = dorsal que nadie recogió: no se pinta.
+      if (ch.type === 'removed' || (d && d.en_juego === false)) {
         delete participantes[d.dorsal];
       } else {
         participantes[d.dorsal] = d;

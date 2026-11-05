@@ -8,55 +8,101 @@ rules_version = '2';
 //
 //  QUÉ CAMBIA
 //  Hoy la base de datos está abierta: cualquiera con el enlace de una de las
-//  apps puede leerla entera (y escribir en ella). Con estas reglas hay que
-//  haber entrado con usuario y contraseña para poder leer o escribir nada.
+//  apps puede leerla entera y escribir en ella. Con estas reglas hay que haber
+//  entrado con usuario y contraseña, y además hay DOS niveles de permiso.
+//
+//  LOS DOS USUARIOS
+//  - staff@juegos.com  -> los 15 del staff, en sus propios móviles.
+//    Solo puede hacer lo que necesita la app de staff: ver los dorsales,
+//    montar equipos, proponer eliminaciones y pedir ayuda.
+//    NO puede ver las entradas vendidas (nombres y edades), ni eliminar a
+//    nadie de verdad, ni tocar la pantalla LED, ni borrar copias de seguridad.
+//    Su contraseña puede circular por el grupo del staff sin riesgo.
+//
+//  - panel@juegos.com (y cualquier otro usuario que crees) -> tú y quien lleve
+//    el Panel Central, la pantalla LED, la puerta y las pantallas de los
+//    capitanes. Permiso completo. Esta contraseña NO se le da al staff.
+//
+//  Cualquier usuario que no sea staff@juegos.com se considera "mando".
+//  Por eso los usuarios del panel hay que crearlos tú en la consola: no se
+//  puede dar de alta nadie desde las apps.
 //
 //  IMPORTANTE — ORDEN DE LOS PASOS
-//  1) Activar el acceso por correo y contraseña y crear los usuarios.
-//  2) Desplegar las apps ya con pantalla de acceso.
-//  3) Y SOLO ENTONCES pegar estas reglas.
-//  Si se pegan antes, las apps dejan de funcionar hasta que entren con usuario.
+//  1) Crear los dos usuarios en Authentication -> Users.
+//  2) Pegar estas reglas y publicar.
+//  3) Probar UNA vez con un dispositivo de cada tipo: panel, LED, un móvil
+//     del staff, un móvil de la puerta y un PC de capitán.
+//  Desde el momento en que se publican, cualquier dispositivo que no haya
+//  iniciado sesión deja de funcionar hasta que lo haga.
 // =============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ---- Quién ha entrado ----
+    // ---- Quién es quién ----
     function identificado() {
       return request.auth != null;
     }
 
-    // ---- Datos del evento ----
-    // Participantes, eliminaciones, salvaciones, equipos, sesión, bingos,
-    // batalla naval, staff... Todo lo que mueven las apps durante el evento.
-    match /participantes/{dorsal}      { allow read, write: if identificado(); }
-    match /eliminaciones/{dorsal}      { allow read, write: if identificado(); }
-    match /eliminaciones_multiples/{d} { allow read, write: if identificado(); }
-    match /salvaciones/{id}            { allow read, write: if identificado(); }
-    match /equipos/{id}                { allow read, write: if identificado(); }
-    match /sesion/{id}                 { allow read, write: if identificado(); }
-    match /llamadas/{id}               { allow read, write: if identificado(); }
-    match /bingo_comandos/{id}         { allow read, write: if identificado(); }
-    match /salvacion_comandos/{id}     { allow read, write: if identificado(); }
-    match /batalla_naval/{id}          { allow read, write: if identificado(); }
-    match /staff_propuestas/{id}       { allow read, write: if identificado(); }
-    match /staff_ayuda/{id}            { allow read, write: if identificado(); }
-    match /staff_presencia/{id}        { allow read, write: if identificado(); }
+    // El móvil de un miembro del staff.
+    function esStaff() {
+      return identificado() && request.auth.token.email == 'staff@juegos.com';
+    }
+
+    // Panel Central, pantalla LED, puerta y capitanes: cualquier usuario
+    // identificado que no sea el del staff.
+    function esMando() {
+      return identificado() && !esStaff();
+    }
+
+    // ---- Jugadores y resultados ----
+    // El staff los ve en su app para poder marcar, pero no elimina ni salva:
+    // eso lo ejecuta el Panel Central al aprobar la propuesta.
+    match /participantes/{dorsal}      { allow read: if identificado(); allow write: if esMando(); }
+    match /eliminaciones/{dorsal}      { allow read: if identificado(); allow write: if esMando(); }
+    match /eliminaciones_multiples/{d} { allow read: if identificado(); allow write: if esMando(); }
+    match /salvaciones/{id}            { allow read: if identificado(); allow write: if esMando(); }
+
+    // ---- Estado del evento y pantallas ----
+    // La prueba en curso, el modo de la pantalla LED, los anuncios por
+    // megafonía, las ruletas de los bingos y la Batalla Naval. Solo el mando:
+    // un móvil del staff no debe poder girar una ruleta ni cambiar el LED.
+    match /sesion/{id}             { allow read: if identificado(); allow write: if esMando(); }
+    match /llamadas/{id}           { allow read: if identificado(); allow write: if esMando(); }
+    match /bingo_comandos/{id}     { allow read: if identificado(); allow write: if esMando(); }
+    match /salvacion_comandos/{id} { allow read: if identificado(); allow write: if esMando(); }
+    match /batalla_naval/{id}      { allow read: if identificado(); allow write: if esMando(); }
+    match /presencia/{id}          { allow read: if identificado(); allow write: if esMando(); }
+
+    // ---- Equipos ----
+    // El staff los monta desde su móvil. Dentro de la app, un equipo solo lo
+    // puede retirar quien lo creó; el panel puede editar o disolver cualquiera.
+    match /equipos/{id} { allow read, create, update: if identificado(); allow delete: if esMando(); }
+
+    // ---- Lo que el staff manda al Panel Central ----
+    // Puede crear propuestas y avisos de ayuda, y ver los suyos. Aprobarlas,
+    // descartarlas o marcar una ayuda como atendida es cosa del mando: así una
+    // eliminación nunca llega a ejecutarse sin pasar por el panel.
+    match /staff_propuestas/{id} { allow read, create: if identificado(); allow update, delete: if esMando(); }
+    match /staff_ayuda/{id}      { allow read, create: if identificado(); allow update, delete: if esMando(); }
+    match /staff_presencia/{id}  { allow read, write: if identificado(); }
 
     // ---- Copias de seguridad ----
-    // Se pueden crear y leer, pero no borrar: que un fallo o un clic de más
-    // no deje al evento sin ningún respaldo.
-    match /backups/{id}            { allow read, create, update: if identificado(); allow delete: if false; }
-    match /backups_auto/{id}       { allow read, create, update: if identificado(); allow delete: if identificado(); }
-    match /backups_historicos/{id} { allow read, create, update: if identificado(); allow delete: if false; }
+    // Solo el mando. Se pueden crear y leer, pero no borrar: que un fallo o un
+    // clic de más no deje al evento sin ningún respaldo.
+    match /backups/{id}            { allow read, create, update: if esMando(); allow delete: if false; }
+    match /backups_auto/{id}       { allow read, create, update: if esMando(); allow delete: if esMando(); }
+    match /backups_historicos/{id} { allow read, create, update: if esMando(); allow delete: if false; }
 
     // ---- Entradas vendidas ----
-    // Solo código, tipo, nombre y si es menor. El DNI, el correo, el teléfono
-    // y la fecha de nacimiento nunca se suben: se quedan en el Excel.
-    // Solo para quien ha entrado con usuario. Nunca se borran desde las apps:
-    // una entrada que ya no vale se marca como anulada, no se elimina.
+    // Datos personales: nombre, edad y si es menor. Solo el mando, nunca el
+    // staff, aunque su contraseña ande por el grupo de WhatsApp.
+    // El DNI, el correo, el teléfono y la fecha de nacimiento no se suben
+    // nunca: se quedan en el Excel de Enterticket.
+    // No se borran desde las apps: una entrada que ya no vale se marca como
+    // anulada, no se elimina.
     match /entradas/{codigo} {
-      allow read, create, update: if identificado();
+      allow read, create, update: if esMando();
       allow delete: if false;
     }
 

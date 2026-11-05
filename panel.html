@@ -492,6 +492,17 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         </div>
         <div style="font-size:11px;color:var(--texto2);margin-top:4px;">⚠ Borra todo y crea del 1 al N</div>
       </div>
+
+      <div class="divider" style="height:0.5px;background:var(--border);margin:8px 0;"></div>
+      <div style="margin-bottom:12px;">
+        <label>Dorsales en juego</label>
+        <div id="estado-en-juego" style="font-size:11px;color:var(--texto2);margin-bottom:6px;">—</div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-morado" style="flex:1;padding:8px 12px;font-size:11px;" onclick="cerrarAcreditacion()">Cerrar acreditación</button>
+          <button class="btn" style="width:auto;padding:8px 12px;font-size:11px;" onclick="reabrirAcreditacion()">Reabrir</button>
+        </div>
+        <div style="font-size:11px;color:var(--texto2);margin-top:4px;">Saca del grid los dorsales que nadie ha recogido</div>
+      </div>
       <div class="divider" style="height:0.5px;background:var(--border);margin:8px 0;"></div>
       <div style="margin-bottom:12px;">
         <label>Añadir participantes adicionales</label>
@@ -935,15 +946,29 @@ function init() {
 
 /* ===== FIRESTORE LISTENERS ===== */
 function escucharParticipantes() {
+// Un dorsal que no se ha acreditado y ha quedado fuera de juego no se pinta
+// en ningún sitio: no es un eliminado, es un dorsal que nadie ha recogido.
+// Si el campo no existe, el dorsal está en juego (así seguían valiendo los
+// datos de antes de que esto existiera).
+function fueraDeJuego(d) {
+  return d && d.en_juego === false;
+}
+
+// Dorsales que se han quedado fuera, solo para poder contarlos en el panel.
+const dorsalesFuera = new Set();
+
   db.collection("participantes").onSnapshot(snap => {
     snap.docChanges().forEach(ch => {
       const d = ch.doc.data();
-      if (ch.type === "removed") {
+      if (ch.type === "removed" || fueraDeJuego(d)) {
         delete participantes[d.dorsal];
+        if (fueraDeJuego(d)) dorsalesFuera.add(d.dorsal);
       } else {
         participantes[d.dorsal] = d;
+        dorsalesFuera.delete(d.dorsal);
       }
     });
+    actualizarEstadoEnJuego(Object.keys(participantes).length, dorsalesFuera.size);
     updateStats();
     renderGrid();
     renderParticipantes();
@@ -1629,6 +1654,78 @@ async function girarBingoMultiRemoto() {
   const g = elegirAlAzar(pool, cantidad);
   if (!confirm(`Se van a eliminar ${g.length} jugadores de los ${pool.length} que quedan vivos.\n\n¿Seguro?`)) return;
   await enviarComandoBingo("bingo_comandos", "girar_multi", g, `Comando enviado: eliminar ${g.length} y girar`);
+}
+
+/* ===== CERRAR / REABRIR LA ACREDITACIÓN =====
+   Si se venden 500 dorsales y aparecen 413 personas, el grid debe tener 413
+   celdas, no 500 con 87 en rojo: un dorsal que nadie ha recogido no es un
+   jugador eliminado. Al cerrar la acreditación, los dorsales sin acreditar
+   quedan marcados "en_juego: false" y desaparecen del panel, del LED, de la
+   app de staff y de la ruleta del bingo. No se borran: si alguien llega
+   tarde y se le acredita en la puerta, vuelve a entrar él solo. */
+
+async function cerrarAcreditacion() {
+  try {
+    const snap = await db.collection("participantes").get();
+    const fuera = [];
+    let dentro = 0;
+    snap.forEach(d => {
+      const p = d.data();
+      if (p.entrada_codigo) dentro++;
+      else fuera.push(d.id);
+    });
+
+    if (!dentro) {
+      mostrarNotif("Todavía no hay ningún dorsal acreditado");
+      return;
+    }
+    if (!fuera.length) {
+      mostrarNotif("Ya están todos los dorsales acreditados");
+      return;
+    }
+
+    const pin = prompt("Se van a sacar del juego " + fuera.length + " dorsales que nadie ha recogido.\n" +
+      "Quedarán " + dentro + " jugadores en el grid.\n\n" +
+      "Nadie se borra: si alguien llega tarde y lo acreditas, vuelve solo.\n\n" +
+      "Introduce el PIN para confirmar:");
+    if (pin === null) return;
+    if (pin !== "1402") { mostrarNotif("PIN incorrecto"); return; }
+
+    await marcarEnJuego(fuera, false);
+    mostrarNotif(dentro + " jugadores en juego · " + fuera.length + " dorsales fuera");
+  } catch(e) { console.error(e); mostrarNotif("Error al cerrar la acreditación"); }
+}
+
+async function reabrirAcreditacion() {
+  try {
+    const snap = await db.collection("participantes").get();
+    const fuera = [];
+    snap.forEach(d => { if (d.data().en_juego === false) fuera.push(d.id); });
+    if (!fuera.length) { mostrarNotif("No hay ningún dorsal fuera de juego"); return; }
+    if (!confirm("¿Volver a meter en el grid los " + fuera.length + " dorsales que estaban fuera?")) return;
+    await marcarEnJuego(fuera, true);
+    mostrarNotif(fuera.length + " dorsales de vuelta en el grid");
+  } catch(e) { console.error(e); mostrarNotif("Error al reabrir"); }
+}
+
+// Firestore admite 500 operaciones por lote: se parte en trozos.
+async function marcarEnJuego(dorsales, enJuego) {
+  for (let i = 0; i < dorsales.length; i += 400) {
+    const lote = db.batch();
+    dorsales.slice(i, i + 400).forEach(id => {
+      lote.update(db.collection("participantes").doc(id), { en_juego: enJuego });
+    });
+    await lote.commit();
+  }
+}
+
+// Cuántos hay en juego y cuántos se han quedado fuera, para el panel.
+function actualizarEstadoEnJuego(enJuego, fuera) {
+  const el = document.getElementById("estado-en-juego");
+  if (!el) return;
+  el.textContent = fuera
+    ? enJuego + " en juego · " + fuera + " fuera (sin acreditar)"
+    : enJuego + " en juego · acreditación abierta";
 }
 
 /* ===== HISTORIAL ===== */

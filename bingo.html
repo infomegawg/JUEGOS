@@ -983,10 +983,13 @@ window.fbEscuchar = function() {
   // 1b. Escuchar qué dorsales existen realmente, para no sortear números
   //     que no corresponden a ningún jugador.
   db.collection("participantes").onSnapshot((snap) => {
+    // Solo entran en la ruleta los dorsales en juego: los que nadie recogió
+    // en la puerta quedan fuera y no se pueden cantar.
     const set = new Set();
     snap.forEach(doc => {
       const n = parseInt(doc.id, 10);
-      if (!isNaN(n)) set.add(n);
+      const d = doc.data();
+      if (!isNaN(n) && !(d && d.en_juego === false)) set.add(n);
     });
     state.dorsales = set;
     render();
