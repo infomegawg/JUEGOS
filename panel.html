@@ -1987,8 +1987,20 @@ const COL = {
   anulada: "Anulada",
   pagoCompletado: "Pago completado",
   pagoDevuelto: "Pago devuelto",
-  estadoDevolucion: "Estado solicitud devolución"
+  estadoDevolucion: "Estado solicitud devolución",
+  // Enterticket no siempre exporta el correo y no da siempre el mismo
+  // encabezado. Se prueban los habituales y, si no hay ninguno, no pasa nada:
+  // la entrada se guarda igual y la búsqueda sigue yendo por nombre.
+  email: ["Email", "E-mail", "Correo", "Correo electrónico"]
 };
+
+// Devuelve el primer encabezado de la lista que exista de verdad en la fila.
+function campoOpcional(fila, nombres) {
+  for (const n of [].concat(nombres)) {
+    if (fila[n] !== undefined && String(fila[n]).trim() !== "") return String(fila[n]).trim();
+  }
+  return "";
+}
 
 let importFilas = null;      // filas leídas del Excel, pendientes de confirmar
 let importTipos = {};        // qué es cada "Tipo de entrada": jugador o espectador
@@ -2130,6 +2142,7 @@ async function confirmarImportacionEntradas() {
         tipo: importTipos[tipoTexto] || "jugador",
         tipo_entrada: tipoTexto,
         nombre: String(fila[COL.nombre] || "").trim(),
+        email: campoOpcional(fila, COL.email).toLowerCase(),
         edad_evento: edad,
         menor: edad !== null && edad < 18,
         anulada: anulada,
