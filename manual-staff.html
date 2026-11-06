@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual del Staff</title>
+<style>
+  :root{
+    --tinta:#14121a; --suave:#5d5870; --linea:#e2dfe9; --fondo:#fff;
+    --acento:#6d28d9; --acento-flojo:#f3eeff;
+    --rojo:#c81e3c; --rojo-flojo:#fdeaee;
+    --verde:#0f7a4a; --verde-flojo:#e7f6ee;
+    --ambar:#8a5a00; --ambar-flojo:#fdf3e0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 20px 80px; background:var(--fondo); color:var(--tinta);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .hoja{max-width:720px;margin:0 auto}
+  header{border-bottom:3px solid var(--tinta);padding-bottom:18px;margin-bottom:32px}
+  .evento{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);font-weight:700}
+  h1{font-size:30px;line-height:1.15;margin:8px 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--suave);font-size:15px;margin:0}
+  h2{
+    font-size:21px;margin:40px 0 14px;padding-top:20px;border-top:1px solid var(--linea);
+    letter-spacing:-.01em;
+  }
+  h2:first-of-type{border-top:0;padding-top:0}
+  h3{font-size:16px;margin:26px 0 8px}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 14px;padding-left:22px}
+  li{margin-bottom:7px}
+  code{background:#f4f2f8;padding:2px 6px;border-radius:4px;font-size:14px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .caja{border:1px solid var(--linea);border-left:4px solid var(--acento);background:var(--acento-flojo);
+        padding:14px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .caja.ojo{border-left-color:var(--rojo);background:var(--rojo-flojo)}
+  .caja.bien{border-left-color:var(--verde);background:var(--verde-flojo)}
+  .caja.aviso{border-left-color:var(--ambar);background:var(--ambar-flojo)}
+  .caja p:last-child{margin-bottom:0}
+  .caja .titulo{font-weight:700;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:15px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--linea);vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--suave);border-bottom:2px solid var(--tinta)}
+  .pasos{counter-reset:paso;list-style:none;padding:0}
+  .pasos li{counter-increment:paso;position:relative;padding-left:40px;margin-bottom:14px}
+  .pasos li::before{
+    content:counter(paso);position:absolute;left:0;top:1px;width:26px;height:26px;border-radius:50%;
+    background:var(--acento);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  }
+  .btn{display:inline-block;background:var(--tinta);color:#fff;padding:2px 9px;border-radius:5px;
+       font-size:13px;font-weight:600;white-space:nowrap}
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--linea);color:var(--suave);font-size:13px}
+  @media print{
+    body{padding:0;font-size:12pt}
+    h2{page-break-after:avoid}
+    .caja,table{page-break-inside:avoid}
+    @page{margin:18mm}
+  }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+<header>
+  <div class="evento">Los Juegos de Omega · 21 de noviembre de 2026</div>
+  <h1>Manual del Staff</h1>
+  <p class="sub">Cómo usar la app desde tu móvil durante el evento. Léelo entero una vez: son cinco minutos.</p>
+</header>
+
+<h2>Qué hace esta app y qué no</h2>
+
+<p>Con esta app <strong>propones</strong> al Panel Central quién queda eliminado. Tú no eliminas a nadie: tú lo marcas y el Panel Central lo aprueba. Así, si te equivocas, no pasa nada: se descarta y ya está.</p>
+
+<p>También sirve para montar equipos y para pedir ayuda si te hace falta.</p>
+
+<div class="caja">
+  <div class="titulo">La regla de oro</div>
+  <p>Tú propones, el panel ejecuta. Nada de lo que marques cambia el juego hasta que alguien lo aprueba desde el Panel Central.</p>
+</div>
+
+<h2>Entrar la primera vez</h2>
+
+<ol class="pasos">
+  <li>Abre en el móvil la dirección que te hayan pasado: <code>infomegawg.github.io/JUEGOS/staff.html</code></li>
+  <li>Te pedirá <strong>usuario y contraseña</strong>. Son los mismos para todo el staff; te los dará el responsable. Se escriben una sola vez: el móvil los recuerda.</li>
+  <li>Después te pedirá <strong>tu nombre</strong>. Pon tu nombre de verdad, el que te conozcan. <strong>Esto es importante</strong>: todo lo que marques llegará al panel con tu nombre, y si pides ayuda sabrán quién la pide.</li>
+</ol>
+
+<div class="caja aviso">
+  <div class="titulo">No uses modo incógnito</div>
+  <p>Si abres la app en una ventana privada o de incógnito, al cerrarla se borra la sesión y tendrás que volver a entrar. Usa el navegador normal.</p>
+</div>
+
+<p>Un consejo: una vez dentro, añade la página a la pantalla de inicio del móvil. Así la abres de un toque y no tienes que buscar el enlace.</p>
+
+<h2>Las tres pestañas</h2>
+
+<table>
+  <tr><th>Pestaña</th><th>Para qué sirve</th></tr>
+  <tr><td><strong>Participantes</strong></td><td>El tablero con todos los dorsales. Aquí marcas a quien queda eliminado.</td></tr>
+  <tr><td><strong>Equipos</strong></td><td>Montar equipos y proponer la eliminación de un equipo entero.</td></tr>
+  <tr><td><strong>Mis envíos</strong></td><td>Ver qué ha pasado con lo que has mandado: si está pendiente, aceptado o descartado.</td></tr>
+</table>
+
+<h2>Eliminar a alguien</h2>
+
+<p>Es lo que más vas a hacer. Dos formas, y las dos acaban igual: en una propuesta que va al panel.</p>
+
+<h3>Tocando los dorsales</h3>
+
+<ol class="pasos">
+  <li>Pestaña <strong>Participantes</strong>.</li>
+  <li>Toca los dorsales que han quedado eliminados. Se marcan. Puedes tocar los que quieras de una vez.</li>
+  <li>Pulsa <span class="btn">Proponer eliminación</span> y confirma.</li>
+</ol>
+
+<p>Si te equivocas antes de enviar, vuelve a tocar el dorsal para desmarcarlo, o pulsa <span class="btn">Cancelar</span> para quitarlos todos.</p>
+
+<h3>Escaneando el QR del dorsal</h3>
+
+<p>Cada jugador lleva un QR en el dorsal. Es más rápido y no te equivocas de número.</p>
+
+<ol class="pasos">
+  <li>Pulsa el botón del <strong>escáner</strong> (el icono de cuadrícula).</li>
+  <li>Apunta al QR del dorsal. Puedes escanear varios seguidos, uno detrás de otro.</li>
+  <li>Cuando los tengas todos, pulsa <span class="btn">Proponer eliminación</span>.</li>
+</ol>
+
+<div class="caja">
+  <div class="titulo">Para ir más rápido</div>
+  <p>Usa el filtro <span class="btn">Vivos</span> de arriba: así solo ves a los que siguen en juego y no pierdes tiempo buscando entre los ya eliminados. También puedes escribir el número en el buscador.</p>
+</div>
+
+<h2>Montar un equipo</h2>
+
+<p>Cuando una prueba se juegue por equipos, los montas aquí y aparecen solos en el Panel Central. El operador no tiene que ir dorsal por dorsal.</p>
+
+<ol class="pasos">
+  <li>Pestaña <strong>Equipos</strong> → botón de <strong>crear equipo</strong>.</li>
+  <li>Ponle nombre (por ejemplo «Equipo Azul»).</li>
+  <li>Toca los dorsales que lo forman.</li>
+  <li><span class="btn">Guardar equipo</span>.</li>
+</ol>
+
+<p>Después, desde la pestaña Equipos puedes pulsar <span class="btn">Proponer eliminar</span> para mandar al panel la eliminación del equipo completo de una vez.</p>
+
+<div class="caja aviso">
+  <div class="titulo">Solo puedes borrar tus equipos</div>
+  <p>Un equipo lo puede retirar quien lo creó. Si necesitas quitar el de otro compañero, pídelo por el panel.</p>
+</div>
+
+<h2>Pedir ayuda</h2>
+
+<p>El botón <span class="btn">🆘</span> manda un aviso al Panel Central con <strong>tu nombre</strong> y <strong>en qué prueba estás</strong>. En el panel salta un aviso que parpadea y el responsable decide a quién manda.</p>
+
+<p>Úsalo sin miedo: si los walkies no se oyen, se quedan sin batería o simplemente necesitas a alguien, es más rápido que gritar. No molesta a nadie: no suena, solo parpadea en el panel.</p>
+
+<h2>Si se va el wifi</h2>
+
+<div class="caja bien">
+  <div class="titulo">No pierdes nada</div>
+  <p>Si marcas una eliminación y en ese momento no hay cobertura, la app te avisa de que se enviará cuando vuelva la conexión, y la guarda en el móvil. En cuanto haya red, se manda sola. <strong>No lo marques dos veces</strong>: se duplicaría.</p>
+</div>
+
+<h2>Cosas que conviene saber</h2>
+
+<ul>
+  <li><strong>Lo que marcas no se ve en la pantalla grande al momento.</strong> Primero tiene que aprobarlo el panel. Si tarda, es que están a otra cosa; no lo vuelvas a mandar.</li>
+  <li><strong>Mira «Mis envíos»</strong> si tienes dudas de si algo llegó. Ahí ves si está pendiente, aceptado o descartado.</li>
+  <li><strong>Si te descartan una propuesta</strong> no es un reproche: a veces el panel tiene información que tú no tienes (una salvación, una reclamación).</li>
+  <li><strong>Si el móvil cambia de manos</strong>, cambia también el nombre en la app con el botón <span class="btn">Cambiar</span>. Si no, lo que marque el otro saldrá a tu nombre.</li>
+  <li><strong>No cierres sesión</strong> al acabar una prueba. Deja la app abierta todo el evento.</li>
+</ul>
+
+<h2>Problemas típicos</h2>
+
+<table>
+  <tr><th>Qué pasa</th><th>Qué haces</th></tr>
+  <tr><td>La app no carga los dorsales</td><td>Comprueba que tienes datos o wifi y recarga la página. Si sigue, avisa al responsable: puede ser un problema de acceso.</td></tr>
+  <tr><td>Me pide usuario y contraseña otra vez</td><td>Vuelve a entrar con los mismos. Si no los tienes a mano, pídelos.</td></tr>
+  <tr><td>El escáner no lee el QR</td><td>Limpia la cámara, acércate y busca luz. Si no hay manera, toca el dorsal a mano en el tablero.</td></tr>
+  <tr><td>El escáner no se abre</td><td>El navegador necesita permiso para la cámara: acéptalo cuando lo pida. Si lo rechazaste, actívalo en los ajustes del navegador.</td></tr>
+  <tr><td>He propuesto a quien no era</td><td>Avisa por el walkie o con el botón de ayuda para que lo descarten en el panel. No pasa nada: no se ha eliminado a nadie todavía.</td></tr>
+</table>
+
+<footer>
+  <strong>Los Juegos de Omega</strong> · Omega World Events SL<br>
+  Ciudad Deportiva Municipal de Paterna · 21 de noviembre de 2026
+</footer>
+
+</div>
+</body>
+</html>
