@@ -175,10 +175,12 @@ input[type=text], input[type=number], select {
     <div class="tarjeta">
       <h2>1 · Entrada</h2>
       <button class="btn btn-morado btn-grande" onclick="abrirCamara('entrada')">ESCANEAR ENTRADA</button>
-      <div style="text-align:center;color:var(--texto2);font-size:12px;margin:12px 0 8px;">o escríbelo a mano</div>
-      <input type="text" id="codigo-manual" placeholder="CÓDIGO" maxlength="12"
+      <div style="text-align:center;color:var(--texto2);font-size:12px;margin:12px 0 8px;">o búscalo por código o por nombre</div>
+      <input type="text" id="codigo-manual" placeholder="CÓDIGO O NOMBRE" maxlength="60"
+             autocomplete="off" autocapitalize="off"
              onkeydown="if(event.key==='Enter')buscarEntradaManual()" />
       <button class="btn" style="margin-top:8px;" onclick="buscarEntradaManual()">Buscar</button>
+      <div id="resultados-busqueda" style="display:none;margin-top:10px;"></div>
     </div>
     <div class="tarjeta" style="margin-top:10px;">
       <h2>Últimas acreditaciones</h2>
@@ -10649,11 +10651,116 @@ async function marcarReentrada(codigo, e) {
 }
 
 /* ===== BUSCAR LA ENTRADA ===== */
+
+// Para comparar nombres sin que estorben las mayúsculas ni las tildes: en la
+// puerta nadie escribe "Jose María Ibáñez" con los acentos puestos.
+function normalizar(txt) {
+  return String(txt || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+}
+
+function ocultarResultados() {
+  const caja = $("resultados-busqueda");
+  if (caja) { caja.style.display = "none"; caja.innerHTML = ""; }
+}
+
 function buscarEntradaManual() {
-  const v = $("codigo-manual").value.trim().toUpperCase();
-  if (!v) return;
+  const escrito = $("codigo-manual").value.trim();
+  if (!escrito) return;
+  ocultarResultados();
+
+  // Si es un código que existe, se abre directamente: es el camino rápido y
+  // no debe cambiar de velocidad por haber añadido la búsqueda por nombre.
+  const comoCodigo = escrito.toUpperCase();
+  if (entradas[comoCodigo]) {
+    $("codigo-manual").value = "";
+    abrirEntrada(comoCodigo);
+    return;
+  }
+
+  // Si no parece un nombre (corto y sin espacios), se trata como código y que
+  // sea abrirEntrada quien consulte al servidor y dé el error si no está.
+  const texto = normalizar(escrito);
+  if (texto.length < 3 && escrito.indexOf(" ") === -1) {
+    $("codigo-manual").value = "";
+    abrirEntrada(comoCodigo);
+    return;
+  }
+
+  // Todas las palabras tienen que aparecer, en cualquier orden: así "ibañez
+  // jose" encuentra a "José Ibáñez Soler".
+  const palabras = texto.split(/\s+/).filter(Boolean);
+  const encontrados = Object.keys(entradas).filter((codigo) => {
+    const e = entradas[codigo];
+    const donde = normalizar(e.nombre) + " " + normalizar(e.email || "");
+    return palabras.every((p) => donde.indexOf(p) !== -1);
+  });
+
+  if (encontrados.length === 0) {
+    vibrar([200, 80, 200]);
+    mostrarResultado("error", "✖", "No se encuentra",
+      "Nadie con <b>" + escrito.replace(/</g, "&lt;") + "</b> en la lista.<br>" +
+      "Prueba con menos palabras, o con el código de la entrada. Si acaba de comprarla, " +
+      "puede que falte importar el Excel con las últimas ventas.");
+    return;
+  }
+
+  // Si solo hay uno, no se le hace elegir: se abre.
+  if (encontrados.length === 1) {
+    $("codigo-manual").value = "";
+    abrirEntrada(encontrados[0]);
+    return;
+  }
+
+  pintarResultados(encontrados);
+}
+
+// Varios candidatos: se listan para que el de la puerta elija mirando a la
+// persona que tiene delante, con su estado a la vista para no acreditar dos veces.
+function pintarResultados(codigos) {
+  const caja = $("resultados-busqueda");
+
+  const ordenados = codigos.sort((a, b) =>
+    normalizar(entradas[a].nombre).localeCompare(normalizar(entradas[b].nombre)));
+
+  const MAX = 25;
+  let html = '<div style="color:var(--texto2);font-size:12px;margin-bottom:8px;">' +
+    ordenados.length + ' coincidencias' +
+    (ordenados.length > MAX ? ' (se muestran las ' + MAX + ' primeras)' : '') +
+    ' &middot; toca la correcta</div>';
+
+  ordenados.slice(0, MAX).forEach((codigo) => {
+    const e = entradas[codigo];
+    let etiqueta = "", color = "var(--texto2)";
+    if (e.anulada || e.devuelta || e.valida === false) {
+      etiqueta = e.anulada ? "ANULADA" : "DEVUELTA"; color = "var(--rojo)";
+    } else if (e.acreditada) {
+      etiqueta = e.dorsal ? "YA DENTRO · dorsal " + e.dorsal : "YA ACREDITADA";
+      color = "var(--naranja)";
+    } else {
+      etiqueta = e.tipo === "espectador" ? "espectador" : "jugador";
+      if (e.menor) etiqueta += " · MENOR";
+    }
+    const nombre = String(e.nombre || "(sin nombre)").replace(/</g, "&lt;");
+    html +=
+      '<button class="btn" style="margin-top:6px;text-align:left;padding:12px 14px;width:100%;" ' +
+      'onclick="elegirResultado(\'' + codigo + '\')">' +
+        '<div style="font-size:14px;font-weight:800;">' + nombre + '</div>' +
+        '<div style="font-size:11px;font-weight:600;margin-top:3px;color:' + color + ';">' +
+          codigo + ' &middot; ' + etiqueta +
+        '</div>' +
+      '</button>';
+  });
+
+  caja.innerHTML = html;
+  caja.style.display = "block";
+}
+
+function elegirResultado(codigo) {
   $("codigo-manual").value = "";
-  abrirEntrada(v);
+  ocultarResultados();
+  abrirEntrada(codigo);
 }
 
 async function abrirEntrada(codigo) {
