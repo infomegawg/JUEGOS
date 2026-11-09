@@ -637,6 +637,14 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// Con datos móviles en un pabellón lleno la cobertura va y viene. Con esto la
+// app sigue funcionando sin conexión y sincroniza cuando vuelve. Además evita
+// volver a descargar los 500 dorsales en cada recarga, que es lo que agota la
+// cuota diaria de Firestore.
+db.enablePersistence({ synchronizeTabs: true }).catch((e) => {
+  console.warn("Sin persistencia offline:", e.code);
+});
+
 /* =========================================================
    ACCESO A LA BASE DE DATOS
    Hasta ahora cualquiera con el enlace podía leer y escribir en la base del
