@@ -511,22 +511,40 @@ function initVoz() {
 
 // Chrome no deja sonar la voz en una pestaña donde nadie ha interactuado
 // todavía (la de espectador se abre sola desde el Panel Central, y al recargar
-// vuelve a bloquearse). Al primer clic o tecla se desbloquea en silencio, sin
-// avisos en pantalla ni locución de confirmación.
-let audioDesbloqueado = false;
+// vuelve a bloquearse). Al primer clic o tecla se desbloquea en silencio.
+let vozArmada = false;   // true solo cuando una locución ha llegado a sonar
+
+// El bloqueo de sonido de Chrome no se ve: la pantalla pinta y se actualiza,
+// pero no habla. Aquí NO se puede avisar en pantalla, porque esto se proyecta
+// en la LED gigante delante del público. En vez de eso se deja constancia en
+// la base de datos y es el Panel Central quien avisa al operador.
+function reportarEstadoVoz() {
+  if (!modoEspectador || typeof db === "undefined" || !db) return;
+  db.collection("presencia").doc("espectador_batalla").set({
+    voz_armada: vozArmada,
+    visto_en: Date.now()
+  }).catch(e => console.warn("presencia espectador:", e));
+}
+
 function desbloquearAudio() {
-  if (audioDesbloqueado || !window.speechSynthesis) return;
-  audioDesbloqueado = true;
+  if (vozArmada || !window.speechSynthesis) return;
   try {
+    // No basta con dar el gesto por bueno: se comprueba que el navegador
+    // llega a arrancar una locución de verdad.
     const m = new SpeechSynthesisUtterance(" ");
     m.volume = 0;
+    m.onstart = () => { vozArmada = true; reportarEstadoVoz(); console.log("[VOZ] desbloqueada"); };
     window.speechSynthesis.speak(m);
   } catch (e) { console.error(e); }
 }
+
 function initDesbloqueoAudio() {
   if (!modoEspectador) return;
   ["click", "keydown", "pointerdown"].forEach(ev =>
-    document.addEventListener(ev, desbloquearAudio, { once: true }));
+    document.addEventListener(ev, desbloquearAudio));
+  desbloquearAudio();
+  setTimeout(reportarEstadoVoz, 1500);
+  setInterval(reportarEstadoVoz, 30000);
 }
 
 // alTerminar: se ejecuta cuando acaba la última frase (o enseguida si el
