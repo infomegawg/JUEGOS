@@ -10395,9 +10395,30 @@ const db = firebase.firestore();
 // app sigue funcionando sin conexión y sincroniza cuando vuelve. Además evita
 // volver a descargar los 500 dorsales en cada recarga, que es lo que agota la
 // cuota diaria de Firestore.
-db.enablePersistence({ synchronizeTabs: true }).catch((e) => {
-  console.warn("Sin persistencia offline:", e.code);
-});
+// En iPhone y iPad NO se activa. Safari tiene fallos conocidos con la cache de
+// Firestore: las consultas pueden devolver vacio de forma intermitente y, lo
+// peor, Safari no rechaza la promesa, asi que el .catch no se entera y la app
+// cree que va bien (firebase-js-sdk #6806). En iPadOS hay otro por el que la
+// primera consulta tras navegar se queda colgada (#10469). En iOS todos los
+// navegadores son WebKit por dentro, asi que esto cubre tambien el Chrome y el
+// Brave del iPhone. Sin persistencia la app funciona como siempre: solo gasta
+// mas cuota. Un staff con la pantalla en blanco el dia del evento es peor.
+function esWebKitDeApple() {
+  const ua = navigator.userAgent;
+  if (/iPhone|iPad|iPod/i.test(ua)) return true;
+  // El iPad pide "web de escritorio" por defecto y se hace pasar por un Mac.
+  if (/Macintosh/i.test(ua) && navigator.maxTouchPoints > 1) return true;
+  // Safari de escritorio: dice "Safari" y no es ninguno de los Chromium.
+  return /Safari/i.test(ua) && !/Chrome|Chromium|CriOS|Edg|OPR|Brave/i.test(ua);
+}
+
+if (esWebKitDeApple()) {
+  console.warn("Sin persistencia offline: Safari/iOS (desactivada a proposito)");
+} else {
+  db.enablePersistence({ synchronizeTabs: true }).catch((e) => {
+    console.warn("Sin persistencia offline:", e.code);
+  });
+}
 
 /* =========================================================
    ACCESO A LA BASE DE DATOS
