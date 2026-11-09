@@ -107,13 +107,26 @@ input::placeholder { color: var(--texto2); }
 .cell.barco.con-abajo { border-bottom-color: transparent; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .cell.barco.con-izq { border-left-color: transparent; border-top-left-radius: 0; border-bottom-left-radius: 0; }
 .cell.barco.con-der { border-right-color: transparent; border-top-right-radius: 0; border-bottom-right-radius: 0; }
-/* Puentes que rellenan el hueco de 3px entre casillas del mismo barco */
+/* Puentes que rellenan el hueco de la rejilla entre casillas del mismo barco.
+   OJO con dos cosas que antes estaban mal y partian los barcos en cuadritos:
+   1) Un elemento absoluto se coloca respecto a la CAJA DE RELLENO, que queda
+      3px por dentro por el borde de la casilla. Por eso hay que sumar esos 3px
+      a los desplazamientos: si no, el puente se queda corto.
+   2) El hueco NO siempre mide 3px. En la vista de espectador vale
+      clamp(3px, 0.5vh, 6px), asi que crece en pantallas altas (la LED gigante
+      es donde peor se veia). Se calcula todo a partir de var(--hueco). */
 .cell.barco.con-der::after {
-  content: ''; position: absolute; right: -4px; top: -3px; bottom: -3px; width: 5px;
+  content: ''; position: absolute;
+  right: calc(-1 * (var(--hueco, 3px) + 3px));
+  top: -3px; bottom: -3px;
+  width: calc(var(--hueco, 3px) + 4px);
   background: var(--barco-color); border-top: 3px solid var(--barco-borde); border-bottom: 3px solid var(--barco-borde);
 }
 .cell.barco.con-abajo::before {
-  content: ''; position: absolute; bottom: -4px; left: -3px; right: -3px; height: 5px;
+  content: ''; position: absolute;
+  bottom: calc(-1 * (var(--hueco, 3px) + 3px));
+  left: -3px; right: -3px;
+  height: calc(var(--hueco, 3px) + 4px);
   background: var(--barco-color); border-left: 3px solid var(--barco-borde); border-right: 3px solid var(--barco-borde);
 }
 .cell.sugerido { background: rgba(255,122,26,0.28); border: 2px dashed var(--naranja); cursor: pointer; }
