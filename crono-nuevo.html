@@ -140,7 +140,8 @@ input[type=number] { font-family: var(--mono); font-weight: 800; font-size: 15px
       <button onclick="sumar(10)">+10s</button>
       <button onclick="sumar(-10)">−10s</button>
       <span style="width:1px;height:28px;background:rgba(255,255,255,.2);"></span>
-      <button id="btn-sonido" onclick="alternarSonido()">🔊 Aviso al acabar</button>
+      <button id="btn-sonido" onclick="alternarSonido()">🔊 Bocina al acabar</button>
+      <button onclick="pitidoFinal()" title="Oír la bocina sin esperar al final">📢 Probar</button>
       <button id="btn-musica" onclick="alternarMusica()">🎵 Música en verde</button>
       <label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;opacity:.85;">
         Volumen
@@ -436,27 +437,68 @@ function sumar(seg) {
 // Se genera con el propio navegador, sin archivos de audio, para que la app
 // siga siendo un único fichero que funciona sin conexión.
 let ctxAudio = null;
+/* =========================================================
+   BOCINA DE FINAL
+
+   Se construye con osciladores en vez de un archivo: así no hay nada que
+   descargar y no puede fallar por un MP3 que no esté donde toca.
+
+   Una bocina de verdad no es un tono limpio, es un tono grave con muchos
+   armónicos. Por eso se apilan cuatro osciladores sobre la misma nota (dos
+   en diente de sierra casi iguales pero desafinados entre sí, que es lo que
+   da el "roce" característico, más la octava y la quinta por encima) y se
+   pasa todo por un filtro que recorta los agudos más ásperos.
+
+   El remate es la caída de tono de los últimos 200 ms: es lo que hace una
+   bocina de aire cuando se queda sin presión, y es lo que la distingue de un
+   simple zumbido.
+   ========================================================= */
 function pitidoFinal() {
   try {
     ctxAudio = ctxAudio || new (window.AudioContext || window.webkitAudioContext)();
-    [0, 0.26, 0.52].forEach((retardo) => {
+    if (ctxAudio.state === "suspended") ctxAudio.resume();
+
+    const t = ctxAudio.currentTime;
+    const DURACION = 2.2;
+    const NOTA = 104;        // muy grave: atraviesa el ruido del pabellón
+
+    const filtro = ctxAudio.createBiquadFilter();
+    filtro.type = "lowpass";
+    filtro.frequency.value = 2600;
+    filtro.Q.value = 0.7;
+    filtro.connect(ctxAudio.destination);
+
+    // Ataque casi instantáneo, cuerpo plano y corte rápido al final.
+    const sobre = ctxAudio.createGain();
+    sobre.gain.setValueAtTime(0.0001, t);
+    sobre.gain.exponentialRampToValueAtTime(0.9, t + 0.02);
+    sobre.gain.setValueAtTime(0.9, t + DURACION - 0.16);
+    sobre.gain.exponentialRampToValueAtTime(0.0001, t + DURACION);
+    sobre.connect(filtro);
+
+    [[NOTA, "sawtooth", 0.50],
+     [NOTA * 1.006, "sawtooth", 0.38],   // el desafine entre estos dos es el "roce"
+     [NOTA * 2, "square", 0.13],
+     [NOTA * 3, "sawtooth", 0.07]].forEach(([frec, tipo, volumen]) => {
       const osc = ctxAudio.createOscillator();
+      osc.type = tipo;
+      osc.frequency.setValueAtTime(frec, t);
+      osc.frequency.setValueAtTime(frec, t + DURACION - 0.2);
+      osc.frequency.linearRampToValueAtTime(frec * 0.93, t + DURACION);
+
       const vol = ctxAudio.createGain();
-      osc.type = "square";
-      osc.frequency.value = 880;
-      vol.gain.setValueAtTime(0.0001, ctxAudio.currentTime + retardo);
-      vol.gain.exponentialRampToValueAtTime(0.5, ctxAudio.currentTime + retardo + 0.02);
-      vol.gain.exponentialRampToValueAtTime(0.0001, ctxAudio.currentTime + retardo + 0.22);
-      osc.connect(vol); vol.connect(ctxAudio.destination);
-      osc.start(ctxAudio.currentTime + retardo);
-      osc.stop(ctxAudio.currentTime + retardo + 0.24);
+      vol.gain.value = volumen;
+      osc.connect(vol); vol.connect(sobre);
+      osc.start(t);
+      osc.stop(t + DURACION + 0.05);
     });
   } catch (e) { console.error(e); }
 }
 
 function alternarSonido() {
   sonidoActivo = !sonidoActivo;
-  $("btn-sonido").textContent = sonidoActivo ? "🔊 Aviso al acabar" : "🔇 Sin aviso";
+  $("btn-sonido").textContent = sonidoActivo ? "🔊 Bocina al acabar" : "🔇 Sin bocina";
+  if (sonidoActivo) pitidoFinal();   // se oye al activarla, para ajustar nivel
 }
 
 /* =========================================================
