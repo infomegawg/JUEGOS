@@ -134,6 +134,8 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .cell { aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; font-family: var(--mono); background: #ede8f8; border: 1px solid rgba(130,36,227,0.35); color: var(--morado); cursor: pointer; transition: all .15s; }
 .cell:hover { background: rgba(130,36,227,0.2); border-color: var(--morado2); }
 .cell.elim { background: #fce8eb; border-color: rgba(212,18,48,0.4); color: rgba(255,31,61,0.4); text-decoration: line-through; }
+.cell.fuera { background: #2b2b2b; border-color: #555; color: #bbb; text-decoration: line-through; }
+.part-item.fuera { opacity: .5; background: rgba(0,0,0,0.06); }
 .cell.selmulti { background: #fff3d6; border-color: var(--naranja); color: var(--naranja); box-shadow: inset 0 0 0 2px var(--naranja); }
 .cell.called { background: rgba(255,116,33,0.2); border-color: var(--naranja); color: var(--naranja); animation: pulse-cell 1s ease-in-out infinite; }
 @keyframes pulse-cell { 0%,100%{opacity:1} 50%{opacity:.5} }
@@ -487,6 +489,22 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <div id="panel-part" style="display:none;flex-direction:column;flex:1;overflow:hidden;">
         <div style="padding:10px;">
           <input id="part-search" placeholder="Buscar jugador..." oninput="renderParticipantes()" />
+          <div id="resumen-estados" style="font-size:10px;color:var(--texto2);margin-top:6px;line-height:1.6;"></div>
+        </div>
+
+        <!-- QUIÉN ESTÁ FUERA DEL RECINTO AHORA MISMO -->
+        <div style="padding:0 10px 10px 10px;">
+          <div id="fuera-recinto-caja" style="display:none;border:1px solid var(--naranja);
+               border-radius:8px;background:rgba(255,122,26,.08);padding:8px 10px;">
+            <div style="font-size:11px;font-weight:800;color:var(--naranja);margin-bottom:6px;">
+              <i class="ti ti-door-exit"></i> FUERA DEL RECINTO (<span id="fuera-recinto-n">0</span>)
+            </div>
+            <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;line-height:1.5;">
+              Han marcado salida y no han vuelto a entrar. Si no vuelven antes de empezar
+              la siguiente prueba, márcalos como abandono.
+            </div>
+            <div id="fuera-recinto-list"></div>
+          </div>
         </div>
         <div class="part-list" id="part-list"></div>
         <div style="padding:10px;border-top:1px solid var(--border);">
@@ -1055,6 +1073,7 @@ function bloquearPanel() {
 function init() {
   initVoz();
   vigilarVozBatalla();
+escucharSalidas();
   updateClock();
   setInterval(updateClock, 1000);
   escucharParticipantes();
@@ -1159,13 +1178,149 @@ function escucharLlamadas() {
 function updateStats() {
   const parts = Object.values(participantes);
   const total = parts.length;
-  const elim = parts.filter(p => !p.vivo).length;
-  const vivos = total - elim;
+  // Expulsados y abandonos no son eliminados: no cuentan para recuperaciones
+  // y el manual los cuadra por separado.
+  const expulsados = parts.filter(p => p.estado === "expulsado").length;
+  const abandonos = parts.filter(p => p.estado === "abandono").length;
+  const elim = parts.filter(p => !p.vivo && !estaFuera(p)).length;
+  const vivos = total - elim - expulsados - abandonos;
+  const resumen = document.getElementById("resumen-estados");
+  if (resumen) {
+    resumen.innerHTML = "Vivos: <b>" + vivos + "</b> · Eliminados: <b>" + elim + "</b>" +
+      (expulsados ? " · Expulsados: <b>" + expulsados + "</b>" : "") +
+      (abandonos ? " · Abandonos: <b>" + abandonos + "</b>" : "") +
+      "<br>Cuadre: " + total + " = " + vivos + " + " + elim + " + " + expulsados + " + " + abandonos;
+  }
   document.getElementById("st-total").textContent = total;
   document.getElementById("st-vivos").textContent = vivos;
   document.getElementById("st-elim").textContent = elim;
   document.getElementById("ct-vivos").textContent = vivos;
   document.getElementById("ct-elim").textContent = elim;
+}
+
+/* =========================================================
+   EXPULSADOS Y ABANDONOS
+
+   Una eliminación ordinaria se puede salvar en un bingo de recuperación.
+   Una expulsión por sanción y un abandono definitivo, no: según el manual
+   operativo, "ganar con el equipo no reactiva a un expulsado ni a quien
+   abandonó definitivamente".
+
+   Se guarda en participantes.estado ("expulsado" | "abandono"). Es un campo
+   NUEVO: los dorsales que no lo tienen se comportan exactamente igual que
+   antes. Además se deja vivo:false, para que el LED, la app de staff y los
+   bingos (que miran "vivo") los saquen del juego sin tocar su código.
+
+   El dorsal queda muerto el resto del día: no se reutiliza.
+   ========================================================= */
+function estaFuera(p) {
+  return !!p && (p.estado === "expulsado" || p.estado === "abandono");
+}
+
+function etiquetaFuera(p) {
+  return p.estado === "expulsado" ? "EXPULSADO" : "ABANDONO";
+}
+
+async function expulsarDorsal(dorsal) {
+  const motivo = prompt("EXPULSAR AL DORSAL #" + dorsal + "\n\n" +
+    "No podrá ser recuperado en ningún bingo ni revivir si gana su equipo.\n" +
+    "El dorsal queda inutilizado el resto del día.\n\n" +
+    "Escribe el motivo:");
+  if (motivo === null) return;
+  if (!motivo.trim()) { mostrarNotif("Hace falta un motivo para expulsar"); return; }
+  await marcarFuera(dorsal, "expulsado", motivo.trim());
+}
+
+async function marcarAbandono(dorsal) {
+  if (!confirm("MARCAR ABANDONO DEL DORSAL #" + dorsal + "\n\n" +
+    "No contará como eliminado y no podrá ser recuperado en ningún bingo.\n" +
+    "El dorsal queda inutilizado el resto del día.\n\n¿Seguro?")) return;
+  await marcarFuera(dorsal, "abandono", "No volvió a entrar al recinto");
+}
+
+async function marcarFuera(dorsal, estado, motivo) {
+  try {
+    // Si estaba eliminado, su eliminación deja de contar como recuperable.
+    await db.collection("eliminaciones").doc(String(dorsal)).delete().catch(() => {});
+    await db.collection("participantes").doc(String(dorsal)).update({
+      vivo: false,
+      estado: estado,
+      estado_motivo: motivo,
+      estado_en: TS(),
+      estado_por: "Panel-Central"
+    });
+    mostrarNotif("#" + dorsal + " marcado como " + estado);
+  } catch (e) {
+    console.error(e);
+    mostrarNotif("No se ha podido marcar #" + dorsal);
+  }
+}
+
+// Marcha atrás, por si se marca a alguien por error.
+async function deshacerFuera(dorsal) {
+  const p = participantes[dorsal];
+  if (!p) return;
+  if (!confirm("¿Deshacer el " + etiquetaFuera(p).toLowerCase() + " del dorsal #" + dorsal + "?\n\n" +
+    "Volverá al juego como jugador vivo.")) return;
+  try {
+    await db.collection("participantes").doc(String(dorsal)).update({
+      vivo: true,
+      estado: firebase.firestore.FieldValue.delete(),
+      estado_motivo: firebase.firestore.FieldValue.delete(),
+      estado_en: firebase.firestore.FieldValue.delete(),
+      estado_por: firebase.firestore.FieldValue.delete(),
+      eliminado_en: null, prueba: null, metodo: null, juez: null
+    });
+    mostrarNotif("#" + dorsal + " vuelve al juego");
+  } catch (e) { console.error(e); mostrarNotif("No se ha podido deshacer"); }
+}
+
+/* ===== QUIÉN ESTÁ FUERA DEL RECINTO =====
+   La acreditación ya marca las salidas y reentradas de cada entrada. Aquí
+   solo se listan los jugadores que salieron y no han vuelto, ordenados por
+   tiempo fuera, para que mesa decida. El sistema no marca abandonos solo:
+   no puede saber cuándo empieza la siguiente prueba. */
+let entradasFuera = [];
+
+function escucharSalidas() {
+  db.collection("entradas").onSnapshot(snap => {
+    const lista = [];
+    snap.forEach(d => {
+      const e = d.data();
+      if (!e.acreditada || e.dentro !== false || !e.dorsal) return;
+      lista.push({ dorsal: e.dorsal, nombre: e.nombre || "", salida_en: e.salida_en || null });
+    });
+    entradasFuera = lista;
+    renderFueraRecinto();
+  }, (e) => console.warn("salidas:", e));
+  setInterval(renderFueraRecinto, 30000); // refresca el "lleva X min fuera"
+}
+
+function minutosFuera(salida) {
+  if (!salida || !salida.seconds) return null;
+  return Math.max(0, Math.floor((Date.now() / 1000 - salida.seconds) / 60));
+}
+
+function renderFueraRecinto() {
+  const caja = document.getElementById("fuera-recinto-caja");
+  const cont = document.getElementById("fuera-recinto-list");
+  if (!caja || !cont) return;
+  // Quien ya está marcado como expulsado o abandono deja de interesar aquí.
+  const pendientes = entradasFuera
+    .filter(e => { const p = participantes[e.dorsal]; return p && !estaFuera(p); })
+    .sort((a, b) => (a.salida_en?.seconds || 0) - (b.salida_en?.seconds || 0));
+  document.getElementById("fuera-recinto-n").textContent = pendientes.length;
+  caja.style.display = pendientes.length ? "block" : "none";
+  cont.innerHTML = pendientes.map(e => {
+    const min = minutosFuera(e.salida_en);
+    const cuanto = min === null ? "hace rato" : (min >= 60 ? Math.floor(min/60) + " h " + (min%60) + " min" : min + " min");
+    return '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:11px;border-top:1px solid var(--border);">' +
+      '<b style="font-family:var(--mono);">#' + e.dorsal + '</b>' +
+      '<span style="color:var(--texto2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + (e.nombre || '') + '</span>' +
+      '<span style="margin-left:auto;color:var(--naranja);font-weight:700;white-space:nowrap;">' + cuanto + ' fuera</span>' +
+      '<button class="btn btn-ghost" style="width:auto;padding:3px 8px;font-size:10px;white-space:nowrap;" ' +
+      'onclick="marcarAbandono(' + e.dorsal + ')">Abandono</button></div>';
+  }).join('');
 }
 
 /* ===== GRID ===== */
@@ -1181,12 +1336,14 @@ function renderGrid() {
   if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
   grid.innerHTML = lista.map(p => {
     let cls;
-    if (p.vivo) {
+    if (estaFuera(p)) {
+      cls = 'cell fuera';
+    } else if (p.vivo) {
       cls = 'cell' + (seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
     } else {
       cls = 'cell elim' + ((modoMultiSalvar || modoCrearEquipo) && seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
     }
-    return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
+    return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${estaFuera(p) ? etiquetaFuera(p) + ' — ' + (p.estado_motivo||'') + ' · ' : ''}${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
   }).join('');
 }
 
@@ -1220,6 +1377,7 @@ function clickCell(dorsal) {
     return;
   }
   if (modoMultiSalvar) {
+    if (estaFuera(p)) { mostrarNotif("#"+dorsal+" está "+etiquetaFuera(p).toLowerCase()+": no se puede recuperar"); return; }
     if (p.vivo) { mostrarNotif("El jugador #"+dorsal+" ya está vivo"); return; }
     if (seleccionMulti.has(dorsal)) seleccionMulti.delete(dorsal);
     else seleccionMulti.add(dorsal);
@@ -1702,6 +1860,12 @@ function toggleModoMultiSalvar() {
 }
 
 async function ejecutarSalvacionMultiple(dorsales) {
+  const bloqueados = dorsales.filter(d => estaFuera(participantes[d]));
+  if (bloqueados.length) {
+    mostrarNotif("No se pueden recuperar (expulsados o abandonos): #" + bloqueados.join(", #"));
+    dorsales = dorsales.filter(d => !estaFuera(participantes[d]));
+    if (!dorsales.length) return;
+  }
   const batch = db.batch();
   const salvacionesRefs = [];
   dorsales.forEach(dorsal => {
@@ -1739,7 +1903,9 @@ function dorsalesVivos() {
   return Object.values(participantes).filter(p => p.vivo).map(p => Number(p.dorsal)).filter(n => !isNaN(n));
 }
 function dorsalesEliminados() {
-  return Object.values(participantes).filter(p => !p.vivo).map(p => Number(p.dorsal)).filter(n => !isNaN(n));
+  // Expulsados y abandonos nunca entran en un bingo de recuperación.
+  return Object.values(participantes).filter(p => !p.vivo && !estaFuera(p))
+    .map(p => Number(p.dorsal)).filter(n => !isNaN(n));
 }
 function elegirAlAzar(pool, cantidad) {
   const barajado = [...pool].sort(() => Math.random() - 0.5);
@@ -1911,16 +2077,26 @@ function renderParticipantes() {
   const q = (document.getElementById("part-search")?.value||'').toLowerCase();
   let parts = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
   if (q) parts = parts.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
-  list.innerHTML = parts.map(p => `
-    <div class="part-item ${p.vivo?'':'elim'}">
+  list.innerHTML = parts.map(p => {
+    const fuera = estaFuera(p);
+    const pie = fuera
+      ? '<span style="color:var(--rojo);font-weight:800;">' + etiquetaFuera(p) + '</span>' +
+        (p.estado_motivo ? ' <span style="color:var(--texto2);">· ' + p.estado_motivo + '</span>' : '')
+      : (p.email || '');
+    const boton = fuera
+      ? '<button class="btn btn-ghost" style="width:auto;padding:3px 8px;font-size:10px;" onclick="deshacerFuera(' + p.dorsal + ')">Deshacer</button>'
+      : '<button class="btn btn-ghost" style="width:auto;padding:3px 8px;font-size:10px;" onclick="expulsarDorsal(' + p.dorsal + ')">Expulsar</button>';
+    return `
+    <div class="part-item ${fuera ? 'fuera' : (p.vivo?'':'elim')}">
       <div class="part-dot ${p.vivo?'':'dead'}"></div>
       <div class="part-dorsal">#${p.dorsal}</div>
-      <div>
+      <div style="min-width:0;">
         <div class="part-name">${p.nombre||''} ${p.apellidos||''}</div>
-        <div style="font-size:10px;color:var(--texto2);">${p.email||''}</div>
+        <div style="font-size:10px;color:var(--texto2);">${pie}</div>
       </div>
-    </div>
-  `).join('');
+      <div style="margin-left:auto;">${boton}</div>
+    </div>`;
+  }).join('');
 }
 
 /* ===== TABS ===== */
@@ -1984,6 +2160,12 @@ async function salvarManual() {
 // documento propio por evento, para no perder el registro cuando el
 // dorsal vuelva a ser eliminado más adelante).
 async function salvarDorsal(dorsal, metodo) {
+  // Cerrojo: aunque el dorsal llegue aquí por otro camino (equipo ganador,
+  // comando de bingo, botón manual), un expulsado o un abandono no revive.
+  if (estaFuera(participantes[dorsal])) {
+    mostrarNotif("#" + dorsal + " está " + etiquetaFuera(participantes[dorsal]).toLowerCase() + ": no se puede recuperar");
+    return;
+  }
   await db.collection("eliminaciones").doc(String(dorsal)).delete();
   await db.collection("participantes").doc(String(dorsal)).update({
     vivo: true, eliminado_en: null, prueba: null, metodo: null, juez: null
