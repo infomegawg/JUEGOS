@@ -461,6 +461,7 @@ function pitidoFinal() {
     const t = ctxAudio.currentTime;
     const DURACION = 2.2;
     const NOTA = 104;        // muy grave: atraviesa el ruido del pabellón
+    const FUERZA = 0.45;     // nivel de la bocina, aparte del de la música
 
     const filtro = ctxAudio.createBiquadFilter();
     filtro.type = "lowpass";
@@ -471,8 +472,8 @@ function pitidoFinal() {
     // Ataque casi instantáneo, cuerpo plano y corte rápido al final.
     const sobre = ctxAudio.createGain();
     sobre.gain.setValueAtTime(0.0001, t);
-    sobre.gain.exponentialRampToValueAtTime(0.9, t + 0.02);
-    sobre.gain.setValueAtTime(0.9, t + DURACION - 0.16);
+    sobre.gain.exponentialRampToValueAtTime(FUERZA, t + 0.02);
+    sobre.gain.setValueAtTime(FUERZA, t + DURACION - 0.16);
     sobre.gain.exponentialRampToValueAtTime(0.0001, t + DURACION);
     sobre.connect(filtro);
 
