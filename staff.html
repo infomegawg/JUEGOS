@@ -10301,6 +10301,16 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     <option value="EQUILIBRIO FATAL">11. EQUILIBRIO FATAL</option>
     <option value="LA GRAN FINAL">12. LA GRAN FINAL</option>
   </select>
+  <div id="aviso-prueba-desync" style="display:none;margin-top:6px;background:rgba(255,59,78,.2);
+       border:1px solid #ff3b4e;border-radius:8px;padding:6px 8px;font-size:10px;line-height:1.4;
+       color:#ffd7db;font-weight:700;text-align:center;">
+    ⚠ ESTÁS EN OTRA PRUEBA<br>
+    <span style="font-weight:400;">El panel está en <b id="aviso-prueba-panel">—</b>.
+    Tus eliminaciones se guardarán con la prueba que tienes puesta.</span>
+    <div style="margin-top:5px;"><button onclick="volverAPruebaDelPanel()"
+      style="width:auto;padding:4px 10px;font-size:10px;font-weight:800;border-radius:6px;
+      border:1px solid #ff3b4e;background:#ff3b4e;color:#fff;cursor:pointer;">Volver a la del panel</button></div>
+  </div>
 </div>
 
 <!-- TABS -->
@@ -10566,10 +10576,75 @@ function idStaffDoc(nombre) {
   return nombre.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "_");
 }
 
-/* ===== PRUEBA (solo etiqueta local para las propuestas, no escribe a sesión global) ===== */
+/* ===== PRUEBA ACTUAL =====
+   Antes cada movil guardaba su prueba en su propio localStorage y no hablaba
+   con nadie: dependia de que quince personas se acordaran de cambiar el
+   desplegable a la vez. No se acuerdan, y las eliminaciones quedaban
+   etiquetadas con la prueba equivocada.
+
+   Ahora manda el panel: cuando alli se cambia la prueba, todos los moviles
+   cambian solos. Se deja cambiar a mano porque hace falta de verdad en las
+   transiciones (un arbitro cerrando la prueba anterior mientras el panel ya
+   ha pasado a la siguiente), pero entonces la app avisa en rojo y vuelve a
+   sincronizarse sola en el siguiente cambio del panel. */
+
+let pruebaDelPanel = null;   // ultima prueba publicada por el panel
+let pruebaManual = false;    // true si este movil la ha cambiado a mano
+
+function pruebaSeleccionada() {
+  return document.getElementById("prueba-select-staff").value;
+}
+
+function pintarAvisoPrueba() {
+  const aviso = document.getElementById("aviso-prueba-desync");
+  if (!aviso) return;
+  const desincronizada = !!(pruebaDelPanel && pruebaSeleccionada() !== pruebaDelPanel);
+  aviso.style.display = desincronizada ? "block" : "none";
+  const donde = document.getElementById("aviso-prueba-panel");
+  if (donde && pruebaDelPanel) donde.textContent = pruebaDelPanel;
+}
+
+// Se llama al cambiar el desplegable a mano.
 function guardarPruebaLocal() {
-  const valor = document.getElementById("prueba-select-staff").value;
+  const valor = pruebaSeleccionada();
   lsSet("staffPrueba", valor);
+  pruebaManual = !!(pruebaDelPanel && valor !== pruebaDelPanel);
+  pintarAvisoPrueba();
+  enviarPresencia();
+}
+
+function volverAPruebaDelPanel() {
+  if (!pruebaDelPanel) return;
+  document.getElementById("prueba-select-staff").value = pruebaDelPanel;
+  pruebaManual = false;
+  lsSet("staffPrueba", pruebaDelPanel);
+  pintarAvisoPrueba();
+  enviarPresencia();
+  toast("Prueba: " + pruebaDelPanel);
+}
+
+function escucharPruebaActual() {
+  db.collection("sesion").doc("actual").onSnapshot((doc) => {
+    const d = doc.exists ? doc.data() : null;
+    const delPanel = d && d.prueba_actual ? String(d.prueba_actual) : null;
+    if (!delPanel || delPanel === pruebaDelPanel) { pintarAvisoPrueba(); return; }
+
+    // El panel ha cambiado de prueba: se acata y se deshace cualquier cambio
+    // manual anterior, que ya no tiene sentido.
+    const anterior = pruebaDelPanel;
+    pruebaDelPanel = delPanel;
+    pruebaManual = false;
+    const sel = document.getElementById("prueba-select-staff");
+    const existe = [...sel.options].some(o => o.value === delPanel);
+    if (existe) {
+      sel.value = delPanel;
+      lsSet("staffPrueba", delPanel);
+      // En el primer arranque no se avisa: no es un cambio, es ponerse al dia.
+      if (anterior !== null) toast("Prueba actual: " + delPanel);
+    }
+    pintarAvisoPrueba();
+    enviarPresencia();
+  }, (e) => console.warn("prueba actual:", e));
 }
 
 /* ===== TABS ===== */
@@ -10960,8 +11035,11 @@ async function pedirAyuda() {
 /* ===== PRESENCIA (heartbeat) ===== */
 function enviarPresencia() {
   if (!staffNombre) return;
+  const sel = document.getElementById("prueba-select-staff");
   db.collection("staff_presencia").doc(idStaffDoc(staffNombre)).set({
     nombre: staffNombre,
+    prueba: sel ? sel.value : null,
+    prueba_manual: !!pruebaManual,
     ultima_actividad: TS()
   }, { merge: true }).catch(e => console.error(e));
 }
@@ -11092,7 +11170,8 @@ function iniciarApp() {
   const selPrueba = document.getElementById("prueba-select-staff");
   selPrueba.value = lsGet("staffPrueba") || "";
   if (!selPrueba.value) selPrueba.selectedIndex = 0;
-  guardarPruebaLocal();
+  lsSet("staffPrueba", pruebaSeleccionada());
+  escucharPruebaActual();
   escucharParticipantesStaff();
   escucharEquiposStaffApp();
   escucharMisPropuestas();
