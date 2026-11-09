@@ -251,6 +251,13 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <!-- APPS DIGITALES -->
       <div class="section">
         <div class="section-title"><i class="ti ti-device-desktop"></i> Apps digitales</div>
+        <div id="aviso-voz-batalla" style="display:none;background:rgba(255,122,26,.18);
+             border:1px solid var(--naranja);border-radius:8px;padding:10px 12px;margin-bottom:10px;
+             font-size:12px;line-height:1.5;color:#ffd9b8;">
+          <b>⚠ La pantalla de Batalla Naval está muda</b><br>
+          Chrome bloquea la voz hasta que alguien toca esa pantalla.
+          Haz un clic en el portátil de la pantalla gigante y este aviso desaparecerá.
+        </div>
         <div class="led-btns">
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo.html','_blank')"><i class="ti ti-skull"></i> Bingo Eliminación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/bingo-salvacion.html','_blank')"><i class="ti ti-heart"></i> Bingo Salvación</button>
@@ -771,6 +778,27 @@ function hablarPanel(texto) {
 }
 
 /* =========================================================
+   ¿TIENE VOZ LA PANTALLA GIGANTE?
+
+   Chrome no deja hablar a una pestaña donde nadie ha tocado nada, y la de
+   Batalla Naval se abre sola desde aquí, así que arranca muda. En la propia
+   pantalla no se puede avisar porque la ve el público: la pantalla deja
+   constancia en "presencia/espectador_batalla" y el aviso sale aquí.
+
+   Solo se tiene en cuenta un parte reciente: si la pantalla lleva más de dos
+   minutos sin dar señales, está cerrada y no hay nada que avisar.
+   ========================================================= */
+function vigilarVozBatalla() {
+  db.collection("presencia").doc("espectador_batalla").onSnapshot((doc) => {
+    const aviso = document.getElementById("aviso-voz-batalla");
+    if (!aviso) return;
+    const d = doc.exists ? doc.data() : null;
+    const fresco = d && d.visto_en && (Date.now() - d.visto_en) < 120000;
+    aviso.style.display = (fresco && !d.voz_armada) ? "block" : "none";
+  }, (e) => console.warn("vigilancia voz batalla:", e));
+}
+
+/* =========================================================
    MEGAFONÍA LIBRE
 
    Suena por los altavoces de este ordenador, que es el que está conectado al
@@ -997,6 +1025,7 @@ function bloquearPanel() {
 /* ===== INIT ===== */
 function init() {
   initVoz();
+  vigilarVozBatalla();
   updateClock();
   setInterval(updateClock, 1000);
   escucharParticipantes();
