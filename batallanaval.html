@@ -384,6 +384,14 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// Con datos móviles en un pabellón lleno la cobertura va y viene. Con esto la
+// app sigue funcionando sin conexión y sincroniza cuando vuelve. Además evita
+// volver a descargar los 500 dorsales en cada recarga, que es lo que agota la
+// cuota diaria de Firestore.
+db.enablePersistence({ synchronizeTabs: true }).catch((e) => {
+  console.warn("Sin persistencia offline:", e.code);
+});
+
 /* =========================================================
    ACCESO A LA BASE DE DATOS
    Hasta ahora cualquiera con el enlace podía leer y escribir en la base del
@@ -1274,7 +1282,8 @@ partidaRef.onSnapshot(snap => {
 
   // Transición automática de colocación -> batalla cuando ambos están listos
   // (el espectador solo mira, no escribe en la partida)
-  if (!modoEspectador && d.fase === 'colocacion' && d.listoA && d.listoB && !yaTransicionoFase) {
+  const deServidor = !snap.metadata.fromCache;
+  if (deServidor && !modoEspectador && d.fase === 'colocacion' && d.listoA && d.listoB && !yaTransicionoFase) {
     yaTransicionoFase = true;
     partidaRef.update({ fase: 'batalla' }).catch(e => console.error(e));
   }
