@@ -293,6 +293,29 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       </div>
 
       <!-- LLAMAR JUGADOR -->
+      <!-- MEGAFONÍA: decir cualquier cosa por los altavoces -->
+      <div class="section">
+        <div class="section-title"><i class="ti ti-microphone"></i> Megafonía</div>
+        <textarea id="megafonia-texto" rows="3"
+          placeholder="Escribe aquí lo que quieres que se diga por megafonía&#10;Ejemplo: La siguiente prueba empieza en cinco minutos"
+          style="width:100%;resize:vertical;font-family:inherit;font-size:13px;line-height:1.5;padding:10px;"
+          onkeydown="if(event.key==='Enter'&&(event.ctrlKey||event.metaKey))reproducirMegafonia()"></textarea>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn btn-naranja" style="flex:1;" onclick="reproducirMegafonia()">
+            <i class="ti ti-player-play"></i> Reproducir
+          </button>
+          <button class="btn btn-ghost" style="flex:0 0 auto;" onclick="pararMegafonia()" title="Cortar la locución">
+            <i class="ti ti-player-stop"></i> Parar
+          </button>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:8px;font-size:12px;color:var(--texto2);">
+          <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;">
+            <input type="checkbox" id="megafonia-repetir" /> Decirlo dos veces
+          </label>
+          <span style="opacity:.7;">Ctrl + Enter para reproducir</span>
+        </div>
+      </div>
+
       <div class="section">
         <div class="section-title"><i class="ti ti-speakerphone"></i> Llamar jugador</div>
         <div class="form-row">
@@ -747,6 +770,54 @@ function hablarPanel(texto) {
   msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
   if (vozSeleccionada) msg.voice = vozSeleccionada;
   window.speechSynthesis.speak(msg);
+}
+
+/* =========================================================
+   MEGAFONÍA LIBRE
+
+   Suena por los altavoces de este ordenador, que es el que está conectado al
+   equipo de sonido: igual que las llamadas a jugadores. La pantalla LED no
+   dice nada, solo pinta.
+
+   El texto no se borra al reproducirlo. En un evento en directo hace falta
+   repetir el mismo aviso varias veces, y volver a escribirlo entero cada vez
+   es justo lo que no se tiene tiempo de hacer.
+   ========================================================= */
+function reproducirMegafonia() {
+  const caja = document.getElementById("megafonia-texto");
+  const texto = caja.value.trim();
+  if (!texto) { mostrarNotif("Escribe antes lo que quieres que diga"); caja.focus(); return; }
+  if (!window.speechSynthesis) { mostrarNotif("Este navegador no puede hablar"); return; }
+
+  window.speechSynthesis.cancel();
+
+  const decir = (t, alAcabar) => {
+    const msg = new SpeechSynthesisUtterance(t);
+    msg.lang = "es-ES"; msg.rate = 0.9; msg.pitch = 0.9; msg.volume = 1;
+    if (vozSeleccionada) msg.voice = vozSeleccionada;
+    if (alAcabar) msg.onend = alAcabar;
+    window.speechSynthesis.speak(msg);
+  };
+
+  if (document.getElementById("megafonia-repetir").checked) {
+    // Un silencio entre las dos pasadas: encadenadas suenan atropelladas y
+    // la segunda se pierde.
+    decir(texto, () => {
+      const pausa = new SpeechSynthesisUtterance(" ");
+      pausa.volume = 0;
+      pausa.onend = () => setTimeout(() => decir(texto), 700);
+      window.speechSynthesis.speak(pausa);
+    });
+  } else {
+    decir(texto);
+  }
+
+  mostrarNotif("Megafonía: reproduciendo");
+}
+
+function pararMegafonia() {
+  if (window.speechSynthesis) window.speechSynthesis.cancel();
+  mostrarNotif("Locución cortada");
 }
 
 // Anuncia la eliminación de un equipo entero: "Equipo Azul, has sido eliminado"
