@@ -103,6 +103,15 @@ input::placeholder { color: var(--texto2); }
   border: 3px solid var(--barco-borde);
   box-shadow: 0 0 14px rgba(160,107,255,0.5);
 }
+/* Un barco tocado o hundido sigue siendo la misma pieza: mantiene el borde de
+   3px para que los puentes del hueco sigan cuadrando (.cell.tocado lo bajaba a
+   1px y la casilla quedaba descolocada respecto a sus vecinas).
+   Va ANTES de las reglas con-*: si fuera despues volveria a pintar los bordes
+   que esas reglas quitan en los lados que unen con otra casilla del barco. */
+.cell.barco.tocado, .cell.barco.hundido { border-width: 3px; border-style: solid; border-color: var(--barco-borde);
+  /* Y el mismo relleno que el puente: .cell.tocado lo dejaba translucido y se
+     veia una raya mas oscura justo en la union. */
+  background: var(--barco-color); }
 .cell.barco.con-arriba { border-top-color: transparent; border-top-left-radius: 0; border-top-right-radius: 0; }
 .cell.barco.con-abajo { border-bottom-color: transparent; border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
 .cell.barco.con-izq { border-left-color: transparent; border-top-left-radius: 0; border-bottom-left-radius: 0; }
@@ -116,17 +125,19 @@ input::placeholder { color: var(--texto2); }
       clamp(3px, 0.5vh, 6px), asi que crece en pantallas altas (la LED gigante
       es donde peor se veia). Se calcula todo a partir de var(--hueco). */
 .cell.barco.con-der::after {
-  content: ''; position: absolute;
-  right: calc(-1 * (var(--hueco, 3px) + 3px));
+  content: ''; position: absolute; z-index: 2;
+  right: calc(-1 * (var(--hueco, 3px) + 4px));
   top: -3px; bottom: -3px;
-  width: calc(var(--hueco, 3px) + 4px);
+  width: calc(var(--hueco, 3px) + 6px);
   background: var(--barco-color); border-top: 3px solid var(--barco-borde); border-bottom: 3px solid var(--barco-borde);
 }
+/* z-index: el resplandor (box-shadow) de la casilla vecina se colaba por
+   encima del puente y dibujaba una raya tenue en cada union. */
 .cell.barco.con-abajo::before {
-  content: ''; position: absolute;
-  bottom: calc(-1 * (var(--hueco, 3px) + 3px));
+  content: ''; position: absolute; z-index: 2;
+  bottom: calc(-1 * (var(--hueco, 3px) + 4px));
   left: -3px; right: -3px;
-  height: calc(var(--hueco, 3px) + 4px);
+  height: calc(var(--hueco, 3px) + 6px);
   background: var(--barco-color); border-left: 3px solid var(--barco-borde); border-right: 3px solid var(--barco-borde);
 }
 .cell.sugerido { background: rgba(255,122,26,0.28); border: 2px dashed var(--naranja); cursor: pointer; }
@@ -246,6 +257,13 @@ body.espectador-mode #pantalla-espectador .board {
   padding: clamp(8px, 1.4vh, 18px); border-radius: 16px;
 }
 body.espectador-mode #pantalla-espectador .cell { font-size: clamp(12px, 2vh, 24px); border-radius: 8px; }
+/* Ese border-radius de arriba lleva un id y gana a las reglas .cell.barco.con-*,
+   que son las que cuadran las esquinas de las uniones. Se repiten aqui con la
+   misma fuerza para que un barco se vea como una pieza y no como cuadritos. */
+body.espectador-mode #pantalla-espectador .cell.barco.con-arriba { border-top-left-radius: 0; border-top-right-radius: 0; }
+body.espectador-mode #pantalla-espectador .cell.barco.con-abajo { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+body.espectador-mode #pantalla-espectador .cell.barco.con-izq { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+body.espectador-mode #pantalla-espectador .cell.barco.con-der { border-top-right-radius: 0; border-bottom-right-radius: 0; }
 /* Cada flota con el color de su equipo: rojo el A, azul el B. Los impactos y
    los hundimientos mandan sobre el color de equipo (tocado en rojo oscuro,
    hundido todo en negro con calavera). */
@@ -320,6 +338,16 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
   <!-- BATALLA -->
   <div class="screen" id="pantalla-batalla">
     <div class="turno-banner" id="turno-banner"></div>
+    <div id="marcador-turno" style="display:none;align-items:center;justify-content:center;gap:18px;
+         margin-bottom:14px;flex-wrap:wrap;">
+      <div id="crono-turno" style="font-family:var(--font);font-size:34px;font-weight:900;
+           letter-spacing:2px;padding:6px 20px;border-radius:12px;border:2px solid var(--border);
+           min-width:110px;text-align:center;">30s</div>
+      <div style="font-size:12px;color:var(--texto2);line-height:1.4;">
+        Te quedan <b id="jugadas-restantes" style="font-size:19px;color:#fff;">30</b> jugadas<br>
+        <span style="opacity:.75;">Rival: <b id="jugadas-rival">30</b></span>
+      </div>
+    </div>
     <div id="sorteo-bar" style="display:none;text-align:center;margin-bottom:18px;">
       <button class="btn btn-naranja" onclick="sortearInicio()">🎲 Sortear quién empieza</button>
     </div>
@@ -587,6 +615,7 @@ function initDesbloqueoAudio() {
   desbloquearAudio();
   setTimeout(reportarEstadoVoz, 1500);
   setInterval(reportarEstadoVoz, 30000);
+  vigilarCrono();
 }
 
 // alTerminar: se ejecuta cuando acaba la última frase (o enseguida si el
@@ -631,6 +660,21 @@ let ultimoEventoKey = null;
 // no puede marcar nada hasta que pasan estos segundos (da tiempo a que se oiga
 // la locución y a que el equipo reaccione en la lona física).
 const ESPERA_ENTRE_JUGADAS_MS = 5000;
+
+/* ===== CRONO DE TURNO Y OPORTUNIDADES =====
+   El manual da treinta segundos por turno y treinta oportunidades por equipo.
+   El crono es un AVISO, no un arbitro: al llegar a cero no cierra el turno ni
+   consume nada por su cuenta, porque eso cambia el resultado de la partida y
+   lo decide la mesa. Lo que hace es que los dos capitanes vean el mismo
+   numero y nadie discuta cuanto tiempo lleva pensando el otro.
+
+   El arranque del turno se guarda en la partida (turno_desde, en milisegundos
+   del reloj del movil que dispara). Los dos moviles son telefonos con hora de
+   red, asi que el desfase es de decimas; si algun dia importara al segundo,
+   habria que pasarlo a hora de servidor. */
+const SEGUNDOS_POR_TURNO = 30;
+const OPORTUNIDADES_POR_EQUIPO = 30;
+let ticCrono = null;
 let esperaHasta = 0;
 let ticEspera = null;
 let ultimoHistorialLen = null;
@@ -928,6 +972,7 @@ async function sortearInicio() {
       const elegido = Math.random() < 0.5 ? 'A' : 'B';
       tx.update(partidaRef, {
         turno: elegido,
+        turno_desde: Date.now(),
         ultimoEvento: { tipo: 'inicio', equipoLetra: elegido, ts: TS() }
       });
     });
@@ -981,6 +1026,7 @@ async function disparar(fila, col) {
         [flotaKey]: flota,
         historial: historial,
         turno: gano ? null : targetLetra,
+        turno_desde: Date.now(),
         ultimoEvento: { tipo: 'disparo', equipoLetra: miEquipo, coord, resultado, ts: TS() }
       };
       if (gano) {
@@ -990,6 +1036,58 @@ async function disparar(fila, col) {
       tx.update(partidaRef, actualizacion);
     });
   } catch(e) { console.error(e); }
+}
+
+/* Jugadas que ha hecho un equipo = disparos que ha recibido el rival. No hace
+   falta guardar ningun contador nuevo: ya está en la partida. */
+function jugadasHechas(d, letra) {
+  const recibidos = letra === 'A' ? d.disparosRecibidosB : d.disparosRecibidosA;
+  if (!recibidos) return 0;
+  // Un barco hundido marca de golpe todas sus casillas; esas no son disparos.
+  return Object.values(recibidos).filter(v => v === 'agua' || v === 'tocado').length;
+}
+
+function pintarMarcadorTurno() {
+  const caja = document.getElementById("marcador-turno");
+  if (!caja) return;
+  const d = ultimaPartida;
+  const enJuego = d && d.fase === 'batalla' && !!d.turno && !!miEquipo;
+  caja.style.display = enJuego ? "flex" : "none";
+  if (!enJuego) return;
+
+  const rival = miEquipo === 'A' ? 'B' : 'A';
+  // El hundimiento reescribe casillas ya disparadas, asi que el recuento por
+  // casillas se queda corto: se usa el historial, que es disparo a disparo.
+  const porHistorial = (letra) => (d.historial || []).filter(h => h.equipoLetra === letra).length;
+  const mias = Math.max(0, OPORTUNIDADES_POR_EQUIPO - porHistorial(miEquipo));
+  const suyas = Math.max(0, OPORTUNIDADES_POR_EQUIPO - porHistorial(rival));
+  document.getElementById("jugadas-restantes").textContent = mias;
+  document.getElementById("jugadas-rival").textContent = suyas;
+
+  const crono = document.getElementById("crono-turno");
+  const esMiTurno = d.turno === miEquipo;
+  if (!esMiTurno) {
+    crono.textContent = "—";
+    crono.style.background = "transparent";
+    crono.style.borderColor = "var(--border)";
+    crono.style.color = "var(--texto2)";
+    return;
+  }
+  const desde = d.turno_desde || Date.now();
+  const quedan = Math.max(0, SEGUNDOS_POR_TURNO - Math.floor((Date.now() - desde) / 1000));
+  crono.textContent = quedan > 0 ? quedan + "s" : "¡TIEMPO!";
+  // Verde, naranja y rojo: se ve de reojo sin leer el numero.
+  const col = quedan > 10 ? ["#0d3b22", "#22c55e", "#b6ffcf"]
+            : quedan > 0  ? ["#4a2a06", "#ff7a1a", "#ffd9b8"]
+                          : ["#5c0616", "#ff3b4e", "#fff"];
+  crono.style.background = col[0];
+  crono.style.borderColor = col[1];
+  crono.style.color = col[2];
+}
+
+function vigilarCrono() {
+  if (ticCrono) clearInterval(ticCrono);
+  ticCrono = setInterval(pintarMarcadorTurno, 250);
 }
 
 // Arranca (o reinicia) la cuenta atrás y va refrescando el banner cada cuarto
@@ -1061,6 +1159,7 @@ function renderBatalla() {
   });
 
   renderFlotaRival(d);
+  pintarMarcadorTurno();
 
   // El capitán solo ve las jugadas del rival (las suyas ya las está haciendo él)
   const rival = miEquipo === 'A' ? 'B' : 'A';
