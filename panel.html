@@ -1659,13 +1659,37 @@ function renderPropuestasStaff(propuestas) {
     badge.textContent = propuestas.length;
   }
   if (!propuestas.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Sin propuestas</div>'; return; }
+
+  // Cuantas propuestas pendientes mencionan cada dorsal. Dos arbitros viendo
+  // la misma jugada proponen lo mismo, y desde la mesa son dos tarjetas
+  // identicas sin ninguna pista de que son la misma eliminacion.
+  const vecesPropuesto = {};
+  propuestas.forEach(pr => (pr.dorsales || []).forEach(d => {
+    vecesPropuesto[d] = (vecesPropuesto[d] || 0) + 1;
+  }));
+
   cont.innerHTML = propuestas.map(p => {
     const hora = p.creado_en ? new Date(p.creado_en.seconds*1000).toLocaleTimeString('es-ES') : '';
     const titulo = p.tipo === 'equipo'
       ? `Equipo ${p.equipo_nombre} (${p.dorsales.length} dorsales)`
       : (p.dorsales.length === 1 ? `Dorsal #${p.dorsales[0]}` : `${p.dorsales.length} dorsales sueltos`);
+    // Estado real de cada dorsal AHORA, no cuando se propuso.
+    const repetidos  = (p.dorsales || []).filter(d => vecesPropuesto[d] > 1);
+    const yaFuera    = (p.dorsales || []).filter(d => estaFuera(participantes[d]));
+    const yaElimin   = (p.dorsales || []).filter(d => {
+      const j = participantes[d];
+      return j && !j.vivo && !estaFuera(j);
+    });
+    const chip = (texto, fondo) => '<span style="background:' + fondo +
+      ';color:#fff;border-radius:5px;padding:1px 5px;font-size:9px;font-weight:800;' +
+      'margin-left:4px;white-space:nowrap;">' + texto + '</span>';
+    let avisos = '';
+    if (repetidos.length) avisos += chip('⚠ TAMBIÉN PROPUESTO POR OTRO', '#c2410c');
+    if (yaElimin.length)  avisos += chip('⚠ YA ELIMINADO', '#b45309');
+    if (yaFuera.length)   avisos += chip('⛔ FUERA DE JUEGO', '#374151');
+
     return `<div style="background:#fff3d6;border:1px solid var(--naranja);border-radius:6px;padding:8px;margin-bottom:6px;">
-      <div style="font-size:12px;font-weight:800;color:var(--naranja);">${titulo}</div>
+      <div style="font-size:12px;font-weight:800;color:var(--naranja);">${titulo}${avisos}</div>
       <div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">#${p.dorsales.join(', #')}</div>
       <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Propuesto por ${p.staff_nombre||'—'} · ${p.prueba||'—'} · ${hora}</div>
       <div style="display:flex;gap:6px;">
@@ -1683,16 +1707,47 @@ async function aceptarPropuestaStaff(id) {
     if (!snap.exists) return;
     const p = snap.data();
     if (p.estado !== "pendiente") { mostrarNotif("Esta propuesta ya se resolvió"); return; }
+
+    // ---- Filtro de estado, antes de tocar nada ----
+    let dorsales = (p.dorsales || []).slice();
+
+    // Expulsados y abandonos no se vuelven a eliminar nunca: ya estan fuera.
+    const fuera = dorsales.filter(d => estaFuera(participantes[d]));
+    if (fuera.length) {
+      mostrarNotif("Fuera de juego, se ignoran: #" + fuera.join(", #"));
+      dorsales = dorsales.filter(d => !estaFuera(participantes[d]));
+    }
+
+    // Ya eliminados: casi siempre es la propuesta duplicada de otro arbitro.
+    // Volver a aplicarla repite el anuncio por megafonia y, si al jugador lo
+    // habian recuperado en un bingo, lo elimina por segunda vez sin motivo.
+    const yaElim = dorsales.filter(d => {
+      const j = participantes[d];
+      return j && !j.vivo;
+    });
+    if (yaElim.length) {
+      const ok = confirm("Estos dorsales YA ESTÁN ELIMINADOS: #" + yaElim.join(", #") + "\n\n" +
+        "Suele ser la misma jugada propuesta por dos árbitros.\n" +
+        "Aceptar otra vez repetiría el anuncio por megafonía.\n\n" +
+        "Aceptar = eliminarlos de nuevo\nCancelar = dejarlos como están");
+      if (!ok) dorsales = dorsales.filter(d => !yaElim.includes(d));
+    }
+
     // Se marca resuelta ANTES de ejecutar, para que un doble clic no la duplique.
     await ref.update({ estado: "aceptada", resuelto_en: TS() });
 
+    if (!dorsales.length) {
+      mostrarNotif("Propuesta cerrada: no había nada que aplicar");
+      return;
+    }
+
     const extra = { prueba: p.prueba || undefined, staff_origen: p.staff_nombre || null };
     if (p.tipo === "equipo") {
-      await ejecutarEliminacionMultiple(p.dorsales, p.equipo_nombre, 10, extra);
-    } else if (p.dorsales.length === 1) {
-      await eliminarDorsal(p.dorsales[0], "staff-app", extra);
+      await ejecutarEliminacionMultiple(dorsales, p.equipo_nombre, 10, extra);
+    } else if (dorsales.length === 1) {
+      await eliminarDorsal(dorsales[0], "staff-app", extra);
     } else {
-      await ejecutarEliminacionMultiple(p.dorsales, "", 10, extra);
+      await ejecutarEliminacionMultiple(dorsales, "", 10, extra);
     }
     mostrarNotif("Propuesta aceptada y aplicada");
   } catch(e) { console.error(e); mostrarNotif("Error al aceptar la propuesta"); }
