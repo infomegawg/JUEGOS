@@ -275,6 +275,23 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <div class="section">
         <div class="section-title"><i class="ti ti-remote-control"></i> Control remoto Bingo Salvación</div>
         <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta de salvación en la pantalla LED sin tocar ese portátil (la pantalla debe estar en modo "Salvación")</div>
+
+        <!-- QUIÉN ENTRA EN EL SORTEO -->
+        <div style="background:rgba(0,0,0,.05);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;">
+          <div style="font-size:10px;font-weight:800;color:var(--texto2);margin-bottom:5px;letter-spacing:.4px;">QUIÉN ENTRA EN EL SORTEO</div>
+          <select id="filtro-salvacion" onchange="cambiarFiltroSalvacion()" style="width:100%;font-size:11px;font-weight:700;margin-bottom:6px;">
+            <option value="1-2">Bingo 1 — eliminados en las pruebas 1 y 2</option>
+            <option value="1-4">Bingo 2 — eliminados en las pruebas 1 a 4</option>
+            <option value="5-7">Bingo 3 — eliminados en las pruebas 5 a 7</option>
+            <option value="todos">Todos los eliminados (sin filtro)</option>
+          </select>
+          <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--texto2);cursor:pointer;">
+            <input type="checkbox" id="filtro-sin-prueba" onchange="cambiarFiltroSalvacion()" style="width:auto;margin:0;" />
+            Incluir también los eliminados sin prueba anotada
+          </label>
+          <div id="contador-salvacion" style="font-size:11px;font-weight:800;margin-top:6px;line-height:1.5;"></div>
+        </div>
+
         <button class="btn btn-verde" style="margin-bottom:8px;" onclick="girarSalvacionRemoto()">
           <i class="ti ti-player-play"></i> Girar (1 número)
         </button>
@@ -1074,6 +1091,7 @@ function init() {
   initVoz();
   vigilarVozBatalla();
 escucharSalidas();
+cambiarFiltroSalvacion();
   updateClock();
   setInterval(updateClock, 1000);
   escucharParticipantes();
@@ -1343,6 +1361,7 @@ function renderFueraRecinto() {
 
 /* ===== GRID ===== */
 function renderGrid() {
+  renderContadorSalvacion();
   const grid = document.getElementById("grid");
   const q = document.getElementById("grid-search").value.trim().toLowerCase();
   const parts = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
@@ -1992,21 +2011,117 @@ async function enviarComandoBingo(coleccion, accion, ganadores, textoOk) {
   } catch(e) { console.error(e); mostrarNotif("Error al enviar el comando"); }
 }
 
+/* ===== FILTRO DE LOS BINGOS DE RECUPERACIÓN =====
+   El manual no sortea entre todos los eliminados: cada bingo repesca de un
+   tramo de pruebas. Si a alguien lo recuperaron y volvió a caer en la 5-7,
+   vuelve a entrar en el tercero, y eso sale solo porque la prueba del
+   participante se reescribe en cada eliminación y se borra al salvarlo.
+
+   Los eliminados "sin prueba" son los que marcó un móvil mal configurado.
+   Quedan fuera por defecto, pero contados y a la vista: un jugador que
+   desaparece del sorteo en silencio es una reclamación en la cola. */
+
+const PRUEBAS_ORDEN = [
+  "LUZ ROJA LUZ VERDE", "SELECCIÓN FATAL", "CAMPO DE BATALLA", "PISTOLA A CIEGAS",
+  "DESAFÍO EXPLOSIVO", "LA RULETA", "TIRO AL SACO", "BATALLA NAVAL",
+  "LAS CANICAS", "OMEGA TRIVIAL", "EQUILIBRIO FATAL", "LA GRAN FINAL"
+];
+
+function numeroDePrueba(nombre) {
+  if (!nombre) return null;
+  const i = PRUEBAS_ORDEN.indexOf(String(nombre).trim().toUpperCase());
+  return i === -1 ? null : i + 1;   // 1..12, null si no la reconoce
+}
+
+function rangoSalvacion() {
+  const v = (document.getElementById("filtro-salvacion") || {}).value || "todos";
+  if (v === "todos") return null;
+  const [a, b] = v.split("-").map(Number);
+  return { desde: a, hasta: b };
+}
+
+function incluirSinPrueba() {
+  const c = document.getElementById("filtro-sin-prueba");
+  return !!(c && c.checked);
+}
+
+/* Reparte los eliminados en tres montones, para poder enseñar el porqué. */
+function repartoSalvacion() {
+  const rango = rangoSalvacion();
+  const elegibles = [], fueraDeRango = [], sinPrueba = [];
+  dorsalesEliminados().forEach(d => {
+    const n = numeroDePrueba((participantes[d] || {}).prueba);
+    if (n === null) { (incluirSinPrueba() ? elegibles : sinPrueba).push(d); return; }
+    if (!rango || (n >= rango.desde && n <= rango.hasta)) elegibles.push(d);
+    else fueraDeRango.push(d);
+  });
+  return { elegibles, fueraDeRango, sinPrueba };
+}
+
+function renderContadorSalvacion() {
+  const caja = document.getElementById("contador-salvacion");
+  if (!caja) return;
+  const r = repartoSalvacion();
+  const color = r.elegibles.length ? "var(--verde)" : "var(--rojo)";
+  let html = '<span style="color:' + color + ';">' + r.elegibles.length + ' entran en el sorteo</span>';
+  const notas = [];
+  if (r.fueraDeRango.length) notas.push(r.fueraDeRango.length + " de otras pruebas");
+  if (r.sinPrueba.length) notas.push('<b style="color:var(--naranja);">' + r.sinPrueba.length + " sin prueba anotada</b>");
+  if (notas.length) html += '<div style="font-weight:400;color:var(--texto2);font-size:10px;">Quedan fuera: ' + notas.join(" · ") + "</div>";
+  caja.innerHTML = html;
+}
+
+async function cambiarFiltroSalvacion() {
+  renderContadorSalvacion();
+  // Se publica para que el portátil de la ruleta use el mismo criterio si
+  // alguien gira desde allí en vez de desde aquí.
+  const rango = rangoSalvacion();
+  try {
+    await db.collection("sesion").doc("actual").set({
+      filtro_salvacion: {
+        desde: rango ? rango.desde : null,
+        hasta: rango ? rango.hasta : null,
+        sin_prueba: incluirSinPrueba(),
+        etiqueta: (document.getElementById("filtro-salvacion") || {}).value || "todos"
+      }
+    }, { merge: true });
+  } catch (e) { console.warn("filtro salvacion:", e); }
+}
+
 /* ----- Bingo de Salvación ----- */
 async function girarSalvacionRemoto() {
-  const pool = dorsalesEliminados();
-  if (!pool.length) { mostrarNotif("No hay ningún eliminado al que salvar"); return; }
-  const g = elegirAlAzar(pool, 1);
+  const r = repartoSalvacion();
+  if (!r.elegibles.length) { mostrarNotif(motivoSinElegibles(r)); return; }
+  const g = elegirAlAzar(r.elegibles, 1);
   await enviarComandoBingo("salvacion_comandos", "girar", g, "Comando enviado: salvar 1 jugador");
+}
+
+function motivoSinElegibles(r) {
+  if (r.sinPrueba.length && !r.fueraDeRango.length)
+    return "Ninguno entra: los " + r.sinPrueba.length + " eliminados no tienen prueba anotada";
+  if (r.fueraDeRango.length)
+    return "Ninguno entra en este tramo de pruebas (" + r.fueraDeRango.length + " son de otras)";
+  return "No hay ningún eliminado al que salvar";
 }
 
 async function girarSalvacionMultiRemoto() {
   const cantidad = parseInt(document.getElementById("salvacion-remoto-cantidad").value, 10);
   if (!cantidad || cantidad < 1) { mostrarNotif("Indica cuántos jugadores salvar"); return; }
-  const pool = dorsalesEliminados();
-  if (!pool.length) { mostrarNotif("No hay ningún eliminado al que salvar"); return; }
-  const g = elegirAlAzar(pool, cantidad);
-  if (g.length < cantidad) mostrarNotif(`Solo hay ${g.length} eliminados: se salvan todos`);
+  const r = repartoSalvacion();
+  if (!r.elegibles.length) { mostrarNotif(motivoSinElegibles(r)); return; }
+
+  // Pedir más de los que hay es casi siempre un error de tramo: se para y se
+  // explica en vez de salvar a menos gente de la anunciada por megafonía.
+  if (cantidad > r.elegibles.length) {
+    const ok = confirm("Has pedido salvar a " + cantidad + " pero en este tramo solo entran " +
+      r.elegibles.length + ".\n\n" +
+      (r.sinPrueba.length ? "Hay " + r.sinPrueba.length + " eliminados sin prueba anotada que no cuentan.\n" : "") +
+      (r.fueraDeRango.length ? "Hay " + r.fueraDeRango.length + " eliminados de otras pruebas.\n" : "") +
+      "\nAceptar = salvar a los " + r.elegibles.length + " que hay\nCancelar = revisar el filtro");
+    if (!ok) return;
+  }
+
+  const g = elegirAlAzar(r.elegibles, cantidad);
   await enviarComandoBingo("salvacion_comandos", "girar_multi", g, `Comando enviado: salvar ${g.length} y girar`);
 }
 
