@@ -1228,6 +1228,16 @@ async function expulsarDorsal(dorsal) {
     "Escribe el motivo:");
   if (motivo === null) return;
   if (!motivo.trim()) { mostrarNotif("Hace falta un motivo para expulsar"); return; }
+
+  // Segunda barrera: el PIN. Expulsar es irreversible de hecho (el dorsal queda
+  // muerto el resto del dia) y el panel esta abierto en la mesa todo el evento,
+  // asi que no puede bastar con un clic de cualquiera que pase por delante.
+  const pin = prompt("EXPULSAR AL DORSAL #" + dorsal + "\n" +
+    "Motivo: " + motivo.trim() + "\n\n" +
+    "Introduce el PIN para confirmar la expulsión:");
+  if (pin === null) return;
+  if (pin !== "1402") { mostrarNotif("PIN incorrecto, no se ha expulsado a nadie"); return; }
+
   await marcarFuera(dorsal, "expulsado", motivo.trim());
 }
 
