@@ -140,6 +140,7 @@ input::placeholder { color: var(--texto2); }
   height: calc(var(--hueco, 3px) + 6px);
   background: var(--barco-color); border-left: 3px solid var(--barco-borde); border-right: 3px solid var(--barco-borde);
 }
+.turno-banner.agotado { background: rgba(255,59,78,0.18); border-color: var(--rojo); color: #ffd7db; }
 .cell.sugerido { background: rgba(255,122,26,0.28); border: 2px dashed var(--naranja); cursor: pointer; }
 .cell.ancla { background: rgba(255,122,26,0.5); border: 2px solid var(--naranja); }
 .cell.agua { background: rgba(47,111,237,0.35); border: 1px solid var(--azul); color: #cfe0ff; }
@@ -338,16 +339,6 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
   <!-- BATALLA -->
   <div class="screen" id="pantalla-batalla">
     <div class="turno-banner" id="turno-banner"></div>
-    <div id="marcador-turno" style="display:none;align-items:center;justify-content:center;gap:18px;
-         margin-bottom:14px;flex-wrap:wrap;">
-      <div id="crono-turno" style="font-family:var(--font);font-size:34px;font-weight:900;
-           letter-spacing:2px;padding:6px 20px;border-radius:12px;border:2px solid var(--border);
-           min-width:110px;text-align:center;">30s</div>
-      <div style="font-size:12px;color:var(--texto2);line-height:1.4;">
-        Te quedan <b id="jugadas-restantes" style="font-size:19px;color:#fff;">30</b> jugadas<br>
-        <span style="opacity:.75;">Rival: <b id="jugadas-rival">30</b></span>
-      </div>
-    </div>
     <div id="sorteo-bar" style="display:none;text-align:center;margin-bottom:18px;">
       <button class="btn btn-naranja" onclick="sortearInicio()">🎲 Sortear quién empieza</button>
     </div>
@@ -357,6 +348,11 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <h3 id="flota-rival-titulo">☠️ FLOTA RIVAL</h3>
         <div id="flota-rival-lista"></div>
         <div class="flota-rival-resumen" id="flota-rival-resumen"></div>
+        <div id="jugadas-caja" style="display:none;margin-top:10px;padding-top:10px;
+             border-top:1px solid var(--border);font-size:12px;color:var(--texto2);line-height:1.6;">
+          Te quedan <b id="jugadas-restantes" style="font-size:18px;color:#fff;">30</b> jugadas<br>
+          <span style="opacity:.75;">Rival: <b id="jugadas-rival">30</b></span>
+        </div>
       </div>
       <div class="board-block">
         <h3>🛡️ TU FLOTA</h3>
@@ -1047,12 +1043,24 @@ function jugadasHechas(d, letra) {
   return Object.values(recibidos).filter(v => v === 'agua' || v === 'tocado').length;
 }
 
+/* Segundos que le quedan al que tiene el turno, o null si no procede. */
+function segundosDeTurno() {
+  const d = ultimaPartida;
+  if (!d || d.fase !== 'batalla' || !d.turno) return null;
+  const desde = d.turno_desde;
+  if (!desde) return null;
+  return Math.max(0, SEGUNDOS_POR_TURNO - Math.floor((Date.now() - desde) / 1000));
+}
+
 function pintarMarcadorTurno() {
-  const caja = document.getElementById("marcador-turno");
+  const caja = document.getElementById("jugadas-caja");
   if (!caja) return;
   const d = ultimaPartida;
   const enJuego = d && d.fase === 'batalla' && !!d.turno && !!miEquipo;
-  caja.style.display = enJuego ? "flex" : "none";
+  caja.style.display = enJuego ? "block" : "none";
+
+  // El crono vive en el banner de turno, que ya se repinta solo.
+  if (enJuego && !(Date.now() < esperaHasta) && d.turno === miEquipo) pintarBannerTurno();
   if (!enJuego) return;
 
   const rival = miEquipo === 'A' ? 'B' : 'A';
@@ -1063,26 +1071,24 @@ function pintarMarcadorTurno() {
   const suyas = Math.max(0, OPORTUNIDADES_POR_EQUIPO - porHistorial(rival));
   document.getElementById("jugadas-restantes").textContent = mias;
   document.getElementById("jugadas-rival").textContent = suyas;
+}
 
-  const crono = document.getElementById("crono-turno");
-  const esMiTurno = d.turno === miEquipo;
-  if (!esMiTurno) {
-    crono.textContent = "—";
-    crono.style.background = "transparent";
-    crono.style.borderColor = "var(--border)";
-    crono.style.color = "var(--texto2)";
+/* El banner de "es tu turno" con la cuenta atras incorporada. Se tiñe de
+   naranja en los ultimos diez segundos y de rojo al agotarse, para que el
+   capitan lo vea de reojo sin apartar la vista del tablero. */
+function pintarBannerTurno() {
+  const banner = document.getElementById("turno-banner");
+  if (!banner) return;
+  const q = segundosDeTurno();
+  if (q === null) {
+    banner.textContent = "🎯 ¡Es tu turno! Dispara en el tablero de ataque";
+    banner.className = "turno-banner mio";
     return;
   }
-  const desde = d.turno_desde || Date.now();
-  const quedan = Math.max(0, SEGUNDOS_POR_TURNO - Math.floor((Date.now() - desde) / 1000));
-  crono.textContent = quedan > 0 ? quedan + "s" : "¡TIEMPO!";
-  // Verde, naranja y rojo: se ve de reojo sin leer el numero.
-  const col = quedan > 10 ? ["#0d3b22", "#22c55e", "#b6ffcf"]
-            : quedan > 0  ? ["#4a2a06", "#ff7a1a", "#ffd9b8"]
-                          : ["#5c0616", "#ff3b4e", "#fff"];
-  crono.style.background = col[0];
-  crono.style.borderColor = col[1];
-  crono.style.color = col[2];
+  banner.innerHTML = q > 0
+    ? '🎯 ¡Es tu turno! Dispara en el tablero de ataque · <b style="font-family:var(--font);font-size:1.25em;letter-spacing:1px;">' + q + 's</b>'
+    : '⏰ <b style="font-family:var(--font);font-size:1.25em;letter-spacing:1px;">¡SE TE ACABÓ EL TIEMPO!</b> — dispara ya';
+  banner.className = "turno-banner " + (q === 0 ? "agotado" : q <= 10 ? "espera" : "mio");
 }
 
 function vigilarCrono() {
@@ -1138,8 +1144,7 @@ function renderBatalla() {
   } else if (d.turno === miEquipo && enEsperaDeTurno) {
     pintarBannerEspera();
   } else if (d.turno === miEquipo) {
-    banner.textContent = "🎯 ¡Es tu turno! Dispara en el tablero de ataque";
-    banner.className = "turno-banner mio";
+    pintarBannerTurno();
   } else {
     banner.textContent = `Turno de ${rivalNombre}...`;
     banner.className = "turno-banner rival";
