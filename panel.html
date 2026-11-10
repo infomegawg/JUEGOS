@@ -267,6 +267,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/acreditacion.html','_blank')"><i class="ti ti-id-badge-2"></i> Acreditación (puerta)</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/panel-acreditacion.html','_blank')"><i class="ti ti-chart-bar"></i> Panel de acreditación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1','_blank')"><i class="ti ti-anchor"></i> Batalla Naval (ver en directo)</button>
+          <button class="led-btn" id="btn-pausa-batalla" onclick="alternarPausaBatalla()" style="border-color:var(--naranja);color:#ffd9b8;"><i class="ti ti-player-pause"></i> Pausar Batalla Naval</button>
           <button class="led-btn" onclick="reiniciarBatallaNaval()" style="border-color:#ff3b4e;color:#ffb3ba;"><i class="ti ti-refresh-alert"></i> Reiniciar Batalla Naval</button>
         </div>
       </div>
@@ -1091,6 +1092,7 @@ function init() {
   initVoz();
   vigilarVozBatalla();
 escucharSalidas();
+escucharPausaBatalla();
 cambiarFiltroSalvacion();
   updateClock();
   setInterval(updateClock, 1000);
@@ -2463,6 +2465,51 @@ async function cambiarPruebaActual(valor) {
 }
 
 /* ===== REINICIAR BATALLA NAVAL ===== */
+/* ===== PAUSA DE LA BATALLA NAVAL =====
+   El crono de treinta segundos corre solo y pasa el turno al agotarse. Si hay
+   que parar la prueba (una caída, una reclamación, un corte de luz), esto
+   congela el reloj donde esté. Al reanudar se le devuelve al capitán el tiempo
+   exacto que le quedaba: se desplaza el arranque del turno tantos milisegundos
+   como haya durado la pausa, en vez de darle treinta segundos nuevos. */
+let batallaPausada = false;
+
+function escucharPausaBatalla() {
+  db.collection("batalla_naval").doc("partida_actual").onSnapshot(doc => {
+    const d = doc.exists ? doc.data() : null;
+    batallaPausada = !!(d && d.pausada);
+    const b = document.getElementById("btn-pausa-batalla");
+    if (!b) return;
+    b.innerHTML = batallaPausada
+      ? '<i class="ti ti-player-play"></i> Reanudar Batalla Naval'
+      : '<i class="ti ti-player-pause"></i> Pausar Batalla Naval';
+    b.style.borderColor = batallaPausada ? "var(--verde)" : "var(--naranja)";
+    b.style.color = batallaPausada ? "#b6ffcf" : "#ffd9b8";
+  }, (e) => console.warn("pausa batalla:", e));
+}
+
+async function alternarPausaBatalla() {
+  const ref = db.collection("batalla_naval").doc("partida_actual");
+  try {
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) { mostrarNotif("No hay ninguna partida en curso"); return; }
+      const d = doc.data();
+      if (d.pausada) {
+        // Reanudar: se le devuelve al capitán lo que le quedaba.
+        const parada = Date.now() - (d.pausa_desde || Date.now());
+        tx.update(ref, {
+          pausada: false,
+          pausa_desde: null,
+          turno_desde: (d.turno_desde || Date.now()) + Math.max(0, parada)
+        });
+      } else {
+        tx.update(ref, { pausada: true, pausa_desde: Date.now() });
+      }
+    });
+    mostrarNotif(batallaPausada ? "Batalla Naval reanudada" : "Batalla Naval en pausa");
+  } catch (e) { console.error(e); mostrarNotif("No se ha podido cambiar la pausa"); }
+}
+
 // Borra la partida actual de Batalla Naval. Al desaparecer el documento, tanto
 // las pantallas de los capitanes como la de espectador vuelven solas a la
 // pantalla inicial (nombres de equipo) y se olvidan del capitán y la flota.
