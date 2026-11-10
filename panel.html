@@ -1146,10 +1146,18 @@ function escucharSesion() {
     if (doc.exists) {
       const data = doc.data();
       // Solo sincronizar el desplegable Y el stat la primera vez que carga
+      // Solo se acepta un valor que exista en el desplegable. Un valor raro
+      // (de una version antigua o de otra app) dejaba el selector en blanco.
       if (primeraVez && data.prueba_actual) {
-        document.getElementById("prueba-select").value = data.prueba_actual;
-        document.getElementById("st-prueba").textContent = data.prueba_actual;
-        primeraVez = false;
+        const sel = document.getElementById("prueba-select");
+        const existe = [...sel.options].some(o => o.value === data.prueba_actual);
+        if (existe) {
+          sel.value = data.prueba_actual;
+          document.getElementById("st-prueba").textContent = data.prueba_actual;
+          primeraVez = false;
+        } else {
+          console.warn("prueba_actual desconocida, se ignora:", data.prueba_actual);
+        }
       }
     }
   });
