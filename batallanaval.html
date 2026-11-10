@@ -142,6 +142,26 @@ input::placeholder { color: var(--texto2); }
 }
 .turno-banner.agotado { background: rgba(255,59,78,0.18); border-color: var(--rojo); color: #ffd7db; }
 .turno-banner.pausa { background: rgba(255,255,255,0.1); border-color: #aaa; color: #e8e8e8; }
+/* Marcador de cada equipo en la pantalla grande: cuenta atras y jugadas que
+   le quedan. Solo corre el del equipo que tiene el turno; el otro se apaga
+   para que el publico sepa de un vistazo a quien le toca. */
+.marcador-esp { display: none; align-items: center; justify-content: center;
+  gap: clamp(10px, 1.6vw, 26px); margin-bottom: clamp(8px, 1.2vh, 16px); }
+.marcador-esp .crono { font-family: var(--font); font-weight: 900;
+  font-size: clamp(22px, 4.4vh, 58px); letter-spacing: 2px; line-height: 1;
+  padding: clamp(4px, 0.8vh, 12px) clamp(12px, 1.6vw, 28px);
+  border-radius: 14px; border: 3px solid var(--border); color: var(--texto2);
+  min-width: clamp(90px, 9vw, 170px); text-align: center; }
+.marcador-esp .jugadas { font-size: clamp(11px, 1.5vh, 20px); color: var(--texto2);
+  letter-spacing: 1px; text-transform: uppercase; }
+.marcador-esp .jugadas b { font-family: var(--font); font-size: clamp(18px, 2.8vh, 36px);
+  color: #fff; display: block; line-height: 1.1; }
+.marcador-esp.apagado .crono { opacity: .35; }
+.marcador-esp .crono.verde   { background: #0d3b22; border-color: #22c55e; color: #b6ffcf; }
+.marcador-esp .crono.naranja { background: #4a2a06; border-color: #ff7a1a; color: #ffd9b8; }
+.marcador-esp .crono.rojo    { background: #5c0616; border-color: #ff3b4e; color: #fff; }
+.marcador-esp .crono.pausa   { background: rgba(255,255,255,.12); border-color: #aaa; color: #e8e8e8;
+  font-size: clamp(14px, 2.2vh, 28px); letter-spacing: 1px; }
 .cell.sugerido { background: rgba(255,122,26,0.28); border: 2px dashed var(--naranja); cursor: pointer; }
 .cell.ancla { background: rgba(255,122,26,0.5); border: 2px solid var(--naranja); }
 .cell.agua { background: rgba(47,111,237,0.35); border: 1px solid var(--azul); color: #cfe0ff; }
@@ -386,6 +406,10 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
     <div class="boards-row">
       <div class="board-block">
         <h3 id="espectador-nombre-a">EQUIPO A</h3>
+        <div class="marcador-esp" id="marcador-esp-a">
+          <div class="crono" id="crono-esp-a">—</div>
+          <div class="jugadas"><b id="jug-esp-a">30</b> jugadas</div>
+        </div>
         <div class="board" id="board-espectador-a"></div>
         <div class="log-bajo-tablero">
           <h4>📋 ÚLTIMAS JUGADAS</h4>
@@ -394,6 +418,10 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
       </div>
       <div class="board-block">
         <h3 id="espectador-nombre-b">EQUIPO B</h3>
+        <div class="marcador-esp" id="marcador-esp-b">
+          <div class="crono" id="crono-esp-b">—</div>
+          <div class="jugadas"><b id="jug-esp-b">30</b> jugadas</div>
+        </div>
         <div class="board" id="board-espectador-b"></div>
         <div class="log-bajo-tablero">
           <h4>📋 ÚLTIMAS JUGADAS</h4>
@@ -1179,7 +1207,55 @@ function pintarBannerTurno() {
 
 function vigilarCrono() {
   if (ticCrono) clearInterval(ticCrono);
-  ticCrono = setInterval(() => { pintarMarcadorTurno(); vigilarVencimiento(); }, 250);
+  ticCrono = setInterval(() => {
+    pintarMarcadorTurno();
+    pintarMarcadoresEspectador();
+    vigilarVencimiento();
+  }, 250);
+}
+
+/* Marcadores de la pantalla grande: uno por equipo, junto a su tablero. */
+function pintarMarcadoresEspectador() {
+  if (!modoEspectador) return;
+  const d = ultimaPartida;
+  const enJuego = d && d.fase === 'batalla' && !!d.turno;
+  ['A', 'B'].forEach(letra => {
+    const caja = document.getElementById("marcador-esp-" + letra.toLowerCase());
+    if (!caja) return;
+    caja.style.display = enJuego ? "flex" : "none";
+    if (!enJuego) return;
+
+    // Jugadas gastadas = las que ya figuran en el historial, disparos y
+    // turnos perdidos por tiempo incluidos.
+    const gastadas = (d.historial || []).filter(h => h.equipoLetra === letra).length;
+    document.getElementById("jug-esp-" + letra.toLowerCase()).textContent =
+      Math.max(0, OPORTUNIDADES_POR_EQUIPO - gastadas);
+
+    const crono = document.getElementById("crono-esp-" + letra.toLowerCase());
+    const suTurno = d.turno === letra;
+    caja.classList.toggle("apagado", !suTurno);
+    if (!suTurno) {
+      crono.textContent = "—";
+      crono.className = "crono";
+      return;
+    }
+    if (d.pausada) {
+      crono.textContent = "⏸ PAUSA";
+      crono.className = "crono pausa";
+      return;
+    }
+    // Durante los cinco segundos de preparacion no se enseña el 30 todavia:
+    // se enseña la cuenta de preparacion, igual que ve el capitan.
+    const prep = Math.ceil((d.turno_desde + ESPERA_ENTRE_JUGADAS_MS - Date.now()) / 1000);
+    if (prep > 0) {
+      crono.textContent = "· " + prep + " ·";
+      crono.className = "crono naranja";
+      return;
+    }
+    const q = segundosDeTurno();
+    crono.textContent = q > 0 ? q + "s" : "¡TIEMPO!";
+    crono.className = "crono " + (q === 0 ? "rojo" : q <= 10 ? "naranja" : "verde");
+  });
 }
 
 // Arranca (o reinicia) la cuenta atrás y va refrescando el banner cada cuarto
