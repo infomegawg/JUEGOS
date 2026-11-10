@@ -120,6 +120,9 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
   padding: 10px 12px; display: none; gap: 8px; z-index: 40;
 }
 .action-bar.show { display: flex; }
+/* Con la barra de accion abierta, los flotantes se apartan para no taparla. */
+body.con-barra #sos-btn { bottom: calc(var(--alto-barra, 70px) + 12px); }
+body.con-barra .btn-escanear { bottom: calc(var(--alto-barra, 70px) + 84px); }
 .action-bar button { flex: 1; }
 
 .toast { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); background: var(--texto); color: #fff; padding: 10px 16px; border-radius: 8px; font-size: 12px; z-index: 300; opacity: 0; transition: opacity .2s; pointer-events: none; }
@@ -10705,7 +10708,13 @@ function toggleSeleccion(dorsal) {
   if (seleccion.has(dorsal)) seleccion.delete(dorsal);
   else seleccion.add(dorsal);
   document.getElementById("sel-count").textContent = seleccion.size;
-  document.getElementById("action-bar").classList.toggle("show", seleccion.size > 0);
+  const hayBarra = seleccion.size > 0;
+  document.getElementById("action-bar").classList.toggle("show", hayBarra);
+  document.body.classList.toggle("con-barra", hayBarra);
+  // La barra cambia de alto segun el movil (y el area segura del iPhone),
+  // asi que los flotantes se apartan justo lo que mide, no una cifra a ojo.
+  if (hayBarra) document.documentElement.style.setProperty("--alto-barra",
+    document.getElementById("action-bar").offsetHeight + "px");
   renderGridStaff();
 }
 
@@ -10713,6 +10722,7 @@ function limpiarSeleccion() {
   seleccion.clear();
   document.getElementById("sel-count").textContent = "0";
   document.getElementById("action-bar").classList.remove("show");
+  document.body.classList.remove("con-barra");
   renderGridStaff();
 }
 
