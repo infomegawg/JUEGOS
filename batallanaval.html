@@ -141,6 +141,7 @@ input::placeholder { color: var(--texto2); }
   background: var(--barco-color); border-left: 3px solid var(--barco-borde); border-right: 3px solid var(--barco-borde);
 }
 .turno-banner.agotado { background: rgba(255,59,78,0.18); border-color: var(--rojo); color: #ffd7db; }
+.turno-banner.pausa { background: rgba(255,255,255,0.1); border-color: #aaa; color: #e8e8e8; }
 .cell.sugerido { background: rgba(255,122,26,0.28); border: 2px dashed var(--naranja); cursor: pointer; }
 .cell.ancla { background: rgba(255,122,26,0.5); border: 2px solid var(--naranja); }
 .cell.agua { background: rgba(47,111,237,0.35); border: 1px solid var(--azul); color: #cfe0ff; }
@@ -981,6 +982,7 @@ async function sortearInicio() {
 }
 
 async function disparar(fila, col) {
+  if (partidaEnPausa()) { toastBatalla("La partida está en pausa"); return; }
   if (Date.now() < esperaHasta) return; // aún en la espera entre jugadas
   if (!ultimaPartida || ultimaPartida.fase !== 'batalla' || ultimaPartida.turno !== miEquipo) return;
   const coord = coordId(fila, col);
@@ -1048,6 +1050,23 @@ function jugadasHechas(d, letra) {
   return Object.values(recibidos).filter(v => v === 'agua' || v === 'tocado').length;
 }
 
+/* Aviso corto y efímero en la pantalla del capitán. */
+function toastBatalla(texto) {
+  let t = document.getElementById("toast-batalla");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast-batalla";
+    t.style.cssText = "position:fixed;left:50%;top:14px;transform:translateX(-50%);" +
+      "background:#111;color:#fff;padding:10px 18px;border-radius:10px;font-size:14px;" +
+      "font-weight:700;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,.6);";
+    document.body.appendChild(t);
+  }
+  t.textContent = texto;
+  t.style.display = "block";
+  clearTimeout(t._tic);
+  t._tic = setTimeout(() => { t.style.display = "none"; }, 2200);
+}
+
 /* Instante en el que vence el turno: los cinco segundos de preparacion mas
    los treinta de decision, contados desde que cambio el turno. */
 function finDelTurno() {
@@ -1059,7 +1078,15 @@ function finDelTurno() {
 function segundosDeTurno() {
   const fin = finDelTurno();
   if (fin === null) return null;
-  return Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+  // En pausa el tiempo se mide hasta el instante en que se paró, no hasta
+  // ahora: el número se queda clavado donde estaba.
+  const d = ultimaPartida;
+  const ahora = (d && d.pausada && d.pausa_desde) ? d.pausa_desde : Date.now();
+  return Math.max(0, Math.ceil((fin - ahora) / 1000));
+}
+
+function partidaEnPausa() {
+  return !!(ultimaPartida && ultimaPartida.pausada);
 }
 
 /* Se acabo el tiempo: pierde la jugada y pasa el turno. Lo manda el capitan
@@ -1096,7 +1123,8 @@ async function pasarTurnoPorTiempo(letraQueLoPierde, turnoDesdeEsperado) {
 /* Se llama cuatro veces por segundo desde vigilarCrono. */
 function vigilarVencimiento() {
   const d = ultimaPartida;
-  if (!d || modoEspectador || !miEquipo || d.fase !== 'batalla' || !d.turno) return;
+  if (!d || d.pausada) return;   // reloj parado: no vence nada
+  if (modoEspectador || !miEquipo || d.fase !== 'batalla' || !d.turno) return;
   const fin = finDelTurno();
   if (fin === null) return;
   const mio = d.turno === miEquipo;
@@ -1132,6 +1160,11 @@ function pintarMarcadorTurno() {
 function pintarBannerTurno() {
   const banner = document.getElementById("turno-banner");
   if (!banner) return;
+  if (partidaEnPausa()) {
+    banner.innerHTML = '⏸ <b>PARTIDA EN PAUSA</b> — el reloj está parado';
+    banner.className = "turno-banner pausa";
+    return;
+  }
   const q = segundosDeTurno();
   if (q === null) {
     banner.textContent = "🎯 ¡Es tu turno! Dispara en el tablero de ataque";
@@ -1196,6 +1229,8 @@ function renderBatalla() {
     banner.className = "turno-banner rival";
   } else if (d.turno === miEquipo && enEsperaDeTurno) {
     pintarBannerEspera();
+  } else if (d.pausada) {
+    pintarBannerTurno();
   } else if (d.turno === miEquipo) {
     pintarBannerTurno();
   } else {
@@ -1245,6 +1280,9 @@ function renderEspectador() {
   } else if (!d.turno) {
     banner.textContent = "Ambas flotas listas — falta sortear quién empieza";
     banner.className = "turno-banner rival";
+  } else if (d.pausada) {
+    banner.textContent = "⏸ PARTIDA EN PAUSA";
+    banner.className = "turno-banner pausa";
   } else {
     const nombreTurno = d.turno === 'A' ? d.equipoA : d.equipoB;
     banner.textContent = `Turno de ${nombreTurno}`;
