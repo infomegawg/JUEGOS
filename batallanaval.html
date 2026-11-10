@@ -269,7 +269,36 @@ body.espectador-mode .wrap { max-width: 2200px; padding: clamp(10px, 1.6vh, 34px
 body.espectador-mode .header { padding: clamp(6px, 1.2vh, 22px) clamp(12px, 2vw, 30px); }
 body.espectador-mode .header img.header-logo { height: clamp(34px, 5.5vh, 76px); }
 body.espectador-mode .header h1 { font-size: clamp(18px, 2.8vh, 36px); letter-spacing: clamp(3px, 0.6vw, 10px); }
-body.espectador-mode #pantalla-espectador .boards-row { gap: clamp(18px, 4vw, 90px); flex-wrap: nowrap; }
+body.espectador-mode #pantalla-espectador .boards-row { gap: clamp(18px, 3vw, 70px); flex-wrap: nowrap; }
+
+/* ===== REPARTO EN PANTALLA PANORÁMICA =====
+   La LED es mucho más ancha que alta. Con el registro debajo del tablero,
+   las jugadas se salían por abajo y se cortaban. Aquí cada bloque se reparte
+   en dos columnas y el registro se pone al lado, en espejo: los dos tableros
+   quedan juntos en el centro y los registros a los extremos. */
+body.espectador-mode #pantalla-espectador .board-block {
+  display: grid;
+  grid-template-columns: minmax(150px, 17vw) auto;
+  grid-template-areas: "titulo titulo" "marcador marcador" "registro tablero";
+  align-items: start;
+  column-gap: clamp(10px, 1.6vw, 28px);
+}
+body.espectador-mode #pantalla-espectador #bloque-esp-b {
+  grid-template-columns: auto minmax(150px, 17vw);
+  grid-template-areas: "titulo titulo" "marcador marcador" "tablero registro";
+}
+body.espectador-mode #pantalla-espectador .board-block h3 { grid-area: titulo; }
+body.espectador-mode #pantalla-espectador .marcador-esp { grid-area: marcador; }
+body.espectador-mode #pantalla-espectador .board { grid-area: tablero; }
+body.espectador-mode #pantalla-espectador .log-bajo-tablero {
+  grid-area: registro; margin-top: 0; min-width: 0;
+}
+/* El registro no puede crecer más que el tablero: si crece, vuelve a empujar
+   la página y reaparece el recorte que se trataba de evitar. */
+body.espectador-mode #pantalla-espectador .log-bajo-tablero .log-lista {
+  max-height: clamp(160px, 52vh, 680px); overflow: hidden;
+}
+body.espectador-mode #pantalla-espectador .log-bajo-tablero .log-item { white-space: nowrap; }
 body.espectador-mode #pantalla-espectador .board-block h3 { font-size: clamp(14px, 2.2vh, 28px); letter-spacing: clamp(2px, 0.4vw, 5px); margin-bottom: clamp(6px, 1.4vh, 20px); text-shadow: 0 0 16px rgba(255,255,255,0.4); }
 body.espectador-mode #pantalla-espectador .board {
   /* Ancho: (100vw - hueco central - cabeceras y bordes) / 16 casillas
@@ -404,7 +433,7 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
   <div class="screen" id="pantalla-espectador">
     <div class="turno-banner" id="espectador-banner"></div>
     <div class="boards-row">
-      <div class="board-block">
+      <div class="board-block" id="bloque-esp-a">
         <h3 id="espectador-nombre-a">EQUIPO A</h3>
         <div class="marcador-esp" id="marcador-esp-a">
           <div class="crono" id="crono-esp-a">—</div>
@@ -416,7 +445,7 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
           <div class="log-lista" id="log-espectador-a"></div>
         </div>
       </div>
-      <div class="board-block">
+      <div class="board-block" id="bloque-esp-b">
         <h3 id="espectador-nombre-b">EQUIPO B</h3>
         <div class="marcador-esp" id="marcador-esp-b">
           <div class="crono" id="crono-esp-b">—</div>
@@ -1381,8 +1410,9 @@ function renderEspectador() {
   });
 
   // En espectador, cada equipo tiene sus últimas 4 jugadas bajo su propia cuadrícula
-  renderLog(d, "log-espectador-a", { soloEquipo: 'A', limite: 4 });
-  renderLog(d, "log-espectador-b", { soloEquipo: 'B', limite: 4 });
+  // Al lado del tablero caben muchas mas que cuando iban debajo.
+  renderLog(d, "log-espectador-a", { soloEquipo: 'A', limite: 9 });
+  renderLog(d, "log-espectador-b", { soloEquipo: 'B', limite: 9 });
 }
 
 // Ayuda visual para el capitán: los barcos que le quedan al rival. Se marcan en
