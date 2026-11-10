@@ -892,10 +892,13 @@ function ejecutarComandoRemoto(d, id) {
   if (d.accion === "girar") {
     spin(Array.isArray(d.ganadores) ? d.ganadores[0] : undefined);
   } else if (d.accion === "girar_multi") {
+    // Los ganadores SIEMPRE vienen decididos en el comando. Antes, si no
+    // venian, esta pantalla sorteaba por su cuenta entre todos los eliminados
+    // y se saltaba el tramo de pruebas. Ahora sortea dentro del tramo.
     let winners = Array.isArray(d.ganadores) ? d.ganadores : null;
     if (!winners) {
-      const pool = Array.from(state.eliminated);
-      if (!pool.length) return;
+      const pool = candidatosSalvacion();
+      if (!pool.length) { console.warn("[MANDO] sin candidatos en el tramo"); return; }
       const count = Math.min(parseInt(d.cantidad, 10) || 1, pool.length);
       winners = [...pool].sort(() => Math.random() - 0.5).slice(0, count);
     }
@@ -914,6 +917,11 @@ window.fbEscuchar = function() {
         state.total = data.total;
         renderGridFull();
       }
+      // El panel manda: aqui solo se obedece el tramo de pruebas que ha fijado.
+      if (data.filtro_salvacion) {
+        state.filtro = data.filtro_salvacion;
+        if (typeof updateStats === "function") updateStats();
+      }
     }
   });
 
@@ -921,6 +929,8 @@ window.fbEscuchar = function() {
     snapshot.docChanges().forEach((change) => {
       const data = change.doc.data();
       const dorsal = data.dorsal;
+      // La prueba en la que cayo cada uno: la necesita el filtro del bingo.
+      if (data.prueba) state.pruebaDe[dorsal] = data.prueba;
       if (change.type === "added") {
         if (!state.eliminated.has(dorsal)) {
           state.eliminated.add(dorsal);
@@ -944,6 +954,8 @@ window.fbEscuchar = function() {
 const state = {
   total: 500,         // total de jugadores (se actualiza desde Firebase sesion/actual)
   eliminated: new Set(), // dorsales actualmente eliminados, candidatos a salvar
+  pruebaDe: {},       // dorsal -> prueba en la que fue eliminado
+  filtro: null,       // tramo de pruebas fijado desde el Panel Central
   savedCount: 0,       // salvados en esta sesión
   history: [],
   spinning: false,
@@ -1003,6 +1015,29 @@ function markCellAlive(n, wasSavedHere) {
   updateStats();
 }
 
+/* Candidatos reales: los eliminados que caen dentro del tramo de pruebas
+   que ha fijado el Panel Central. Sin esto, girar desde este portatil
+   sorteaba entre TODOS los eliminados y se saltaba el filtro sin avisar. */
+function candidatosSalvacion() {
+  const f = state.filtro;
+  const todos = Array.from(state.eliminated);
+  if (!f || f.desde == null) {
+    return f && f.sin_prueba === false
+      ? todos.filter(d => !!state.pruebaDe[d])
+      : todos;
+  }
+  const ORDEN = ["LUZ ROJA LUZ VERDE","SELECCIÓN FATAL","CAMPO DE BATALLA","PISTOLA A CIEGAS",
+    "DESAFÍO EXPLOSIVO","LA RULETA","TIRO AL SACO","BATALLA NAVAL",
+    "LAS CANICAS","OMEGA TRIVIAL","EQUILIBRIO FATAL","LA GRAN FINAL"];
+  return todos.filter(d => {
+    const p = state.pruebaDe[d];
+    const i = p ? ORDEN.indexOf(String(p).trim().toUpperCase()) : -1;
+    if (i === -1) return !!f.sin_prueba;
+    const n = i + 1;
+    return n >= f.desde && n <= f.hasta;
+  });
+}
+
 function updateStats() {
   const activos = state.total - state.eliminated.size;
   statTotal.textContent = state.total;
@@ -1010,9 +1045,12 @@ function updateStats() {
   statEliminated.textContent = state.eliminated.size;
   const last = state.history[state.history.length - 1];
   statLast.textContent = last ? last.num : "—";
-  spinBtn.disabled = state.eliminated.size === 0;
-  megaSpinBtn.disabled = state.eliminated.size === 0;
-  badge.textContent = state.eliminated.size + " ELIMINADOS";
+  const candidatos = candidatosSalvacion().length;
+  spinBtn.disabled = candidatos === 0;
+  megaSpinBtn.disabled = candidatos === 0;
+  badge.textContent = state.filtro && state.filtro.desde != null
+    ? candidatos + " CANDIDATOS · PRUEBAS " + state.filtro.desde + "-" + state.filtro.hasta
+    : candidatos + " ELIMINADOS";
   const aviso = document.getElementById("avisoSinEliminados");
   if (aviso) aviso.style.display = state.eliminated.size === 0 ? "block" : "none";
 }
@@ -1261,7 +1299,7 @@ let pendingMulti = null;
 
 multiBtn.addEventListener("click", () => {
   if (state.spinning) return;
-  const pool = Array.from(state.eliminated);
+  const pool = candidatosSalvacion();
   if (pool.length === 0) return;
   const n = prompt(`¿Cuántos jugadores quieres salvar a la vez? (máximo ${pool.length})`, "3");
   if (!n) return;
@@ -1279,7 +1317,7 @@ multiBtn.addEventListener("click", () => {
 
 spinBtn.addEventListener("click", () => {
   if (state.spinning) return;
-  const pool = Array.from(state.eliminated);
+  const pool = candidatosSalvacion();
   if (!pool.length) return;
   publicarJugada("girar", [cryptoRandomChoice(pool)]);
 });
@@ -1294,7 +1332,7 @@ megaSpinBtn.addEventListener("click", () => {
     multiBtn.style.opacity = "";
     publicarJugada("girar_multi", winners);
   } else {
-    const pool = Array.from(state.eliminated);
+    const pool = candidatosSalvacion();
     if (!pool.length) return;
     publicarJugada("girar", [cryptoRandomChoice(pool)]);
   }
