@@ -1003,9 +1003,11 @@ function ejecutarComandoRemoto(d, id) {
 
 window.fbInicializarSesion = async function(total) {
   try {
+    // OJO: aqui NO se escribe prueba_actual. Ese campo es la prueba que manda
+    // el panel y de el depende el etiquetado de las eliminaciones; el bingo no
+    // es una prueba y no tiene nada que decir al respecto.
     await db.collection("sesion").doc("actual").set({
       total: total,
-      prueba_actual: "Han cantado bingo",
       activa: true,
       inicio: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
