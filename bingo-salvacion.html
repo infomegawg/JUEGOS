@@ -1538,6 +1538,18 @@ if (urlParams.get('led') === '1') {
       window.location.href = 'https://infomegawg.github.io/JUEGOS/led.html';
     }
   });
+
+  // Mismo vigilante que en led.html: si el listener se duerme, el operador se
+  // queda sin poder sacar esta pantalla desde el panel.
+  setInterval(() => {
+    db2.collection('sesion').doc('actual').get({ source: 'server' })
+      .then(doc => {
+        if (!doc.exists) return;
+        const m = doc.data().modo_led;
+        if (m && m !== 'salvacion') window.location.href = 'https://infomegawg.github.io/JUEGOS/led.html';
+      })
+      .catch(() => {});
+  }, 8000);
 }
 
 // Conectar Firebase y cargar el pool de eliminados actuales
