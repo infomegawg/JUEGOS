@@ -10626,7 +10626,19 @@ function volverAPruebaDelPanel() {
 function escucharPruebaActual() {
   db.collection("sesion").doc("actual").onSnapshot((doc) => {
     const d = doc.exists ? doc.data() : null;
-    const delPanel = d && d.prueba_actual ? String(d.prueba_actual) : null;
+    let delPanel = d && d.prueba_actual ? String(d.prueba_actual) : null;
+
+    // Si el panel publica algo que no es ninguna de las 12 pruebas, se ignora.
+    // Avisar en rojo de una prueba inexistente es peor que no avisar: el arbitro
+    // no puede hacer nada para quitar el aviso y acaba ignorandolos todos.
+    if (delPanel) {
+      const sel0 = document.getElementById("prueba-select-staff");
+      if (![...sel0.options].some(o => o.value === delPanel)) {
+        console.warn("prueba_actual desconocida, se ignora:", delPanel);
+        delPanel = null;
+      }
+    }
+
     if (!delPanel || delPanel === pruebaDelPanel) { pintarAvisoPrueba(); return; }
 
     // El panel ha cambiado de prueba: se acata y se deshace cualquier cambio
