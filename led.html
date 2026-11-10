@@ -46,8 +46,10 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 .stats-row { display: flex; gap: 20px; align-items: center; }
 .stat-item { font-family: 'Montserrat', sans-serif; font-size: 13px; font-weight: 800; }
 .stat-item .val { font-family: 'Orbitron', sans-serif; font-size: 42px; font-weight: 900; line-height: 1; }
-.stat-item .val.v { color: var(--verde); text-shadow: 0 0 10px var(--verde); }
-.stat-item .val.e { color: var(--rojo); text-shadow: 0 0 10px var(--rojo); }
+/* Sin resplandor: sobre el fondo degradado del header el halo se veia como
+   una mancha sucia detras del numero. Solo el numero, en su color. */
+.stat-item .val.v { color: var(--verde); text-shadow: none; }
+.stat-item .val.e { color: var(--rojo); text-shadow: none; }
 .stat-sep { color: rgba(130,36,227,0.4); font-size: 40px; }
 .clock { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 900; color: var(--morado2); margin-left: auto; width: 220px; text-align: right; }
 
