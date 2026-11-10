@@ -219,6 +219,7 @@ body:has(#pantalla-batalla.active) .wrap { max-width: 1800px; padding: 18px 14px
 .log-badge.agua { background: rgba(47,111,237,0.3); color: #cfe0ff; }
 .log-badge.tocado { background: rgba(255,59,78,0.3); color: #ffd7db; }
 .log-badge.hundido { background: #000; color: #ff3b4e; border: 1px solid #ff3b4e; }
+.log-badge.tiempo { background: rgba(255,122,26,0.25); color: #ffd9b8; border: 1px solid var(--naranja); }
 /* Jugadas de cada equipo, justo debajo de su cuadrícula (modo espectador) */
 .log-bajo-tablero { margin-top: 18px; text-align: left; }
 .log-bajo-tablero h4 { font-family: var(--font); font-size: 13px; margin-bottom: 10px; letter-spacing: 2px; color: #fff; text-align: center; }
@@ -611,7 +612,6 @@ function initDesbloqueoAudio() {
   desbloquearAudio();
   setTimeout(reportarEstadoVoz, 1500);
   setInterval(reportarEstadoVoz, 30000);
-  vigilarCrono();
 }
 
 // alTerminar: se ejecuta cuando acaba la última frase (o enseguida si el
@@ -669,9 +669,14 @@ const ESPERA_ENTRE_JUGADAS_MS = 5000;
    red, asi que el desfase es de decimas; si algun dia importara al segundo,
    habria que pasarlo a hora de servidor. */
 const SEGUNDOS_POR_TURNO = 30;
+// Margen que se le da al rival antes de pasar el turno el mismo: si al capitan
+// de turno se le ha apagado el movil, la partida no puede quedarse colgada.
+const MARGEN_RESCATE_MS = 6000;
+let pasandoPorTiempo = false;   // evita mandar dos veces el mismo vencimiento
 const OPORTUNIDADES_POR_EQUIPO = 30;
 let ticCrono = null;
 let esperaHasta = 0;
+let turnoAnterior = null;   // para detectar el cambio de turno
 let ticEspera = null;
 let ultimoHistorialLen = null;
 let yaTransicionoFase = false;
@@ -1043,13 +1048,60 @@ function jugadasHechas(d, letra) {
   return Object.values(recibidos).filter(v => v === 'agua' || v === 'tocado').length;
 }
 
-/* Segundos que le quedan al que tiene el turno, o null si no procede. */
-function segundosDeTurno() {
+/* Instante en el que vence el turno: los cinco segundos de preparacion mas
+   los treinta de decision, contados desde que cambio el turno. */
+function finDelTurno() {
   const d = ultimaPartida;
-  if (!d || d.fase !== 'batalla' || !d.turno) return null;
-  const desde = d.turno_desde;
-  if (!desde) return null;
-  return Math.max(0, SEGUNDOS_POR_TURNO - Math.floor((Date.now() - desde) / 1000));
+  if (!d || d.fase !== 'batalla' || !d.turno || !d.turno_desde) return null;
+  return d.turno_desde + ESPERA_ENTRE_JUGADAS_MS + SEGUNDOS_POR_TURNO * 1000;
+}
+
+function segundosDeTurno() {
+  const fin = finDelTurno();
+  if (fin === null) return null;
+  return Math.max(0, Math.ceil((fin - Date.now()) / 1000));
+}
+
+/* Se acabo el tiempo: pierde la jugada y pasa el turno. Lo manda el capitan
+   al que se le ha agotado; si su movil no responde, el rival lo hace por el
+   pasado un margen. La transaccion comprueba que el turno siga siendo el
+   mismo, asi que aunque los dos lo intenten solo se aplica una vez. */
+async function pasarTurnoPorTiempo(letraQueLoPierde, turnoDesdeEsperado) {
+  if (pasandoPorTiempo) return;
+  pasandoPorTiempo = true;
+  try {
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(partidaRef);
+      const d = doc.data();
+      if (!d || d.fase !== 'batalla') return;
+      if (d.turno !== letraQueLoPierde) return;              // ya paso
+      if (d.turno_desde !== turnoDesdeEsperado) return;       // turno distinto
+      const otro = letraQueLoPierde === 'A' ? 'B' : 'A';
+      tx.update(partidaRef, {
+        turno: otro,
+        turno_desde: Date.now(),
+        historial: (d.historial || []).concat([{
+          equipoLetra: letraQueLoPierde, coord: '—', resultado: 'tiempo',
+          hora: new Date().toLocaleTimeString('es-ES')
+        }]),
+        ultimoEvento: { tipo: 'tiempo', equipoLetra: letraQueLoPierde, ts: TS() }
+      });
+    });
+  } catch (e) {
+    console.error(e);
+    pasandoPorTiempo = false;   // que se pueda reintentar
+  }
+}
+
+/* Se llama cuatro veces por segundo desde vigilarCrono. */
+function vigilarVencimiento() {
+  const d = ultimaPartida;
+  if (!d || modoEspectador || !miEquipo || d.fase !== 'batalla' || !d.turno) return;
+  const fin = finDelTurno();
+  if (fin === null) return;
+  const mio = d.turno === miEquipo;
+  const limite = mio ? fin : fin + MARGEN_RESCATE_MS;
+  if (Date.now() >= limite) pasarTurnoPorTiempo(d.turno, d.turno_desde);
 }
 
 function pintarMarcadorTurno() {
@@ -1062,6 +1114,7 @@ function pintarMarcadorTurno() {
   // El crono vive en el banner de turno, que ya se repinta solo.
   if (enJuego && !(Date.now() < esperaHasta) && d.turno === miEquipo) pintarBannerTurno();
   if (!enJuego) return;
+
 
   const rival = miEquipo === 'A' ? 'B' : 'A';
   // El hundimiento reescribe casillas ya disparadas, asi que el recuento por
@@ -1086,14 +1139,14 @@ function pintarBannerTurno() {
     return;
   }
   banner.innerHTML = q > 0
-    ? '🎯 ¡Es tu turno! Dispara en el tablero de ataque · <b style="font-family:var(--font);font-size:1.25em;letter-spacing:1px;">' + q + 's</b>'
-    : '⏰ <b style="font-family:var(--font);font-size:1.25em;letter-spacing:1px;">¡SE TE ACABÓ EL TIEMPO!</b> — dispara ya';
+    ? '🎯 Te quedan <b style="font-family:var(--font);font-size:1.3em;letter-spacing:1px;">' + q + 's</b> para disparar'
+    : '⏰ <b style="font-family:var(--font);font-size:1.2em;letter-spacing:1px;">SE TE ACABÓ EL TIEMPO</b> — pierdes la jugada';
   banner.className = "turno-banner " + (q === 0 ? "agotado" : q <= 10 ? "espera" : "mio");
 }
 
 function vigilarCrono() {
   if (ticCrono) clearInterval(ticCrono);
-  ticCrono = setInterval(pintarMarcadorTurno, 250);
+  ticCrono = setInterval(() => { pintarMarcadorTurno(); vigilarVencimiento(); }, 250);
 }
 
 // Arranca (o reinicia) la cuenta atrás y va refrescando el banner cada cuarto
@@ -1277,7 +1330,7 @@ function renderLog(d, contenedorId, opciones) {
   }
   historial = historial.slice().reverse();
   if (op.limite) historial = historial.slice(0, op.limite);
-  const etiquetas = { agua: 'Agua', tocado: 'Tocado', hundido: 'Hundido' };
+  const etiquetas = { agua: 'Agua', tocado: 'Tocado', hundido: 'Hundido', tiempo: 'Sin disparo' };
   cont.innerHTML = historial.map(j => {
     const nombre = j.equipoLetra === 'A' ? d.equipoA : d.equipoB;
     const clase = j.equipoLetra === 'A' ? 'equipo-a' : 'equipo-b';
@@ -1323,6 +1376,10 @@ function anunciarEvento(d) {
     const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
     hablar([`Empieza ${conEquipo(nombre)}`]);
     mostrarOverlayEvento("SORTEO", `EMPIEZA ${nombre.toUpperCase()}`);
+  } else if (ev.tipo === 'tiempo') {
+    const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
+    hablar([`Se acabó el tiempo. ${conEquipo(nombre)} pierde la jugada`]);
+    mostrarOverlayEvento("TIEMPO AGOTADO", `${nombre.toUpperCase()} PIERDE LA JUGADA`);
   } else if (ev.tipo === 'disparo') {
     const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
     const resultadoTexto = ev.resultado === 'agua' ? 'Agua'
@@ -1431,12 +1488,15 @@ partidaRef.onSnapshot(snap => {
   // antes de poder marcar. Se mide en el propio dispositivo, así que no depende
   // de que los dos PCs tengan la hora sincronizada.
   if (!modoEspectador) {
-    const histLen = (d.historial || []).length;
-    if (ultimoHistorialLen !== null && histLen > ultimoHistorialLen &&
-        d.fase === "batalla" && d.turno === miEquipo) {
-      iniciarEsperaTurno();
+    // Cualquier cambio de turno a mi favor arranca la preparacion: vale tanto
+    // para un disparo del rival como para el turno sorteado al empezar o para
+    // un turno que se ha pasado por tiempo.
+    if (d.turno !== turnoAnterior) {
+      turnoAnterior = d.turno;
+      pasandoPorTiempo = false;
+      if (d.fase === "batalla" && d.turno === miEquipo) iniciarEsperaTurno();
     }
-    ultimoHistorialLen = histLen;
+    ultimoHistorialLen = (d.historial || []).length;
   }
 
   // Anuncios de voz: se ignora el primer snapshot (carga/recarga de página) y
@@ -1459,6 +1519,9 @@ partidaRef.onSnapshot(snap => {
 
 initVoz();
 initDesbloqueoAudio();
+// El crono corre en los dos moviles de capitan y en la pantalla grande:
+// initDesbloqueoAudio() solo se ejecuta en espectador, asi que no vale de sitio.
+vigilarCrono();
 
 // Si la pantalla LED nos ha traído aquí desde el Panel Central (modo LED
 // "Batalla Naval"), se vigila ese modo para volver a led.html en cuanto el
