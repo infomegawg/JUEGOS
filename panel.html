@@ -2436,7 +2436,10 @@ async function llamarJugador() {
 async function setLED(modo) {
   document.querySelectorAll('.led-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('led-'+modo).classList.add('active');
-  await db.collection("sesion").doc("actual").set({ modo_led: modo }, { merge: true });
+  // El sello hace que cada pulsacion sea un cambio real en el documento: si se
+  // escribe el mismo modo que ya habia, Firestore no avisa a nadie y la LED se
+  // queda como estaba.
+  await db.collection("sesion").doc("actual").set({ modo_led: modo, modo_led_ts: Date.now() }, { merge: true });
   mostrarNotif(`LED → ${modo}`);
 }
 
