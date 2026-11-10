@@ -499,44 +499,66 @@ function init() {
   updateClock();
   setInterval(updateClock, 1000);
 
-  // Escuchar sesión (total y modo LED)
-  db.collection('sesion').doc('actual').onSnapshot(doc => {
-    if (!doc.exists) return;
-    const d = doc.data();
+  /* ===== MODO DE LA PANTALLA =====
+     Lo normal es enterarse por el listener en tiempo real, pero en un pabellón
+     la conexión se cae y vuelve, y cuando el canal de Firestore se queda
+     colgado el cambio del panel tarda muchísimo o no llega hasta que otro
+     cambio lo despierta. Por eso, además del listener, se le pregunta al
+     servidor cada ocho segundos: el peor caso pasa de "no reacciona" a
+     "reacciona en ocho segundos".
+     'modo_led_ts' es el sello que pone el panel en cada pulsación: sirve para
+     distinguir "vuelve a poner lo mismo" (que debe recargar) de "ya estaba
+     puesto" (que no debe hacer nada). */
+  let modoAplicado = null, selloAplicado = null;
 
-    // Modo LED
+  function pintarTotal(d) {
+    const total = d.total || 0;
+    if (total > 0 && Object.keys(participantes).length === 0) renderGrid(total);
+  }
+
+  function aplicarModo(d) {
     const modo = d.modo_led || 'grid';
+    const sello = d.modo_led_ts || null;
+    if (modo === modoAplicado && sello === selloAplicado) { pintarTotal(d); return; }
+    modoAplicado = modo; selloAplicado = sello;
+
     document.getElementById('apagado').classList.toggle('show', modo === 'apagado');
 
     if (modo === 'bingo') {
-      // Redirigir directamente al bingo
       window.location.href = 'https://infomegawg.github.io/JUEGOS/bingo.html?led=1';
       return;
     }
-
     if (modo === 'salvacion') {
-      // Bingo de Salvación: misma mecánica que el bingo de eliminación, pero
+      // Bingo de Salvación: misma mecánica que el de eliminación, pero
       // repescando eliminados. La ruleta se acciona desde el Panel Central.
       window.location.href = 'https://infomegawg.github.io/JUEGOS/bingo-salvacion.html?led=1';
       return;
     }
-
     if (modo === 'batallanaval') {
-      // Vista de espectador de la Batalla Naval (ambos tableros en directo)
       window.location.href = 'https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1&led=1';
       return;
     }
 
-    document.getElementById('modo-grid').style.display = modo === 'grid' ? 'block' : 'none';
+    // 'animacion' no tiene pantalla propia: las animaciones de eliminación se
+    // dibujan encima del grid, así que se trata igual que 'grid'. Antes caía en
+    // el "si no es ninguna de estas" y escondía el grid sin poner nada.
+    const enGrid = (modo === 'grid' || modo === 'animacion');
+    document.getElementById('modo-grid').style.display = enGrid ? 'block' : 'none';
     document.querySelector('.header').style.display = 'flex';
     document.querySelector('.app').style.gridTemplateRows = '90px 1fr';
+    pintarTotal(d);
+  }
 
-    // Renderizar si cambia el total
-    const total = d.total || 0;
-    if (total > 0 && Object.keys(participantes).length === 0) {
-      renderGrid(total);
-    }
+  db.collection('sesion').doc('actual').onSnapshot(doc => {
+    if (doc.exists) aplicarModo(doc.data());
   });
+
+  // Vigilante: si el listener se ha quedado dormido, esto lo pilla.
+  setInterval(() => {
+    db.collection('sesion').doc('actual').get({ source: 'server' })
+      .then(doc => { if (doc.exists) aplicarModo(doc.data()); })
+      .catch(() => {});   // sin red no hay nada que hacer, se reintenta luego
+  }, 8000);
 
   // Escuchar participantes
   db.collection('participantes').onSnapshot(snap => {
