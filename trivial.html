@@ -204,6 +204,17 @@ body.led { overflow: hidden; }
 @keyframes golpe { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes temblor { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-22px); } 40% { transform: translateX(20px); } 60% { transform: translateX(-12px); } 80% { transform: translateX(10px); } }
 
+/* ---------- CARTEL DE PAUSA ---------- */
+.pausa-led {
+  position: absolute; inset: 0; z-index: 12;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
+  background: rgba(4,0,10,0.93);
+  opacity: 0; pointer-events: none; transition: opacity 240ms ease;
+}
+.pausa-led.ver { opacity: 1; }
+.pausa-led .t { font-size: 120px; font-weight: 900; letter-spacing: 16px; color: #ffb020; text-shadow: 0 0 34px #ffb020, 0 0 110px #ffb020; }
+.pausa-led .s { font-size: 26px; letter-spacing: 8px; color: #fff; }
+
 /* ---------- MARCADOR ---------- */
 .marcador { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; padding: 16px 34px 18px; border-top: 1px solid rgba(130,36,227,0.35); background: linear-gradient(0deg, rgba(15,0,32,0.95), rgba(15,0,32,0.2)); }
 .equipo { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; padding: 10px 20px; border: 2px solid color-mix(in srgb, var(--eq) 40%, transparent); background: rgba(8,1,15,0.6); transition: box-shadow 350ms ease, border-color 350ms ease; }
@@ -234,7 +245,8 @@ body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -app
 .punto { width: 11px; height: 11px; border-radius: 50%; background: #5a2030; box-shadow: 0 0 10px #5a2030; }
 .punto.on { background: #00ff88; box-shadow: 0 0 12px #00ff88; }
 
-.rejilla-panel { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; align-items: start; }
+.rejilla-panel { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; align-items: start; }
+.panel-wrap .acta { max-height: 190px; }
 @media (max-width: 1100px) { .rejilla-panel { grid-template-columns: 1fr; } }
 
 .caja { background: #140a22; border: 1px solid #32224a; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
@@ -247,6 +259,11 @@ body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -app
 .btn.verde { background: #063b24; border-color: #00ff88; color: #7dffc4; }
 .btn.verde:hover:not(:disabled) { background: #0a5c37; }
 .btn.rojo { background: #3b0612; border-color: #ff1f3d; color: #ff9aa9; }
+.btn.pausa { background: #3a2a05; border-color: #ffb020; color: #ffd98a; letter-spacing: 3px; }
+.btn.pausa:hover:not(:disabled) { background: #55400a; }
+.btn.pausa.activo { background: #ffb020; border-color: #ffb020; color: #1a1000; animation: latepausa 1s ease-in-out infinite; }
+@keyframes latepausa { 50% { box-shadow: 0 0 26px #ffb020; } }
+body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
 .btn.rojo:hover:not(:disabled) { background: #5c0a1c; }
 .btn.naranja { background: #3b2306; border-color: #ff7421; color: #ffc495; }
 .btn.naranja:hover:not(:disabled) { background: #5c3a0a; }
@@ -368,6 +385,11 @@ body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -app
         <span class="n" id="led-crono-n">10</span>
       </div>
 
+      <div class="pausa-led" id="led-pausa">
+        <div class="t">PAUSA</div>
+        <div class="s">EL JUEGO SE REANUDA EN UN MOMENTO</div>
+      </div>
+
       <div class="veredicto" id="led-veredicto"><div class="txt" id="led-veredicto-txt"></div></div>
     </div>
 
@@ -399,11 +421,6 @@ body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -app
     <div>
       <div class="caja">
         <h2>Pregunta en curso</h2>
-        <div class="relojes">
-          <div class="reloj" id="reloj-presu"><div class="et">PRESUPUESTO</div><div class="v" id="v-presu">30.0</div></div>
-          <div class="reloj" id="reloj-resp"><div class="et">RESPUESTA</div><div class="v" id="v-resp">—</div></div>
-        </div>
-
         <div class="ficha">
           <div class="id" id="f-id">Sin empezar</div>
           <div class="enun" id="f-enun">Pulsa «Iniciar juego» para colocar la primera categoría en la pantalla.</div>
@@ -415,41 +432,54 @@ body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -app
       </div>
 
       <div class="caja">
-        <h2>Pulsadores</h2>
-        <div class="pulsadores" id="caja-puls"></div>
-        <div class="mini">El equipo que pulsa primero se lleva el turno y el presupuesto se para solo. Si un pulsador falla, pincha aquí encima del equipo para darle el turno a mano.</div>
-      </div>
-
-      <div class="caja">
         <h2>Mando</h2>
         <div class="fila" style="margin-bottom:10px">
           <button class="btn grande verde" id="b-iniciar" onclick="iniciarJuego()">▶ Iniciar juego</button>
           <button class="btn grande" id="b-lanzar" onclick="lanzarPregunta()" disabled>Lanzar pregunta</button>
           <button class="btn grande" id="b-siguiente" onclick="siguientePregunta()" disabled>Siguiente pregunta ▶</button>
         </div>
+        <div class="fila" style="margin-bottom:10px">
+          <button class="btn grande pausa" id="b-pausa" onclick="togglePausa()" disabled>⏸ PARAR JUEGO</button>
+        </div>
         <div class="fila">
           <button class="btn naranja" id="b-anular" onclick="anularPregunta()" disabled>Anular y sustituir</button>
           <button class="btn" onclick="cerrarPorTiempo(true)" id="b-cerrar" disabled>Cerrar sin acierto</button>
           <button class="btn rojo" onclick="reiniciarTodo()">Reiniciar juego</button>
         </div>
+        <div class="mini">Si pasa algo (un fallo técnico, una reclamación, alguien que se levanta), «Parar juego» congela los relojes y avisa en la pantalla. Se vuelve a pulsar y sigue exactamente donde estaba.</div>
       </div>
     </div>
 
-    <!-- ---------- COLUMNA DERECHA ---------- -->
-    <div>
-      <div class="caja">
-        <h2>Marcador</h2>
-        <div class="marcador-panel" id="marcador-panel"></div>
-        <div class="mini">Gana quien más aciertos tenga tras las 30 preguntas, o el primero que llegue a 16.</div>
-      </div>
-
-      <div class="caja">
+      <div class="caja" id="caja-acta">
         <h2>Acta</h2>
         <div class="acta" id="acta"></div>
         <div class="fila" style="margin-top:10px">
           <button class="btn" onclick="copiarActa()">Copiar acta</button>
           <button class="btn" onclick="descargarActa()">Descargar .txt</button>
         </div>
+      </div>
+
+    <!-- ---------- COLUMNA DERECHA ---------- -->
+    <div>
+      <div class="caja">
+        <h2>Tiempos</h2>
+        <div class="relojes">
+          <div class="reloj" id="reloj-presu"><div class="et">PRESUPUESTO</div><div class="v" id="v-presu">30.0</div></div>
+          <div class="reloj" id="reloj-resp"><div class="et">RESPUESTA</div><div class="v" id="v-resp">—</div></div>
+        </div>
+        <div class="mini">Los dos se ven también en la pantalla grande: el del presupuesto en el color de la categoría y el de respuesta en rojo.</div>
+      </div>
+
+      <div class="caja">
+        <h2>Pulsadores</h2>
+        <div class="pulsadores" id="caja-puls"></div>
+        <div class="mini">El equipo que pulsa primero se lleva el turno y el presupuesto se para solo. Si un pulsador falla, pincha aquí encima del equipo para darle el turno a mano.</div>
+      </div>
+
+      <div class="caja">
+        <h2>Marcador</h2>
+        <div class="marcador-panel" id="marcador-panel"></div>
+        <div class="mini">Gana quien más aciertos tenga tras las 30 preguntas, o el primero que llegue a 16.</div>
       </div>
 
       <div class="caja">
@@ -600,7 +630,7 @@ const VISTA = {
   enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
   turno: null, marcada: null, puntos: [0,0,0], meta: 16,
   cronoFin: 0, cronoTotal: 10, veredicto: null, ganador: null, bloqueados: [],
-  presuFin: 0, presuRest: 0, presuCorre: false
+  presuFin: 0, presuRest: 0, presuCorre: false, pausa: false
 };
 
 if (esLED) {
@@ -622,6 +652,7 @@ if (esLED) {
 function pintarLED() {
   const v = VISTA;
   document.documentElement.style.setProperty("--activo", v.color);
+  document.getElementById("led-pausa").classList.toggle("ver", !!v.pausa);
 
   // Cabecera
   document.getElementById("led-cuenta").innerHTML =
@@ -827,7 +858,7 @@ function difundir() {
     puntos: E.puntos, meta: AJ.meta,
     cronoFin: E.cronoRespFin, cronoTotal: AJ.resp,
     presuFin: presuCorriendo ? Date.now() + presuRestante : 0,
-    presuRest: presuRestante, presuCorre: presuCorriendo,
+    presuRest: presuRestante, presuCorre: presuCorriendo, pausa: enPausa,
     veredicto: E.fase === "veredicto" ? (E.marcada && E.marcada.bien ? "ok" : "no") : null,
     ganador: E.ganador
   }});
@@ -836,8 +867,41 @@ function difundir() {
 /* =========================================================
    8. PANEL: reloj del presupuesto
    ========================================================= */
+/* ---------- PARAR Y REANUDAR EL JUEGO ----------
+   Congela los dos relojes y avisa en la pantalla grande. Al reanudar,
+   todo continúa exactamente con el tiempo que quedaba. */
+let enPausa = false;
+let guardado = { presuCorria: false, respQuedaba: 0 };
+
+function togglePausa() {
+  if (esLED) return;
+  if (!enPausa) {
+    enPausa = true;
+    guardado.presuCorria = presuCorriendo;
+    guardado.respQuedaba = (E.fase === "respondiendo" && E.cronoRespFin)
+      ? Math.max(0, E.cronoRespFin - Date.now()) : 0;
+    presuCorriendo = false;
+    E.cronoRespFin = 0;                 // así no sigue corriendo por detrás
+    apuntar("⏸ JUEGO PARADO por el operador.");
+  } else {
+    enPausa = false;
+    if (guardado.respQuedaba > 0 && E.fase === "respondiendo") {
+      E.cronoRespFin = Date.now() + guardado.respQuedaba;
+    }
+    presuCorriendo = guardado.presuCorria;
+    ultimoTick = performance.now();     // sin esto se comería el tiempo parado
+    apuntar("▶ Juego reanudado.");
+  }
+  document.body.classList.toggle("pausado", enPausa);
+  const b = document.getElementById("b-pausa");
+  b.textContent = enPausa ? "▶ REANUDAR JUEGO" : "⏸ PARAR JUEGO";
+  b.classList.toggle("activo", enPausa);
+  pintarPanel(); difundir();
+}
+
 function buclePanel() {
   const ahora = performance.now();
+  if (enPausa) { ultimoTick = ahora; pintarRelojes(); requestAnimationFrame(buclePanel); return; }
   if (presuCorriendo) {
     presuRestante -= (ahora - ultimoTick);
     if (presuRestante <= 0) { presuRestante = 0; cerrarPorTiempo(false); }
@@ -896,6 +960,7 @@ function lanzarPregunta() {
 
 // Alguien pulsa: se para el presupuesto y arranca el tiempo de respuesta.
 function pulsar(i, manual) {
+  if (enPausa) return;
   if (E.fase !== "pregunta") return;
   if (E.turno != null) return;
   if (E.bloqueados.includes(i)) return;
@@ -1029,11 +1094,13 @@ function pintarPanel() {
   if (esLED) return;
   const f = E.fase;
 
-  document.getElementById("b-iniciar").disabled = (f !== "espera");
-  document.getElementById("b-lanzar").disabled = (f !== "categoria");
-  document.getElementById("b-siguiente").disabled = (f !== "cerrada");
-  document.getElementById("b-anular").disabled = !["categoria","pregunta","respondiendo","cerrada"].includes(f);
-  document.getElementById("b-cerrar").disabled = !["pregunta","respondiendo"].includes(f);
+  const p = enPausa;
+  document.getElementById("b-pausa").disabled = (f === "espera" || f === "fin");
+  document.getElementById("b-iniciar").disabled = p || (f !== "espera");
+  document.getElementById("b-lanzar").disabled = p || (f !== "categoria");
+  document.getElementById("b-siguiente").disabled = p || (f !== "cerrada");
+  document.getElementById("b-anular").disabled = p || !["categoria","pregunta","respondiendo","cerrada"].includes(f);
+  document.getElementById("b-cerrar").disabled = p || !["pregunta","respondiendo"].includes(f);
 
   const q = E.pregunta;
   document.getElementById("f-id").textContent = q
@@ -1096,6 +1163,11 @@ window.addEventListener("keydown", e => {
     AJ.teclas[capturando] = e.code;
     document.getElementById("aj-k" + capturando).value = e.code;
     capturando = null; guardarAjustes(); pintarPanel();
+    return;
+  }
+  if (e.code === "KeyP" && !e.repeat) {
+    e.preventDefault();
+    if (!document.getElementById("b-pausa").disabled) togglePausa();
     return;
   }
   const i = AJ.teclas.indexOf(e.code);
