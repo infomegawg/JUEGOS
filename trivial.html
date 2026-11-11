@@ -201,39 +201,39 @@ body.led { overflow: hidden; }
   transition: opacity 280ms ease, transform 280ms ease;
 }
 .ranking.ver { opacity: 1; transform: translateY(-50%); }
-.ranking .tit {
+.ranking .rktit {
   font-size: 13px; letter-spacing: 6px; color: #9b7fc0;
   text-align: center; margin-bottom: 16px;
 }
-.ranking .fila {
-  display: flex; align-items: center; gap: 16px;
+.ranking .rkfila {
+  display: flex; flex-wrap: nowrap; align-items: center; gap: 16px;
   padding: 13px 18px; margin-bottom: 10px; border-radius: 13px;
   border: 2px solid color-mix(in srgb, var(--eq) 42%, transparent);
   background: rgba(6,0,14,0.7);
   transition: all 220ms ease;
 }
-.ranking .fila:last-child { margin-bottom: 0; }
-.ranking .pos {
+.ranking .rkfila:last-child { margin-bottom: 0; }
+.ranking .rkpos {
   flex: 0 0 46px; width: 46px; height: 46px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 24px; font-weight: 900; line-height: 1;
   color: #06000c; background: var(--eq);
   box-shadow: 0 0 18px color-mix(in srgb, var(--eq) 70%, transparent);
 }
-.ranking .quien {
+.ranking .rkquien {
   flex: 1 1 auto; min-width: 0;
   font-size: 23px; font-weight: 900; letter-spacing: 2px; color: #fff;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.ranking .ms { flex: 0 0 auto; font-size: 15px; color: #9b7fc0; font-variant-numeric: tabular-nums; }
-.ranking .fila.turno {
+.ranking .rkms { flex: 0 0 auto; font-size: 15px; color: #9b7fc0; font-variant-numeric: tabular-nums; }
+.ranking .rkfila.turno {
   border-color: var(--eq);
   box-shadow: 0 0 36px color-mix(in srgb, var(--eq) 55%, transparent);
   background: color-mix(in srgb, var(--eq) 15%, rgba(6,0,14,0.85));
 }
-.ranking .fila.turno .quien { color: var(--eq); }
-.ranking .fila.fallo { opacity: .3; filter: saturate(.25); }
-.ranking .fila.fallo .quien { text-decoration: line-through; }
+.ranking .rkfila.turno .quien { color: var(--eq); }
+.ranking .rkfila.fallo { opacity: .3; filter: saturate(.25); }
+.ranking .rkfila.fallo .quien { text-decoration: line-through; }
 
 /* ---------- CARTEL CORRECTO / INCORRECTO ---------- */
 .veredicto {
@@ -758,16 +758,16 @@ function pintarLED() {
   rk.classList.toggle("ver", verRanking);
   document.getElementById("led-centro").classList.toggle("con-ranking", verRanking);
   if (verRanking) {
-    rk.innerHTML = '<div class="tit">ORDEN DE PULSACIÓN</div>' +
+    rk.innerHTML = '<div class="rktit">ORDEN DE PULSACIÓN</div>' +
       cola.map((eqi, n) => {
         const eq = EQUIPOS[eqi];
         const ms = (v.tiempos && v.tiempos[n]) || 0;
-        const clases = "fila" + (v.turno === eqi ? " turno" : "") +
+        const clases = "rkfila" + (v.turno === eqi ? " turno" : "") +
                        ((v.bloqueados || []).includes(eqi) ? " fallo" : "");
         return '<div class="' + clases + '" style="--eq:' + eq.color + '">' +
-                 '<div class="pos">' + (n + 1) + '</div>' +
-                 '<div class="quien">' + eq.nombre + '</div>' +
-                 '<div class="ms">' + (n === 0 ? "" : "+" + ms + " ms") + '</div>' +
+                 '<div class="rkpos">' + (n + 1) + '</div>' +
+                 '<div class="rkquien">' + eq.nombre + '</div>' +
+                 '<div class="rkms">' + (n === 0 ? "" : "+" + ms + " ms") + '</div>' +
                '</div>';
       }).join("");
   }
