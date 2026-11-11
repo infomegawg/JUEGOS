@@ -588,6 +588,8 @@ let ORDEN = construirOrden();
 let usadasReserva = new Set();
 let presuRestante = AJ.presu * 1000;
 let presuCorriendo = false;
+let enPausa = false;
+let guardado = { presuCorria: false, respQuedaba: 0 };
 let ultimoTick = 0;
 let acta = [];
 
@@ -870,9 +872,6 @@ function difundir() {
 /* ---------- PARAR Y REANUDAR EL JUEGO ----------
    Congela los dos relojes y avisa en la pantalla grande. Al reanudar,
    todo continúa exactamente con el tiempo que quedaba. */
-let enPausa = false;
-let guardado = { presuCorria: false, respQuedaba: 0 };
-
 function togglePausa() {
   if (esLED) return;
   if (!enPausa) {
