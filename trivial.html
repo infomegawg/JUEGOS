@@ -550,6 +550,24 @@ if (!BANCO || !BANCO.length) {
 
 /* El orden de juego: seis ciclos de cinco categorías, SIEMPRE en el mismo
    orden (deportes, cine, historia, videojuegos, cultura). Treinta preguntas. */
+/* Coloca las cuatro opciones en orden aleatorio y recoloca cuál es la buena.
+   Así da igual cómo esté escrito el banco: la correcta no puede caer siempre
+   en la misma letra. Trabaja sobre una copia, el banco original no se toca.
+   Se baraja una sola vez, al entrar la pregunta en juego, de modo que el
+   panel y la pantalla grande enseñan exactamente lo mismo. */
+function barajarOpciones(q) {
+  if (!q || !Array.isArray(q.o)) return q;
+  const pares = q.o.map((texto, i) => ({ texto: texto, buena: i === q.c }));
+  for (let i = pares.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const t = pares[i]; pares[i] = pares[j]; pares[j] = t;
+  }
+  return Object.assign({}, q, {
+    o: pares.map(p => p.texto),
+    c: pares.findIndex(p => p.buena)
+  });
+}
+
 function construirOrden() {
   const orden = [];
   for (let ciclo = 0; ciclo < 6; ciclo++) {
@@ -959,7 +977,8 @@ function pintarRelojes() {
    ========================================================= */
 function iniciarJuego() {
   if (!ORDEN.length) { alert("No hay preguntas ordinarias en el banco."); return; }
-  E.fase = "categoria"; E.idx = 0; E.ci = ORDEN[0].ci; E.pregunta = ORDEN[0].q;
+  E.fase = "categoria"; E.idx = 0; E.ci = ORDEN[0].ci;
+  ORDEN[0].q = barajarOpciones(ORDEN[0].q); E.pregunta = ORDEN[0].q;
   E.opcionesVisibles = false; E.turno = null; E.bloqueados = []; E.marcada = null; E.ganador = null;
   presuRestante = AJ.presu * 1000; presuCorriendo = false;
   apuntar("JUEGO INICIADO · categoría " + CATEGORIAS[E.ci].nombre);
@@ -1065,7 +1084,8 @@ function siguientePregunta() {
       : "Fin de las 30. EMPATE en cabeza: toca ronda extra de cinco preguntas.", "ok");
     pintarPanel(); difundir(); return;
   }
-  E.ci = ORDEN[E.idx].ci; E.pregunta = ORDEN[E.idx].q;
+  E.ci = ORDEN[E.idx].ci;
+  ORDEN[E.idx].q = barajarOpciones(ORDEN[E.idx].q); E.pregunta = ORDEN[E.idx].q;
   E.fase = "categoria"; E.opcionesVisibles = false;
   E.turno = null; E.bloqueados = []; E.marcada = null;
   presuRestante = AJ.presu * 1000; presuCorriendo = false;
@@ -1078,10 +1098,11 @@ function anularPregunta() {
   if (!E.pregunta) return;
   if (!confirm("¿Anular [" + E.pregunta.id + "] y sustituirla por otra de " + CATEGORIAS[E.ci].nombre + "?\n\n" +
                "Si se dio un punto con ella, acuérdate de quitarlo con el − del marcador.")) return;
-  const nueva = reservaDe(E.ci, usadasReserva);
+  let nueva = reservaDe(E.ci, usadasReserva);
   if (!nueva) { alert("No queda reserva de esa categoría."); return; }
   usadasReserva.add(nueva.id);
   apuntar("⚠ Anulada [" + E.pregunta.id + "], entra [" + nueva.id + "].");
+  nueva = barajarOpciones(nueva);
   E.pregunta = nueva; ORDEN[E.idx].q = nueva;
   E.fase = "categoria"; E.opcionesVisibles = false; E.turno = null; E.bloqueados = []; E.marcada = null;
   presuRestante = AJ.presu * 1000; presuCorriendo = false;
