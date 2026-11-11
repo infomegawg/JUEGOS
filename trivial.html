@@ -666,6 +666,8 @@ window.addEventListener("message", e => recibir(e.data));
 /* =========================================================
    5. PANTALLA LED
    ========================================================= */
+let confetiAnim = null, confetiPiezas = [], confetiMedido = false;
+
 const VISTA = {
   fase: "espera", idx: 0, total: 30, cat: CATEGORIAS[0].nombre, color: CATEGORIAS[0].color,
   enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
@@ -787,8 +789,6 @@ function pintarLED() {
 /* Confeti del ganador. Se dibuja a mano en un lienzo para no depender de
    ninguna librería de internet: el juego tiene que funcionar sin red.
    Cae sin parar hasta que se reinicia el juego. */
-let confetiAnim = null, confetiPiezas = [], confetiMedido = false;
-
 function arrancarConfeti(color) {
   const c = document.getElementById("led-confeti");
   if (!c || confetiAnim) return;                 // ya está cayendo
