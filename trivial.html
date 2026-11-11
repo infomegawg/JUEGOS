@@ -230,6 +230,22 @@ body.led { overflow: hidden; }
 .rotulo-grande { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; z-index: 3; }
 .rotulo-grande .big { font-size: 86px; font-weight: 900; letter-spacing: 14px; color: #fff; text-shadow: 0 0 40px var(--morado2); }
 .rotulo-grande .small { font-size: 20px; letter-spacing: 9px; color: var(--texto2); }
+
+/* Pantalla final: GANADOR arriba, el equipo en grande y el confeti cayendo */
+.rotulo-grande.fin { gap: 10px; }
+.rotulo-grande .corona {
+  font-size: 68px; font-weight: 900; letter-spacing: 26px; color: #ffd54a;
+  text-shadow: 0 0 26px #ffb020, 0 0 80px #ff8a00, 0 0 160px #ff6a00;
+  animation: pulsoGanador 1.6s ease-in-out infinite;
+}
+.rotulo-grande.fin .big { font-size: 128px; letter-spacing: 16px; }
+.rotulo-grande.fin .small { font-size: 26px; color: #fff; }
+@keyframes pulsoGanador {
+  0%, 100% { transform: scale(1);    filter: brightness(1); }
+  50%      { transform: scale(1.06); filter: brightness(1.35); }
+}
+.confeti { position: absolute; inset: 0; z-index: 4; pointer-events: none; display: none; }
+.confeti.ver { display: block; }
 .oculto { display: none !important; }
 
 /* ===================================================================
@@ -347,6 +363,8 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
     </div>
 
     <div class="centro" id="led-centro">
+
+      <canvas class="confeti" id="led-confeti"></canvas>
 
       <div class="rotulo-grande" id="led-espera">
         <div class="big">OMEGA TRIVIAL</div>
@@ -685,10 +703,21 @@ function pintarLED() {
   // Espera / fin
   const espera = document.getElementById("led-espera");
   espera.classList.toggle("oculto", v.fase !== "espera" && v.fase !== "fin");
+  espera.classList.toggle("fin", v.fase === "fin");
   if (v.fase === "fin") {
-    espera.innerHTML = `<div class="big" style="color:${v.ganador != null ? EQUIPOS[v.ganador].color : '#fff'}">
-        ${v.ganador != null ? EQUIPOS[v.ganador].nombre : "EMPATE"}</div>
-      <div class="small">${v.ganador != null ? "CLASIFICA A LA SIGUIENTE PRUEBA" : "SE JUEGA LA RONDA DE DESEMPATE"}</div>`;
+    if (v.ganador != null) {
+      const eq = EQUIPOS[v.ganador];
+      espera.innerHTML = `<div class="corona">GANADOR</div>
+        <div class="big" style="color:${eq.color}">${eq.nombre}</div>
+        <div class="small">CLASIFICA A LA SIGUIENTE PRUEBA</div>`;
+      arrancarConfeti(eq.color);
+    } else {
+      espera.innerHTML = `<div class="big">EMPATE</div>
+        <div class="small">SE JUEGA LA RONDA DE DESEMPATE</div>`;
+      pararConfeti();
+    }
+  } else {
+    pararConfeti();
   }
 
   const hayCubo = (v.fase !== "espera" && v.fase !== "fin");
@@ -753,6 +782,71 @@ function pintarLED() {
     d.classList.toggle("activo", v.turno === i && (v.fase === "respondiendo" || v.fase === "veredicto"));
     d.classList.toggle("fuera", v.bloqueados.includes(i) && v.fase === "pregunta");
   });
+}
+
+/* Confeti del ganador. Se dibuja a mano en un lienzo para no depender de
+   ninguna librería de internet: el juego tiene que funcionar sin red.
+   Cae sin parar hasta que se reinicia el juego. */
+let confetiAnim = null, confetiPiezas = [], confetiMedido = false;
+
+function arrancarConfeti(color) {
+  const c = document.getElementById("led-confeti");
+  if (!c || confetiAnim) return;                 // ya está cayendo
+  c.classList.add("ver");
+  const ctx = c.getContext("2d");
+  const medir = () => { c.width = c.clientWidth; c.height = c.clientHeight; };
+  medir();
+  if (!confetiMedido) { window.addEventListener("resize", medir); confetiMedido = true; }
+
+  const colores = [color, "#ffffff", "#ffd54a", "#8224e3", "#00e0ff"];
+  const nace = (alto) => ({
+    x: Math.random() * c.width,
+    y: alto != null ? alto : -30 - Math.random() * 200,
+    an: 7 + Math.random() * 9,
+    al: 11 + Math.random() * 15,
+    vy: 70 + Math.random() * 150,
+    vx: -40 + Math.random() * 80,
+    giro: Math.random() * Math.PI * 2,
+    vgiro: -4 + Math.random() * 8,
+    col: colores[Math.floor(Math.random() * colores.length)]
+  });
+  confetiPiezas = [];
+  for (let i = 0; i < 180; i++) confetiPiezas.push(nace(Math.random() * c.height));
+
+  let ultimo = performance.now();
+  const paso = (ahora) => {
+    const dt = Math.min(0.05, (ahora - ultimo) / 1000);
+    ultimo = ahora;
+    ctx.clearRect(0, 0, c.width, c.height);
+    for (const p of confetiPiezas) {
+      p.y += p.vy * dt;
+      p.x += p.vx * dt;
+      p.giro += p.vgiro * dt;
+      if (p.y > c.height + 40) Object.assign(p, nace());
+      if (p.x < -40) p.x = c.width + 20;
+      if (p.x > c.width + 40) p.x = -20;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.giro);
+      ctx.globalAlpha = 0.92;
+      ctx.fillStyle = p.col;
+      // el alto varía con el giro: parece un papelito dando vueltas
+      ctx.fillRect(-p.an / 2, -p.al / 2, p.an, p.al * Math.abs(Math.cos(p.giro)) + 2);
+      ctx.restore();
+    }
+    confetiAnim = requestAnimationFrame(paso);
+  };
+  confetiAnim = requestAnimationFrame(paso);
+}
+
+function pararConfeti() {
+  if (confetiAnim) cancelAnimationFrame(confetiAnim);
+  confetiAnim = null;
+  const c = document.getElementById("led-confeti");
+  if (!c) return;
+  c.classList.remove("ver");
+  const ctx = c.getContext("2d");
+  ctx.clearRect(0, 0, c.width, c.height);
 }
 
 // El crono de respuesta se anima en la propia LED: las dos ventanas están en
