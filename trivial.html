@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Omega Trivial</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+/* =========================================================
+   OMEGA TRIVIAL
+   Los Juegos de Omega · 21 de noviembre de 2026
+
+   UN SOLO ARCHIVO con dos caras:
+     trivial.html          -> PANEL DE CONTROL (el que opera A7)
+     trivial.html#led      -> PANTALLA DE RETRANSMISIÓN (la LED)
+
+   FUNCIONA SIN INTERNET. No hay Firebase ni servidor: el panel abre la
+   pantalla LED en otra ventana y le manda el estado por postMessage. Si la
+   ventana se cierra o se abre a mano, también se hablan por BroadcastChannel.
+   Las dos tienen que estar en el MISMO ordenador y abiertas desde el mismo
+   archivo; la de la LED se arrastra a la segunda pantalla y F11.
+
+   Las preguntas se leen de trivial-preguntas.js, que está al lado. Si ese
+   archivo falta, arranca con un juego de ejemplo para poder ensayar.
+
+   El sonido suena en la ventana del PANEL, que es la que recibe clics: un
+   navegador no deja sonar a una ventana que nadie ha tocado.
+   ========================================================= */
+
+:root {
+  --bg: #08010f;
+  --bg2: #0f0020;
+  --morado: #8224e3;
+  --morado2: #b061ff;
+  --naranja: #ff7421;
+  --verde: #00ff88;
+  --rojo: #ff1f3d;
+  --texto: #e8d5ff;
+  --texto2: #9b7fc0;
+  --activo: #00ff88;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; background: var(--bg); color: var(--texto); font-family: 'Orbitron', sans-serif; }
+body.led { overflow: hidden; }
+
+/* ===================================================================
+   ================        PANTALLA LED        ======================
+   =================================================================== */
+.fondo {
+  position: fixed; inset: 0; z-index: 0; overflow: hidden;
+  background:
+    radial-gradient(1200px 700px at 50% 32%, rgba(130,36,227,0.20), transparent 70%),
+    radial-gradient(900px 500px at 50% 115%, color-mix(in srgb, var(--activo) 16%, transparent), transparent 70%),
+    linear-gradient(180deg, var(--bg) 0%, var(--bg2) 62%, #05000b 100%);
+  transition: background 900ms ease;
+}
+.rejilla {
+  position: absolute; left: -50%; right: -50%; bottom: -20%; height: 66%;
+  background-image:
+    linear-gradient(to right, rgba(176,97,255,0.13) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(176,97,255,0.13) 1px, transparent 1px);
+  background-size: 92px 92px;
+  transform: perspective(600px) rotateX(70deg);
+  -webkit-mask-image: linear-gradient(to top, #000 0%, transparent 85%);
+  mask-image: linear-gradient(to top, #000 0%, transparent 85%);
+  animation: correr 7s linear infinite;
+}
+@keyframes correr { from { background-position: 0 0; } to { background-position: 0 92px; } }
+
+.pantalla { position: relative; z-index: 1; height: 100vh; display: grid; grid-template-rows: 88px 1fr 142px; }
+
+.cab {
+  display: flex; align-items: center; justify-content: space-between; padding: 0 34px;
+  border-bottom: 1px solid rgba(130,36,227,0.35);
+  background: linear-gradient(180deg, rgba(15,0,32,0.9), rgba(15,0,32,0.2));
+}
+.cab .marca { display: flex; align-items: center; gap: 15px; }
+.cab .llave { width: 24px; color: var(--morado2); filter: drop-shadow(0 0 10px var(--morado2)); }
+.cab h1 { font-size: 24px; font-weight: 900; letter-spacing: 7px; color: #fff; }
+.cab h1 small { display: block; font-size: 10px; letter-spacing: 5px; color: var(--texto2); font-weight: 400; }
+.cab .cuenta { font-size: 13px; letter-spacing: 3px; color: var(--texto2); }
+.cab .cuenta b { font-size: 28px; color: var(--activo); }
+.cab .fase-extra { font-size: 15px; letter-spacing: 4px; color: var(--naranja); }
+
+.centro { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 6vw; transition: padding 500ms ease; }
+.centro.con-pregunta { padding-top: 130px; }
+
+/* ---------- EL CUBO DE CATEGORÍA ---------- */
+.cubo-zona {
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%) scale(1);
+  transition: transform 800ms cubic-bezier(.22,.9,.26,1), opacity 600ms ease;
+  perspective: 1200px;
+}
+/* Cuando hay pregunta el cubo se va arriba a la izquierda y se hace pequeño. */
+.centro.con-pregunta .cubo-zona { transform: translate(calc(-50vw + 118px), calc(-50vh + 148px)) scale(0.30); }
+
+.cubo { width: 230px; height: 230px; position: relative; transform-style: preserve-3d; animation: girar 18s linear infinite; }
+.cubo.quieto { animation: none; transform: rotateX(-12deg) rotateY(-28deg); }
+@keyframes girar {
+  from { transform: rotateX(-12deg) rotateY(0deg); }
+  to   { transform: rotateX(-12deg) rotateY(360deg); }
+}
+.cara {
+  position: absolute; width: 230px; height: 230px;
+  border: 3px solid var(--activo);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--activo) 20%, #0b0016), rgba(8,1,15,0.95));
+  box-shadow: 0 0 44px color-mix(in srgb, var(--activo) 45%, transparent),
+              inset 0 0 44px color-mix(in srgb, var(--activo) 16%, transparent);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px;
+}
+.cara .llave { width: 62px; color: var(--activo); filter: drop-shadow(0 0 14px var(--activo)); }
+.cara .nom { font-size: 15px; font-weight: 900; letter-spacing: 3px; color: var(--activo); text-align: center; padding: 0 8px; }
+.cara.f1 { transform: translateZ(115px); }
+.cara.f2 { transform: rotateY(90deg)  translateZ(115px); }
+.cara.f3 { transform: rotateY(180deg) translateZ(115px); }
+.cara.f4 { transform: rotateY(270deg) translateZ(115px); }
+.cara.ar { transform: rotateX(90deg)  translateZ(115px); background: color-mix(in srgb, var(--activo) 26%, #0b0016); }
+.cara.ab { transform: rotateX(-90deg) translateZ(115px); background: color-mix(in srgb, var(--activo) 10%, #06000c); }
+.cara.ar .llave, .cara.ab .llave, .cara.ar .nom, .cara.ab .nom { display: none; }
+
+.cartel-cat { position: absolute; top: calc(50% + 165px); left: 50%; transform: translateX(-50%); text-align: center; transition: opacity 500ms ease; }
+.centro.con-pregunta .cartel-cat { opacity: 0; }
+.cartel-cat .t1 { font-size: 46px; font-weight: 900; letter-spacing: 10px; color: var(--activo); text-shadow: 0 0 20px var(--activo), 0 0 60px var(--activo); }
+.cartel-cat .t2 { margin-top: 12px; font-size: 16px; letter-spacing: 7px; color: var(--texto2); animation: latido 2.2s ease-in-out infinite; }
+@keyframes latido { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+/* ---------- PREGUNTA ---------- */
+.bloque-preg { position: relative; z-index: 2; width: 100%; max-width: 1250px; text-align: center; opacity: 0; pointer-events: none; transition: opacity 450ms ease; }
+.centro.con-pregunta .bloque-preg { opacity: 1; }
+.enunciado { font-size: 46px; line-height: 1.3; font-weight: 700; color: #fff; text-shadow: 0 2px 30px rgba(0,0,0,0.9); }
+
+.opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 46px; opacity: 0; transform: translateY(18px); transition: opacity 500ms ease, transform 500ms ease; }
+.opciones.ver { opacity: 1; transform: none; }
+.opcion {
+  display: flex; align-items: center; gap: 18px; padding: 18px 24px; text-align: left;
+  border: 2px solid rgba(176,97,255,0.35); background: rgba(15,0,32,0.72);
+  font-size: 27px; color: var(--texto); transition: all 300ms ease;
+}
+.opcion .letra {
+  width: 46px; height: 46px; flex: 0 0 46px; display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--activo); color: var(--activo); font-weight: 900; font-size: 22px;
+}
+.opcion.bien { border-color: var(--verde); background: color-mix(in srgb, var(--verde) 18%, rgba(15,0,32,0.8)); color: #fff; box-shadow: 0 0 34px color-mix(in srgb, var(--verde) 45%, transparent); }
+.opcion.bien .letra { border-color: var(--verde); color: var(--verde); }
+.opcion.mal { border-color: var(--rojo); background: color-mix(in srgb, var(--rojo) 18%, rgba(15,0,32,0.8)); color: #fff; box-shadow: 0 0 34px color-mix(in srgb, var(--rojo) 45%, transparent); }
+.opcion.mal .letra { border-color: var(--rojo); color: var(--rojo); }
+
+/* ---------- BANDA DE TURNO ---------- */
+.banda {
+  position: absolute; top: 0; left: 0; right: 0; z-index: 6;
+  display: flex; align-items: center; justify-content: center; gap: 26px; padding: 16px 0;
+  font-size: 30px; font-weight: 900; letter-spacing: 6px; color: #06000c;
+  background: var(--eq, #fff); box-shadow: 0 0 60px var(--eq, #fff);
+  transform: translateY(-110%); opacity: 0; visibility: hidden;
+  transition: transform 380ms cubic-bezier(.2,.9,.3,1.3), opacity 200ms ease, visibility 0s linear 380ms;
+}
+.banda.ver { transform: none; opacity: 1; visibility: visible; transition-delay: 0s; }
+
+/* ---------- CRONO DE RESPUESTA (el único reloj visible) ---------- */
+.crono-resp {
+  position: absolute; z-index: 7; top: 84px; right: 44px; transform: scale(.8);
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 34px; border: 3px solid var(--rojo); border-radius: 999px;
+  background: rgba(30,0,6,0.9); box-shadow: 0 0 44px color-mix(in srgb, var(--rojo) 60%, transparent);
+  opacity: 0; transition: opacity 260ms ease, transform 260ms ease;
+}
+.crono-resp.ver { opacity: 1; transform: scale(1); }
+.crono-resp .n { font-size: 54px; font-weight: 900; color: var(--rojo); min-width: 76px; text-align: center; text-shadow: 0 0 22px var(--rojo); }
+.crono-resp .et { font-size: 13px; letter-spacing: 4px; color: #ff93a4; }
+.crono-resp.urgente { animation: urge .5s steps(2) infinite; }
+@keyframes urge { 50% { box-shadow: 0 0 0 transparent; border-color: #7a0014; } }
+
+/* ---------- CARTEL CORRECTO / INCORRECTO ---------- */
+.veredicto {
+  position: absolute; inset: 0; z-index: 9;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 220ms ease;
+}
+.veredicto.ver { opacity: 1; }
+.veredicto .txt { font-size: 130px; font-weight: 900; letter-spacing: 12px; text-align: center; }
+.veredicto.ok  { background: radial-gradient(900px 560px at 50% 50%, color-mix(in srgb, var(--verde) 30%, transparent), transparent 72%), rgba(4,0,10,0.88); }
+.veredicto.ok .txt  { color: var(--verde); text-shadow: 0 0 30px var(--verde), 0 0 90px var(--verde); animation: golpe 400ms cubic-bezier(.2,1.6,.4,1); }
+.veredicto.no  { background: radial-gradient(900px 560px at 50% 50%, color-mix(in srgb, var(--rojo) 30%, transparent), transparent 72%), rgba(4,0,10,0.88); }
+.veredicto.no .txt  { color: var(--rojo); text-shadow: 0 0 30px var(--rojo), 0 0 90px var(--rojo); animation: temblor 420ms ease; }
+.veredicto .sub { display: block; font-size: 26px; letter-spacing: 7px; color: #fff; margin-top: 18px; text-shadow: none; }
+@keyframes golpe { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes temblor { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-22px); } 40% { transform: translateX(20px); } 60% { transform: translateX(-12px); } 80% { transform: translateX(10px); } }
+
+/* ---------- MARCADOR ---------- */
+.marcador { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; padding: 16px 34px 18px; border-top: 1px solid rgba(130,36,227,0.35); background: linear-gradient(0deg, rgba(15,0,32,0.95), rgba(15,0,32,0.2)); }
+.equipo { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; padding: 10px 20px; border: 2px solid color-mix(in srgb, var(--eq) 40%, transparent); background: rgba(8,1,15,0.6); transition: box-shadow 350ms ease, border-color 350ms ease; }
+.equipo.activo { border-color: var(--eq); box-shadow: 0 0 30px color-mix(in srgb, var(--eq) 55%, transparent), inset 0 0 26px color-mix(in srgb, var(--eq) 12%, transparent); }
+.equipo.fuera { opacity: .35; }
+.equipo .nombre { font-size: 20px; font-weight: 900; letter-spacing: 4px; color: var(--eq); }
+.equipo .puntos { font-size: 44px; font-weight: 900; color: #fff; line-height: 1; min-width: 62px; text-align: right; }
+.pips { display: flex; gap: 5px; }
+.pip { flex: 1; height: 14px; border: 1px solid color-mix(in srgb, var(--eq) 45%, transparent); }
+.pip.on { background: var(--eq); box-shadow: 0 0 9px var(--eq); }
+
+/* ---------- PANTALLAS DE ESPERA Y FIN ---------- */
+.rotulo-grande { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; z-index: 3; }
+.rotulo-grande .big { font-size: 86px; font-weight: 900; letter-spacing: 14px; color: #fff; text-shadow: 0 0 40px var(--morado2); }
+.rotulo-grande .small { font-size: 20px; letter-spacing: 9px; color: var(--texto2); }
+.oculto { display: none !important; }
+
+/* ===================================================================
+   ================      PANEL DE CONTROL      ======================
+   =================================================================== */
+body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -apple-system, 'Segoe UI', sans-serif; }
+.panel-wrap { max-width: 1500px; margin: 0 auto; padding: 16px 18px 60px; }
+
+.p-cab { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding: 14px 18px; margin-bottom: 14px; background: #140a22; border: 1px solid #32224a; border-radius: 12px; }
+.p-cab h1 { font-family: 'Orbitron', sans-serif; font-size: 20px; letter-spacing: 5px; color: #fff; }
+.p-cab .sub { font-size: 12px; color: #9b7fc0; letter-spacing: 2px; }
+.estado-led { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #c9b6e6; }
+.punto { width: 11px; height: 11px; border-radius: 50%; background: #5a2030; box-shadow: 0 0 10px #5a2030; }
+.punto.on { background: #00ff88; box-shadow: 0 0 12px #00ff88; }
+
+.rejilla-panel { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; align-items: start; }
+@media (max-width: 1100px) { .rejilla-panel { grid-template-columns: 1fr; } }
+
+.caja { background: #140a22; border: 1px solid #32224a; border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.caja h2 { font-family: 'Orbitron', sans-serif; font-size: 12px; letter-spacing: 4px; color: #b061ff; margin-bottom: 12px; text-transform: uppercase; }
+
+.btn { padding: 13px 18px; border: 1px solid #4a3568; border-radius: 9px; background: #231238; color: #eadcff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: all 140ms ease; }
+.btn:hover:not(:disabled) { background: #30184d; border-color: #8224e3; }
+.btn:disabled { opacity: .34; cursor: not-allowed; }
+.btn.grande { font-size: 17px; padding: 20px 22px; width: 100%; letter-spacing: 1px; }
+.btn.verde { background: #063b24; border-color: #00ff88; color: #7dffc4; }
+.btn.verde:hover:not(:disabled) { background: #0a5c37; }
+.btn.rojo { background: #3b0612; border-color: #ff1f3d; color: #ff9aa9; }
+.btn.rojo:hover:not(:disabled) { background: #5c0a1c; }
+.btn.naranja { background: #3b2306; border-color: #ff7421; color: #ffc495; }
+.btn.naranja:hover:not(:disabled) { background: #5c3a0a; }
+.fila { display: flex; gap: 10px; flex-wrap: wrap; }
+.fila > * { flex: 1; min-width: 120px; }
+
+.relojes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+.reloj { text-align: center; padding: 12px; border-radius: 10px; background: #0d0518; border: 1px solid #32224a; }
+.reloj .et { font-size: 10px; letter-spacing: 3px; color: #9b7fc0; }
+.reloj .v { font-family: 'Orbitron', sans-serif; font-size: 42px; font-weight: 900; color: #fff; line-height: 1.1; }
+.reloj.corriendo .v { color: #00ff88; }
+.reloj.parado .v { color: #ff7421; }
+.reloj.resp .v { color: #ff1f3d; }
+
+.ficha { padding: 14px; border-radius: 10px; background: #0d0518; border: 1px solid #32224a; }
+.ficha .id { font-size: 11px; letter-spacing: 2px; color: #9b7fc0; margin-bottom: 7px; }
+.ficha .enun { font-size: 20px; color: #fff; line-height: 1.35; margin-bottom: 14px; }
+.ficha .sol { display: inline-block; padding: 7px 14px; border-radius: 7px; background: #063b24; border: 1px solid #00ff88; color: #7dffc4; font-weight: 700; font-size: 15px; }
+
+.ops-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 12px; }
+.op-btn { display: flex; align-items: center; gap: 11px; padding: 13px; border: 1px solid #4a3568; border-radius: 9px; background: #1b0f2c; color: #eadcff; cursor: pointer; text-align: left; font-size: 15px; font-family: inherit; }
+.op-btn:hover:not(:disabled) { border-color: #b061ff; background: #281541; }
+.op-btn:disabled { opacity: .34; cursor: not-allowed; }
+.op-btn .l { width: 32px; height: 32px; flex: 0 0 32px; display: flex; align-items: center; justify-content: center; border-radius: 6px; background: #3a2458; font-weight: 800; font-family: 'Orbitron', sans-serif; }
+.op-btn.es-sol .l { background: #00ff88; color: #04281a; }
+
+.pulsadores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.puls { padding: 12px; border-radius: 10px; border: 2px solid #32224a; background: #0d0518; text-align: center; cursor: pointer; transition: all 140ms ease; }
+.puls:hover { border-color: var(--eq); }
+.puls .n { font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 15px; letter-spacing: 2px; color: var(--eq); }
+.puls .k { font-size: 11px; color: #9b7fc0; margin-top: 5px; }
+.puls .p { font-family: 'Orbitron', sans-serif; font-size: 26px; font-weight: 900; color: #fff; margin-top: 6px; }
+.puls.turno { border-color: var(--eq); box-shadow: 0 0 22px color-mix(in srgb, var(--eq) 55%, transparent); }
+.puls.bloq { opacity: .36; }
+.puls.bloq .n::after { content: " · YA JUGÓ"; font-size: 9px; }
+
+.aviso { padding: 11px 13px; border-radius: 9px; font-size: 13px; line-height: 1.5; margin-bottom: 11px; }
+.aviso.info { background: #0d2033; border: 1px solid #1f5a8a; color: #9fd4ff; }
+.aviso.warn { background: #33210d; border: 1px solid #8a5a1f; color: #ffd49f; }
+
+.acta { max-height: 260px; overflow-y: auto; font-size: 12px; font-family: ui-monospace, monospace; }
+.acta div { padding: 5px 7px; border-bottom: 1px solid #241635; color: #c9b6e6; }
+.acta div.ok { color: #7dffc4; }
+.acta div.no { color: #ff9aa9; }
+
+.ajuste { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 0; font-size: 13px; color: #c9b6e6; border-bottom: 1px solid #241635; }
+.ajuste input[type=number] { width: 72px; padding: 6px 8px; border-radius: 6px; border: 1px solid #4a3568; background: #0d0518; color: #fff; font-family: inherit; }
+.ajuste input[type=text] { width: 120px; padding: 6px 8px; border-radius: 6px; border: 1px solid #4a3568; background: #0d0518; color: #fff; font-family: inherit; }
+.mini { font-size: 11px; color: #806b9e; line-height: 1.5; margin-top: 9px; }
+
+.marcador-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.mp { padding: 11px; border-radius: 10px; background: #0d0518; border: 2px solid color-mix(in srgb, var(--eq) 40%, transparent); text-align: center; }
+.mp .n { font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 900; color: var(--eq); letter-spacing: 2px; }
+.mp .v { font-family: 'Orbitron', sans-serif; font-size: 36px; font-weight: 900; color: #fff; }
+.mp .mas { display: flex; gap: 6px; margin-top: 7px; }
+.mp .mas button { flex: 1; padding: 5px; border-radius: 6px; border: 1px solid #4a3568; background: #231238; color: #eadcff; cursor: pointer; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<!-- La llave del logo, dibujada una vez. -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="llave" viewBox="0 0 781 1680">
+    <path fill="currentColor" fill-rule="evenodd" d="M70,0 H711 A70,70 0 0 1 781,70 V595 A70,70 0 0 1 711,665 H70 A70,70 0 0 1 0,595 V70 A70,70 0 0 1 70,0 Z M160,140 H617 V528 H160 Z"/>
+    <rect fill="currentColor" x="307" y="770" width="165" height="910"/>
+    <rect fill="currentColor" x="38" y="1308" width="167" height="372"/>
+  </symbol>
+</svg>
+
+<!-- =========== PANTALLA LED =========== -->
+<div id="vista-led" class="oculto">
+  <div class="fondo"><div class="rejilla"></div></div>
+  <div class="pantalla">
+
+    <div class="cab">
+      <div class="marca">
+        <svg class="llave"><use href="#llave"/></svg>
+        <h1>OMEGA TRIVIAL<small>LOS JUEGOS DE OMEGA</small></h1>
+      </div>
+      <div class="cuenta" id="led-cuenta">PREGUNTA <b>1</b> / 30</div>
+    </div>
+
+    <div class="centro" id="led-centro">
+
+      <div class="rotulo-grande" id="led-espera">
+        <div class="big">OMEGA TRIVIAL</div>
+        <div class="small">TRES EQUIPOS · CINCO CATEGORÍAS · TREINTA PREGUNTAS</div>
+      </div>
+
+      <div class="cubo-zona" id="led-cubo-zona">
+        <div class="cubo" id="led-cubo">
+          <div class="cara f1"><svg class="llave"><use href="#llave"/></svg><div class="nom"></div></div>
+          <div class="cara f2"><svg class="llave"><use href="#llave"/></svg><div class="nom"></div></div>
+          <div class="cara f3"><svg class="llave"><use href="#llave"/></svg><div class="nom"></div></div>
+          <div class="cara f4"><svg class="llave"><use href="#llave"/></svg><div class="nom"></div></div>
+          <div class="cara ar"></div><div class="cara ab"></div>
+        </div>
+      </div>
+
+      <div class="cartel-cat" id="led-cartel-cat">
+        <div class="t1" id="led-cat-nombre">DEPORTES</div>
+        <div class="t2" id="led-cat-sub">PREPARAD A VUESTRO REPRESENTANTE</div>
+      </div>
+
+      <div class="bloque-preg" id="led-bloque">
+        <div class="enunciado" id="led-enunciado"></div>
+        <div class="opciones" id="led-opciones"></div>
+      </div>
+
+      <div class="banda" id="led-banda"><span id="led-banda-txt"></span></div>
+
+      <div class="crono-resp" id="led-crono">
+        <span class="et">TIEMPO PARA RESPONDER</span>
+        <span class="n" id="led-crono-n">10</span>
+      </div>
+
+      <div class="veredicto" id="led-veredicto"><div class="txt" id="led-veredicto-txt"></div></div>
+    </div>
+
+    <div class="marcador" id="led-marcador"></div>
+  </div>
+</div>
+
+<!-- =========== PANEL DE CONTROL =========== -->
+<div id="vista-panel" class="oculto">
+<div class="panel-wrap">
+
+  <div class="p-cab">
+    <div>
+      <h1>OMEGA TRIVIAL · CONTROL</h1>
+      <div class="sub">Puesto A7 · sin conexión a internet</div>
+    </div>
+    <div class="estado-led">
+      <span class="punto" id="punto-led"></span>
+      <span id="txt-led">Pantalla LED no abierta</span>
+      <button class="btn" onclick="abrirLED()">Abrir pantalla LED</button>
+    </div>
+  </div>
+
+  <div id="aviso-banco"></div>
+
+  <div class="rejilla-panel">
+
+    <!-- ---------- COLUMNA IZQUIERDA ---------- -->
+    <div>
+      <div class="caja">
+        <h2>Pregunta en curso</h2>
+        <div class="relojes">
+          <div class="reloj" id="reloj-presu"><div class="et">PRESUPUESTO</div><div class="v" id="v-presu">30.0</div></div>
+          <div class="reloj" id="reloj-resp"><div class="et">RESPUESTA</div><div class="v" id="v-resp">—</div></div>
+        </div>
+
+        <div class="ficha">
+          <div class="id" id="f-id">Sin empezar</div>
+          <div class="enun" id="f-enun">Pulsa «Iniciar juego» para colocar la primera categoría en la pantalla.</div>
+          <div><span class="sol" id="f-sol" style="display:none"></span></div>
+          <div class="ops-panel" id="f-ops"></div>
+        </div>
+
+        <div class="mini" id="f-pista"></div>
+      </div>
+
+      <div class="caja">
+        <h2>Pulsadores</h2>
+        <div class="pulsadores" id="caja-puls"></div>
+        <div class="mini">El equipo que pulsa primero se lleva el turno y el presupuesto se para solo. Si un pulsador falla, pincha aquí encima del equipo para darle el turno a mano.</div>
+      </div>
+
+      <div class="caja">
+        <h2>Mando</h2>
+        <div class="fila" style="margin-bottom:10px">
+          <button class="btn grande verde" id="b-iniciar" onclick="iniciarJuego()">▶ Iniciar juego</button>
+          <button class="btn grande" id="b-lanzar" onclick="lanzarPregunta()" disabled>Lanzar pregunta</button>
+          <button class="btn grande" id="b-siguiente" onclick="siguientePregunta()" disabled>Siguiente pregunta ▶</button>
+        </div>
+        <div class="fila">
+          <button class="btn naranja" id="b-anular" onclick="anularPregunta()" disabled>Anular y sustituir</button>
+          <button class="btn" onclick="cerrarPorTiempo(true)" id="b-cerrar" disabled>Cerrar sin acierto</button>
+          <button class="btn rojo" onclick="reiniciarTodo()">Reiniciar juego</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ---------- COLUMNA DERECHA ---------- -->
+    <div>
+      <div class="caja">
+        <h2>Marcador</h2>
+        <div class="marcador-panel" id="marcador-panel"></div>
+        <div class="mini">Gana quien más aciertos tenga tras las 30 preguntas, o el primero que llegue a 16.</div>
+      </div>
+
+      <div class="caja">
+        <h2>Acta</h2>
+        <div class="acta" id="acta"></div>
+        <div class="fila" style="margin-top:10px">
+          <button class="btn" onclick="copiarActa()">Copiar acta</button>
+          <button class="btn" onclick="descargarActa()">Descargar .txt</button>
+        </div>
+      </div>
+
+      <div class="caja">
+        <h2>Ajustes</h2>
+        <div class="ajuste"><span>Presupuesto por pregunta (s)</span><input type="number" id="aj-presu" value="30" min="5" max="120"></div>
+        <div class="ajuste"><span>Opciones aparecen a los (s)</span><input type="number" id="aj-opciones" value="10" min="0" max="60"></div>
+        <div class="ajuste"><span>Tiempo para responder (s)</span><input type="number" id="aj-resp" value="10" min="3" max="30"></div>
+        <div class="ajuste"><span>Aciertos para ganar</span><input type="number" id="aj-meta" value="16" min="1" max="30"></div>
+        <div class="ajuste">
+          <span>Tras un fallo, reanudar</span>
+          <select id="aj-reanudar" style="padding:6px;border-radius:6px;border:1px solid #4a3568;background:#0d0518;color:#fff">
+            <option value="restante">el tiempo que quedaba</option>
+            <option value="fijo">20 s fijos</option>
+          </select>
+        </div>
+        <div class="ajuste"><span>Tecla pulsador A</span><input type="text" id="aj-k0" value="ScrollLock" readonly onclick="capturarTecla(0)"></div>
+        <div class="ajuste"><span>Tecla pulsador B</span><input type="text" id="aj-k1" value="Pause" readonly onclick="capturarTecla(1)"></div>
+        <div class="ajuste"><span>Tecla pulsador C</span><input type="text" id="aj-k2" value="Insert" readonly onclick="capturarTecla(2)"></div>
+        <div class="mini">Pincha en una tecla y pulsa el mando que quieras asignarle. Los ajustes se guardan solos en este ordenador.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Banco de preguntas. Si el archivo no está, más abajo hay uno de ejemplo. -->
+<script src="trivial-preguntas.js" onerror="window.__sinBanco=true"></script>
+
+<script>
+/* =========================================================
+   1. BANCO DE PREGUNTAS
+   ========================================================= */
+const CATEGORIAS = [
+  { nombre: "DEPORTES",        color: "#00ff88" },
+  { nombre: "CINE Y SERIES",   color: "#ff2fa0" },
+  { nombre: "HISTORIA",        color: "#ffb020" },
+  { nombre: "VIDEOJUEGOS",     color: "#00e0ff" },
+  { nombre: "CULTURA GENERAL", color: "#b061ff" }
+];
+const EQUIPOS = [
+  { nombre: "EQUIPO A", color: "#ff1f3d" },
+  { nombre: "EQUIPO B", color: "#00e0ff" },
+  { nombre: "EQUIPO C", color: "#ffb020" }
+];
+
+// Si falta trivial-preguntas.js se monta un banco mínimo para poder ensayar.
+let BANCO = window.TRIVIAL_PREGUNTAS || null;
+let bancoDeEjemplo = false;
+if (!BANCO || !BANCO.length) {
+  bancoDeEjemplo = true;
+  BANCO = [];
+  CATEGORIAS.forEach((c, ci) => {
+    for (let i = 0; i < 12; i++) {
+      BANCO.push({
+        id: c.nombre.slice(0,3) + "-" + String(i+1).padStart(2,"0"),
+        cat: c.nombre,
+        uso: i < 6 ? "ordinaria" : (i === 6 ? "extra" : "reserva"),
+        p: "Pregunta de ejemplo " + (i+1) + " de " + c.nombre,
+        o: ["Opción A", "Opción B", "Opción C", "Opción D"],
+        c: i % 4
+      });
+    }
+  });
+}
+
+/* El orden de juego: seis ciclos de cinco categorías, SIEMPRE en el mismo
+   orden (deportes, cine, historia, videojuegos, cultura). Treinta preguntas. */
+function construirOrden() {
+  const orden = [];
+  for (let ciclo = 0; ciclo < 6; ciclo++) {
+    CATEGORIAS.forEach((cat, ci) => {
+      const lista = BANCO.filter(q => q.cat === cat.nombre && q.uso === "ordinaria");
+      if (lista[ciclo]) orden.push({ ci: ci, q: lista[ciclo] });
+    });
+  }
+  return orden;
+}
+function reservaDe(ci, usadas) {
+  const cat = CATEGORIAS[ci].nombre;
+  return BANCO.filter(q => q.cat === cat && q.uso !== "ordinaria" && !usadas.has(q.id))[0] || null;
+}
+
+/* =========================================================
+   2. ESTADO
+   ========================================================= */
+const AJ = Object.assign({
+  presu: 30, opciones: 10, resp: 10, meta: 16, reanudar: "restante",
+  teclas: ["ScrollLock", "Pause", "Insert"]
+}, JSON.parse(localStorage.getItem("trivial_ajustes") || "{}"));
+
+let E = {
+  fase: "espera",        // espera | categoria | pregunta | respondiendo | veredicto | cerrada | fin
+  idx: 0,
+  ci: 0,
+  pregunta: null,
+  opcionesVisibles: false,
+  turno: null,
+  bloqueados: [],
+  marcada: null,         // { i: nºopcion, bien: true/false }
+  puntos: [0, 0, 0],
+  ganador: null,
+  cronoRespFin: 0,       // instante en que se acaba el tiempo de respuesta
+  anuladas: 0
+};
+let ORDEN = construirOrden();
+let usadasReserva = new Set();
+let presuRestante = AJ.presu * 1000;
+let presuCorriendo = false;
+let ultimoTick = 0;
+let acta = [];
+
+/* =========================================================
+   3. QUIÉN SOY: panel o pantalla LED
+   ========================================================= */
+const esLED = location.hash === "#led";
+document.body.classList.add(esLED ? "led" : "panel");
+document.getElementById(esLED ? "vista-led" : "vista-panel").classList.remove("oculto");
+
+/* =========================================================
+   4. CANAL ENTRE LAS DOS VENTANAS (sin internet)
+   ========================================================= */
+let ventanaLED = null;
+let canal = null;
+try { canal = new BroadcastChannel("omega_trivial"); } catch (e) { canal = null; }
+
+function enviar(msg) {
+  if (canal) { try { canal.postMessage(msg); } catch (e) {} }
+  if (ventanaLED && !ventanaLED.closed) { try { ventanaLED.postMessage(msg, "*"); } catch (e) {} }
+  if (!esLED && window.opener) { try { window.opener.postMessage(msg, "*"); } catch (e) {} }
+}
+function recibir(msg) {
+  if (!msg || !msg.t) return;
+  if (esLED) {
+    if (msg.t === "estado") { Object.assign(VISTA, msg.v); pintarLED(); }
+    if (msg.t === "ping") enviar({ t: "aqui" });
+  } else {
+    if (msg.t === "aqui" || msg.t === "hola") { ledVivo = Date.now(); marcarLED(); difundir(); }
+  }
+}
+if (canal) canal.onmessage = e => recibir(e.data);
+window.addEventListener("message", e => recibir(e.data));
+
+/* =========================================================
+   5. PANTALLA LED
+   ========================================================= */
+const VISTA = {
+  fase: "espera", idx: 0, total: 30, cat: CATEGORIAS[0].nombre, color: CATEGORIAS[0].color,
+  enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
+  turno: null, marcada: null, puntos: [0,0,0], meta: 16,
+  cronoFin: 0, cronoTotal: 10, veredicto: null, ganador: null, bloqueados: []
+};
+
+if (esLED) {
+  // Marcador
+  const m = document.getElementById("led-marcador");
+  EQUIPOS.forEach((eq, i) => {
+    const d = document.createElement("div");
+    d.className = "equipo"; d.id = "led-eq-" + i;
+    d.style.setProperty("--eq", eq.color);
+    d.innerHTML = `<div class="nombre">${eq.nombre}</div><div class="pips"></div><div class="puntos">0</div>`;
+    m.appendChild(d);
+  });
+  enviar({ t: "hola" });
+  setInterval(() => enviar({ t: "hola" }), 3000);
+  requestAnimationFrame(bucleCrono);
+  pintarLED();
+}
+
+function pintarLED() {
+  const v = VISTA;
+  document.documentElement.style.setProperty("--activo", v.color);
+
+  // Cabecera
+  document.getElementById("led-cuenta").innerHTML =
+    v.fase === "fin" ? "" : `PREGUNTA <b>${Math.min(v.idx + 1, v.total)}</b> / ${v.total}`;
+
+  // Espera / fin
+  const espera = document.getElementById("led-espera");
+  espera.classList.toggle("oculto", v.fase !== "espera" && v.fase !== "fin");
+  if (v.fase === "fin") {
+    espera.innerHTML = `<div class="big" style="color:${v.ganador != null ? EQUIPOS[v.ganador].color : '#fff'}">
+        ${v.ganador != null ? EQUIPOS[v.ganador].nombre : "EMPATE"}</div>
+      <div class="small">${v.ganador != null ? "CLASIFICA A LA SIGUIENTE PRUEBA" : "SE JUEGA LA RONDA DE DESEMPATE"}</div>`;
+  }
+
+  const hayCubo = (v.fase !== "espera" && v.fase !== "fin");
+  document.getElementById("led-cubo-zona").style.opacity = hayCubo ? 1 : 0;
+  document.getElementById("led-cartel-cat").style.opacity = (v.fase === "categoria") ? 1 : 0;
+
+  // Caras del cubo
+  document.querySelectorAll("#led-cubo .nom").forEach(n => n.textContent = v.cat);
+  document.getElementById("led-cat-nombre").textContent = v.cat;
+
+  // Pregunta
+  const centro = document.getElementById("led-centro");
+  const conPregunta = ["pregunta", "respondiendo", "veredicto", "cerrada"].includes(v.fase);
+  centro.classList.toggle("con-pregunta", conPregunta);
+  document.getElementById("led-enunciado").textContent = v.enunciado || "";
+
+  const cont = document.getElementById("led-opciones");
+  if (v.opcionesVisibles && v.opciones.length) {
+    if (cont.dataset.firma !== v.enunciado) {
+      cont.dataset.firma = v.enunciado;
+      cont.innerHTML = v.opciones.map((o, i) =>
+        `<div class="opcion" data-i="${i}"><span class="letra">${"ABCD"[i]}</span><span>${o}</span></div>`).join("");
+    }
+    cont.classList.add("ver");
+  } else {
+    cont.classList.remove("ver");
+    if (!v.opcionesVisibles) cont.dataset.firma = "";
+  }
+  cont.querySelectorAll(".opcion").forEach(el => {
+    const i = +el.dataset.i;
+    el.classList.remove("bien", "mal");
+    if (v.marcada && v.marcada.i === i) el.classList.add(v.marcada.bien ? "bien" : "mal");
+    // Al cerrarse la pregunta se enseña la solución.
+    if (v.fase === "cerrada" && i === v.correcta) el.classList.add("bien");
+  });
+
+  // Banda de turno
+  const banda = document.getElementById("led-banda");
+  if (v.turno != null && (v.fase === "respondiendo" || v.fase === "veredicto")) {
+    banda.style.setProperty("--eq", EQUIPOS[v.turno].color);
+    document.getElementById("led-banda-txt").textContent = "RESPONDE " + EQUIPOS[v.turno].nombre;
+    banda.classList.add("ver");
+  } else banda.classList.remove("ver");
+
+  // Veredicto
+  const ver = document.getElementById("led-veredicto");
+  ver.className = "veredicto" + (v.veredicto ? " ver " + (v.veredicto === "ok" ? "ok" : "no") : "");
+  if (v.veredicto) {
+    document.getElementById("led-veredicto-txt").innerHTML = v.veredicto === "ok"
+      ? `¡CORRECTO!<span class="sub">${EQUIPOS[v.turno] ? EQUIPOS[v.turno].nombre : ""} SUMA UN PUNTO</span>`
+      : `INCORRECTO<span class="sub">SIGUEN LOS DEMÁS EQUIPOS</span>`;
+  }
+
+  // Marcador
+  EQUIPOS.forEach((eq, i) => {
+    const d = document.getElementById("led-eq-" + i);
+    if (!d) return;
+    d.querySelector(".puntos").textContent = v.puntos[i];
+    const pips = d.querySelector(".pips");
+    if (pips.children.length !== v.meta) pips.innerHTML = '<span class="pip"></span>'.repeat(v.meta);
+    [...pips.children].forEach((p, k) => p.classList.toggle("on", k < v.puntos[i]));
+    d.classList.toggle("activo", v.turno === i && (v.fase === "respondiendo" || v.fase === "veredicto"));
+    d.classList.toggle("fuera", v.bloqueados.includes(i) && v.fase === "pregunta");
+  });
+}
+
+// El crono de respuesta se anima en la propia LED: las dos ventanas están en
+// el mismo ordenador, así que comparten reloj y no hay desfase.
+function bucleCrono() {
+  const v = VISTA;
+  const caja = document.getElementById("led-crono");
+  if (v.fase === "respondiendo" && v.cronoFin) {
+    const queda = Math.max(0, v.cronoFin - Date.now());
+    document.getElementById("led-crono-n").textContent = (queda / 1000).toFixed(1);
+    caja.classList.add("ver");
+    caja.classList.toggle("urgente", queda < 3000);
+  } else {
+    caja.classList.remove("ver", "urgente");
+  }
+  requestAnimationFrame(bucleCrono);
+}
+
+/* =========================================================
+   6. PANEL: arranque
+   ========================================================= */
+let ledVivo = 0;
+
+if (!esLED) {
+  // Ajustes guardados
+  document.getElementById("aj-presu").value = AJ.presu;
+  document.getElementById("aj-opciones").value = AJ.opciones;
+  document.getElementById("aj-resp").value = AJ.resp;
+  document.getElementById("aj-meta").value = AJ.meta;
+  document.getElementById("aj-reanudar").value = AJ.reanudar;
+  AJ.teclas.forEach((k, i) => document.getElementById("aj-k" + i).value = k);
+  ["aj-presu","aj-opciones","aj-resp","aj-meta","aj-reanudar"].forEach(id => {
+    document.getElementById(id).addEventListener("change", () => {
+      AJ.presu = +document.getElementById("aj-presu").value;
+      AJ.opciones = +document.getElementById("aj-opciones").value;
+      AJ.resp = +document.getElementById("aj-resp").value;
+      AJ.meta = +document.getElementById("aj-meta").value;
+      AJ.reanudar = document.getElementById("aj-reanudar").value;
+      guardarAjustes(); difundir();
+    });
+  });
+
+  if (bancoDeEjemplo) {
+    document.getElementById("aviso-banco").innerHTML =
+      '<div class="aviso warn"><b>Banco de ejemplo.</b> No se ha encontrado <code>trivial-preguntas.js</code> al lado de este archivo, ' +
+      'así que se están usando preguntas de relleno. Sirve para ensayar el mecanismo, no para jugar.</div>';
+  } else {
+    const n = BANCO.filter(q => q.uso === "ordinaria").length;
+    if (n < 30) document.getElementById("aviso-banco").innerHTML =
+      '<div class="aviso warn"><b>Faltan preguntas.</b> El banco tiene ' + n + ' ordinarias de las 30 necesarias (6 por categoría).</div>';
+  }
+
+  // Pulsadores
+  const cp = document.getElementById("caja-puls");
+  EQUIPOS.forEach((eq, i) => {
+    const d = document.createElement("div");
+    d.className = "puls"; d.id = "puls-" + i;
+    d.style.setProperty("--eq", eq.color);
+    d.onclick = () => pulsar(i, true);
+    d.innerHTML = `<div class="n">${eq.nombre}</div><div class="k">${AJ.teclas[i]}</div><div class="p">0</div>`;
+    cp.appendChild(d);
+  });
+
+  // Marcador del panel
+  const mp = document.getElementById("marcador-panel");
+  EQUIPOS.forEach((eq, i) => {
+    const d = document.createElement("div");
+    d.className = "mp"; d.id = "mp-" + i;
+    d.style.setProperty("--eq", eq.color);
+    d.innerHTML = `<div class="n">${eq.nombre}</div><div class="v">0</div>
+      <div class="mas"><button onclick="ajustarPunto(${i},-1)">−</button><button onclick="ajustarPunto(${i},1)">+</button></div>`;
+    mp.appendChild(d);
+  });
+
+  setInterval(() => { enviar({ t: "ping" }); marcarLED(); }, 2000);
+  requestAnimationFrame(buclePanel);
+  pintarPanel();
+  apuntar("Panel listo. " + (bancoDeEjemplo ? "Banco de ejemplo." : BANCO.length + " preguntas cargadas."));
+}
+
+function guardarAjustes() { localStorage.setItem("trivial_ajustes", JSON.stringify(AJ)); }
+
+function abrirLED() {
+  ventanaLED = window.open(location.pathname + "#led", "omega_trivial_led");
+  if (ventanaLED) ventanaLED.focus();
+  setTimeout(difundir, 900);
+}
+function marcarLED() {
+  const vivo = (Date.now() - ledVivo) < 7000;
+  document.getElementById("punto-led").classList.toggle("on", vivo);
+  document.getElementById("txt-led").textContent = vivo ? "Pantalla LED conectada" : "Pantalla LED no abierta";
+}
+
+/* =========================================================
+   7. PANEL: difundir el estado a la LED
+   ========================================================= */
+function difundir() {
+  if (esLED) return;
+  const cat = CATEGORIAS[E.ci];
+  enviar({ t: "estado", v: {
+    fase: E.fase, idx: E.idx, total: ORDEN.length,
+    cat: cat.nombre, color: cat.color,
+    enunciado: E.pregunta ? E.pregunta.p : "",
+    opciones: E.pregunta ? E.pregunta.o : [],
+    correcta: E.pregunta ? E.pregunta.c : 0,
+    opcionesVisibles: E.opcionesVisibles,
+    turno: E.turno, marcada: E.marcada, bloqueados: E.bloqueados,
+    puntos: E.puntos, meta: AJ.meta,
+    cronoFin: E.cronoRespFin, cronoTotal: AJ.resp,
+    veredicto: E.fase === "veredicto" ? (E.marcada && E.marcada.bien ? "ok" : "no") : null,
+    ganador: E.ganador
+  }});
+}
+
+/* =========================================================
+   8. PANEL: reloj del presupuesto
+   ========================================================= */
+function buclePanel() {
+  const ahora = performance.now();
+  if (presuCorriendo) {
+    presuRestante -= (ahora - ultimoTick);
+    if (presuRestante <= 0) { presuRestante = 0; cerrarPorTiempo(false); }
+    // Las opciones salen al consumir los primeros segundos efectivos.
+    const consumido = AJ.presu * 1000 - presuRestante;
+    if (!E.opcionesVisibles && consumido >= AJ.opciones * 1000 && E.fase === "pregunta") {
+      E.opcionesVisibles = true; difundir(); apuntar("Opciones en pantalla.");
+    }
+  }
+  ultimoTick = ahora;
+
+  // Tiempo de respuesta agotado
+  if (E.fase === "respondiendo" && E.cronoRespFin && Date.now() >= E.cronoRespFin) {
+    resolver(null, false, "sin responder a tiempo");
+  }
+
+  pintarRelojes();
+  requestAnimationFrame(buclePanel);
+}
+
+function pintarRelojes() {
+  document.getElementById("v-presu").textContent = (presuRestante / 1000).toFixed(1);
+  const rp = document.getElementById("reloj-presu");
+  rp.className = "reloj " + (presuCorriendo ? "corriendo" : (E.fase === "respondiendo" ? "parado" : ""));
+  const rr = document.getElementById("reloj-resp");
+  if (E.fase === "respondiendo" && E.cronoRespFin) {
+    document.getElementById("v-resp").textContent = (Math.max(0, E.cronoRespFin - Date.now()) / 1000).toFixed(1);
+    rr.className = "reloj resp";
+  } else {
+    document.getElementById("v-resp").textContent = "—";
+    rr.className = "reloj";
+  }
+}
+
+/* =========================================================
+   9. PANEL: la partida
+   ========================================================= */
+function iniciarJuego() {
+  if (!ORDEN.length) { alert("No hay preguntas ordinarias en el banco."); return; }
+  E.fase = "categoria"; E.idx = 0; E.ci = ORDEN[0].ci; E.pregunta = ORDEN[0].q;
+  E.opcionesVisibles = false; E.turno = null; E.bloqueados = []; E.marcada = null; E.ganador = null;
+  presuRestante = AJ.presu * 1000; presuCorriendo = false;
+  apuntar("JUEGO INICIADO · categoría " + CATEGORIAS[E.ci].nombre);
+  pintarPanel(); difundir();
+}
+
+function lanzarPregunta() {
+  if (E.fase !== "categoria") return;
+  E.fase = "pregunta"; E.opcionesVisibles = (AJ.opciones === 0);
+  E.turno = null; E.bloqueados = []; E.marcada = null;
+  presuRestante = AJ.presu * 1000; presuCorriendo = true; ultimoTick = performance.now();
+  sonido("inicio");
+  apuntar("Pregunta " + (E.idx + 1) + " [" + E.pregunta.id + "] lanzada.");
+  pintarPanel(); difundir();
+}
+
+// Alguien pulsa: se para el presupuesto y arranca el tiempo de respuesta.
+function pulsar(i, manual) {
+  if (E.fase !== "pregunta") return;
+  if (E.turno != null) return;
+  if (E.bloqueados.includes(i)) return;
+  E.turno = i; E.fase = "respondiendo"; E.marcada = null;
+  presuCorriendo = false;
+  E.cronoRespFin = Date.now() + AJ.resp * 1000;
+  sonido("puls");
+  apuntar((manual ? "[a mano] " : "") + EQUIPOS[i].nombre + " pulsa. Quedaban " + (presuRestante/1000).toFixed(1) + " s.");
+  pintarPanel(); difundir();
+}
+
+// El operador marca lo que ha dicho el jugador.
+// opcion = índice 0..3, o null si respondió sin opciones en pantalla.
+function marcar(opcion) {
+  if (E.fase !== "respondiendo") return;
+  const bien = (opcion === E.pregunta.c);
+  resolver(opcion, bien, null);
+}
+function marcarLibre(bien) {
+  if (E.fase !== "respondiendo") return;
+  resolver(bien ? E.pregunta.c : null, bien, "respuesta hablada");
+}
+
+function resolver(opcion, bien, nota) {
+  E.fase = "veredicto";
+  E.marcada = { i: (opcion != null ? opcion : -1), bien: bien };
+  E.cronoRespFin = 0;
+  const eq = EQUIPOS[E.turno];
+
+  if (bien) {
+    E.puntos[E.turno]++;
+    sonido("ok");
+    apuntar("✔ " + eq.nombre + " ACIERTA" + (nota ? " (" + nota + ")" : "") + ". Lleva " + E.puntos[E.turno] + ".", "ok");
+  } else {
+    E.bloqueados.push(E.turno);
+    sonido("no");
+    apuntar("✘ " + eq.nombre + " falla" + (nota ? " (" + nota + ")" : "") + ".", "no");
+  }
+  pintarPanel(); difundir();
+
+  setTimeout(() => {
+    if (bien) {
+      cerrarPregunta();
+    } else if (E.bloqueados.length >= 3) {
+      apuntar("Los tres han fallado. Pregunta cerrada sin punto.");
+      cerrarPregunta();
+    } else {
+      // Se reabre a los que quedan y el reloj sigue donde se quedó.
+      E.fase = "pregunta"; E.turno = null; E.marcada = null;
+      if (AJ.reanudar === "fijo") presuRestante = Math.min(presuRestante, 20000) || 20000;
+      presuCorriendo = true; ultimoTick = performance.now();
+      apuntar("Reabierto a los demás con " + (presuRestante/1000).toFixed(1) + " s.");
+      pintarPanel(); difundir();
+    }
+  }, bien ? 3200 : 2600);
+}
+
+function cerrarPorTiempo(manual) {
+  if (!["pregunta", "respondiendo"].includes(E.fase)) return;
+  presuCorriendo = false; E.turno = null; E.cronoRespFin = 0;
+  apuntar(manual ? "Pregunta cerrada a mano." : "Se agotó el presupuesto. Nadie acertó.");
+  cerrarPregunta();
+}
+
+function cerrarPregunta() {
+  E.fase = "cerrada"; presuCorriendo = false; E.cronoRespFin = 0;
+  E.opcionesVisibles = true;     // al cerrar se enseña la solución
+  const g = E.puntos.findIndex(p => p >= AJ.meta);
+  if (g >= 0) { E.ganador = g; E.fase = "fin"; apuntar("🏆 " + EQUIPOS[g].nombre + " llega a " + AJ.meta + ". FIN.", "ok"); }
+  pintarPanel(); difundir();
+}
+
+function siguientePregunta() {
+  if (E.fase !== "cerrada") return;
+  E.idx++;
+  if (E.idx >= ORDEN.length) {
+    const max = Math.max(...E.puntos);
+    const lideres = E.puntos.map((p, i) => [p, i]).filter(x => x[0] === max).map(x => x[1]);
+    E.ganador = lideres.length === 1 ? lideres[0] : null;
+    E.fase = "fin";
+    apuntar(E.ganador != null
+      ? "🏆 Fin de las 30. Gana " + EQUIPOS[E.ganador].nombre + " con " + max + "."
+      : "Fin de las 30. EMPATE en cabeza: toca ronda extra de cinco preguntas.", "ok");
+    pintarPanel(); difundir(); return;
+  }
+  E.ci = ORDEN[E.idx].ci; E.pregunta = ORDEN[E.idx].q;
+  E.fase = "categoria"; E.opcionesVisibles = false;
+  E.turno = null; E.bloqueados = []; E.marcada = null;
+  presuRestante = AJ.presu * 1000; presuCorriendo = false;
+  apuntar("— Categoría " + CATEGORIAS[E.ci].nombre + " —");
+  pintarPanel(); difundir();
+}
+
+// Anular una pregunta comprometida y meter otra nueva de la misma categoría.
+function anularPregunta() {
+  if (!E.pregunta) return;
+  if (!confirm("¿Anular [" + E.pregunta.id + "] y sustituirla por otra de " + CATEGORIAS[E.ci].nombre + "?\n\n" +
+               "Si se dio un punto con ella, acuérdate de quitarlo con el − del marcador.")) return;
+  const nueva = reservaDe(E.ci, usadasReserva);
+  if (!nueva) { alert("No queda reserva de esa categoría."); return; }
+  usadasReserva.add(nueva.id);
+  apuntar("⚠ Anulada [" + E.pregunta.id + "], entra [" + nueva.id + "].");
+  E.pregunta = nueva; ORDEN[E.idx].q = nueva;
+  E.fase = "categoria"; E.opcionesVisibles = false; E.turno = null; E.bloqueados = []; E.marcada = null;
+  presuRestante = AJ.presu * 1000; presuCorriendo = false;
+  E.anuladas++;
+  pintarPanel(); difundir();
+}
+
+function ajustarPunto(i, d) {
+  E.puntos[i] = Math.max(0, E.puntos[i] + d);
+  apuntar("Marcador corregido a mano: " + EQUIPOS[i].nombre + " → " + E.puntos[i]);
+  pintarPanel(); difundir();
+}
+
+function reiniciarTodo() {
+  if (!confirm("¿Reiniciar el juego entero? Se pierden marcador y acta.")) return;
+  E = { fase: "espera", idx: 0, ci: 0, pregunta: null, opcionesVisibles: false, turno: null,
+        bloqueados: [], marcada: null, puntos: [0,0,0], ganador: null, cronoRespFin: 0, anuladas: 0 };
+  ORDEN = construirOrden(); usadasReserva = new Set();
+  presuRestante = AJ.presu * 1000; presuCorriendo = false; acta = [];
+  document.getElementById("acta").innerHTML = "";
+  apuntar("Juego reiniciado.");
+  pintarPanel(); difundir();
+}
+
+/* =========================================================
+   10. PANEL: pintar
+   ========================================================= */
+function pintarPanel() {
+  if (esLED) return;
+  const f = E.fase;
+
+  document.getElementById("b-iniciar").disabled = (f !== "espera");
+  document.getElementById("b-lanzar").disabled = (f !== "categoria");
+  document.getElementById("b-siguiente").disabled = (f !== "cerrada");
+  document.getElementById("b-anular").disabled = !["categoria","pregunta","respondiendo","cerrada"].includes(f);
+  document.getElementById("b-cerrar").disabled = !["pregunta","respondiendo"].includes(f);
+
+  const q = E.pregunta;
+  document.getElementById("f-id").textContent = q
+    ? "Pregunta " + (E.idx + 1) + " de " + ORDEN.length + " · " + CATEGORIAS[E.ci].nombre + " · " + q.id
+    : "Sin empezar";
+  document.getElementById("f-enun").textContent = q ? q.p : "Pulsa «Iniciar juego» para colocar la primera categoría en la pantalla.";
+
+  const sol = document.getElementById("f-sol");
+  if (q) { sol.style.display = "inline-block"; sol.textContent = "SOLUCIÓN: " + "ABCD"[q.c] + " · " + q.o[q.c]; }
+  else sol.style.display = "none";
+
+  const ops = document.getElementById("f-ops");
+  if (q) {
+    const puede = (f === "respondiendo");
+    ops.innerHTML = q.o.map((o, i) =>
+      `<button class="op-btn ${i === q.c ? "es-sol" : ""}" ${puede ? "" : "disabled"} onclick="marcar(${i})">
+         <span class="l">${"ABCD"[i]}</span><span>${o}</span></button>`).join("") +
+      `<button class="op-btn" ${puede ? "" : "disabled"} onclick="marcarLibre(true)" style="border-color:#00ff88">
+         <span class="l" style="background:#063b24;color:#7dffc4">✔</span><span>Acertó (respuesta hablada)</span></button>
+       <button class="op-btn" ${puede ? "" : "disabled"} onclick="marcarLibre(false)" style="border-color:#ff1f3d">
+         <span class="l" style="background:#3b0612;color:#ff9aa9">✘</span><span>Falló / no contesta</span></button>`;
+  } else ops.innerHTML = "";
+
+  const pista = {
+    espera: "Pulsa «Iniciar juego».",
+    categoria: "La LED muestra el cubo de la categoría. Espera a que los tres representantes estén colocados y con los oídos tapados, y entonces «Lanzar pregunta».",
+    pregunta: "Pregunta en el aire. Los pulsadores están activos; el presupuesto corre.",
+    respondiendo: "Tiene el turno un equipo. Marca abajo la respuesta que ha dicho, o déjalo correr si se le acaba el tiempo.",
+    veredicto: "Mostrando el resultado en pantalla…",
+    cerrada: "Pregunta cerrada y solución en pantalla. Cuando quieras, «Siguiente pregunta».",
+    fin: "Juego terminado."
+  }[f] || "";
+  document.getElementById("f-pista").textContent = pista;
+
+  EQUIPOS.forEach((eq, i) => {
+    const d = document.getElementById("puls-" + i);
+    if (d) {
+      d.classList.toggle("turno", E.turno === i);
+      d.classList.toggle("bloq", E.bloqueados.includes(i));
+      d.querySelector(".p").textContent = E.puntos[i];
+      d.querySelector(".k").textContent = AJ.teclas[i];
+    }
+    const m = document.getElementById("mp-" + i);
+    if (m) m.querySelector(".v").textContent = E.puntos[i];
+  });
+}
+
+/* =========================================================
+   11. PANEL: pulsadores físicos
+   ========================================================= */
+let capturando = null;
+function capturarTecla(i) {
+  capturando = i;
+  document.getElementById("aj-k" + i).value = "pulsa el mando…";
+}
+window.addEventListener("keydown", e => {
+  if (esLED) return;
+  if (capturando != null) {
+    e.preventDefault();
+    AJ.teclas[capturando] = e.code;
+    document.getElementById("aj-k" + capturando).value = e.code;
+    capturando = null; guardarAjustes(); pintarPanel();
+    return;
+  }
+  const i = AJ.teclas.indexOf(e.code);
+  if (i >= 0) { e.preventDefault(); if (!e.repeat) pulsar(i, false); return; }
+  // Atajos de teclado del operador
+  if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+  if (e.code === "Space") { e.preventDefault();
+    if (E.fase === "categoria") lanzarPregunta();
+    else if (E.fase === "cerrada") siguientePregunta();
+  }
+  if (["Digit1","Digit2","Digit3","Digit4"].includes(e.code) && E.fase === "respondiendo") marcar(+e.code.slice(5) - 1);
+});
+
+/* =========================================================
+   12. SONIDO (generado, no hacen falta archivos)
+   ========================================================= */
+let ac = null;
+function sonido(tipo) {
+  if (esLED) return;            // suena en el panel, que es quien recibe clics
+  try {
+    ac = ac || new (window.AudioContext || window.webkitAudioContext)();
+    if (ac.state === "suspended") ac.resume();
+    const t = ac.currentTime;
+    const notas = {
+      puls:   [[880, 0, .09]],
+      inicio: [[520, 0, .10], [780, .10, .14]],
+      ok:     [[660, 0, .10], [880, .10, .10], [1320, .20, .26]],
+      no:     [[200, 0, .28], [150, .22, .36]]
+    }[tipo] || [];
+    notas.forEach(([f, d, dur]) => {
+      const o = ac.createOscillator(), g = ac.createGain();
+      o.type = (tipo === "no") ? "sawtooth" : "square";
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t + d);
+      g.gain.exponentialRampToValueAtTime(tipo === "no" ? 0.35 : 0.22, t + d + 0.012);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + d + dur);
+      o.connect(g); g.connect(ac.destination);
+      o.start(t + d); o.stop(t + d + dur + 0.02);
+    });
+  } catch (e) {}
+}
+
+/* =========================================================
+   13. ACTA
+   ========================================================= */
+function apuntar(txt, clase) {
+  if (esLED) return;
+  const h = new Date().toLocaleTimeString("es-ES");
+  acta.push(h + "  " + txt);
+  const d = document.createElement("div");
+  if (clase) d.className = clase;
+  d.textContent = h + "  " + txt;
+  const caja = document.getElementById("acta");
+  caja.insertBefore(d, caja.firstChild);
+}
+function textoActa() {
+  return "OMEGA TRIVIAL · acta\n" +
+    "Marcador final: " + EQUIPOS.map((e, i) => e.nombre + " " + E.puntos[i]).join(" | ") + "\n" +
+    "Preguntas anuladas: " + E.anuladas + "\n\n" + acta.join("\n");
+}
+function copiarActa() { navigator.clipboard.writeText(textoActa()).then(() => alert("Acta copiada.")); }
+function descargarActa() {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([textoActa()], { type: "text/plain" }));
+  a.download = "acta-trivial.txt"; a.click();
+}
+</script>
+</body>
+</html>
