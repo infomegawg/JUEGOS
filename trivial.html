@@ -171,6 +171,23 @@ body.led { overflow: hidden; }
 .crono-resp.urgente { animation: urge .5s steps(2) infinite; }
 @keyframes urge { 50% { box-shadow: 0 0 0 transparent; border-color: #7a0014; } }
 
+/* ---------- CRONO DEL PRESUPUESTO (30 s) ---------- */
+.crono-presu {
+  position: absolute; z-index: 6; top: 84px; right: 44px; transform: scale(.8);
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 34px; border: 3px solid var(--activo); border-radius: 999px;
+  background: rgba(6,0,14,0.88); box-shadow: 0 0 40px color-mix(in srgb, var(--activo) 45%, transparent);
+  opacity: 0; transition: opacity 260ms ease, transform 260ms ease;
+}
+.crono-presu.ver { opacity: 1; transform: scale(1); }
+.crono-presu .n { font-size: 54px; font-weight: 900; color: #fff; min-width: 76px; text-align: center; text-shadow: 0 0 22px var(--activo); }
+.crono-presu .et { font-size: 13px; letter-spacing: 4px; color: color-mix(in srgb, var(--activo) 75%, #fff); }
+.crono-presu.parado { opacity: .35; filter: saturate(.4); }
+.crono-presu.final { border-color: var(--rojo); box-shadow: 0 0 44px color-mix(in srgb, var(--rojo) 60%, transparent); }
+.crono-presu.final .n { color: var(--rojo); text-shadow: 0 0 22px var(--rojo); }
+.crono-presu.final .et { color: #ff93a4; }
+.crono-presu.urgente { animation: urge .5s steps(2) infinite; }
+
 /* ---------- CARTEL CORRECTO / INCORRECTO ---------- */
 .veredicto {
   position: absolute; inset: 0; z-index: 9;
@@ -340,6 +357,11 @@ body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -app
       </div>
 
       <div class="banda" id="led-banda"><span id="led-banda-txt"></span></div>
+
+      <div class="crono-presu" id="led-presu">
+        <span class="et" id="led-presu-et">TIEMPO</span>
+        <span class="n" id="led-presu-n">30</span>
+      </div>
 
       <div class="crono-resp" id="led-crono">
         <span class="et">TIEMPO PARA RESPONDER</span>
@@ -577,7 +599,8 @@ const VISTA = {
   fase: "espera", idx: 0, total: 30, cat: CATEGORIAS[0].nombre, color: CATEGORIAS[0].color,
   enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
   turno: null, marcada: null, puntos: [0,0,0], meta: 16,
-  cronoFin: 0, cronoTotal: 10, veredicto: null, ganador: null, bloqueados: []
+  cronoFin: 0, cronoTotal: 10, veredicto: null, ganador: null, bloqueados: [],
+  presuFin: 0, presuRest: 0, presuCorre: false
 };
 
 if (esLED) {
@@ -681,6 +704,25 @@ function pintarLED() {
 // el mismo ordenador, así que comparten reloj y no hay desfase.
 function bucleCrono() {
   const v = VISTA;
+
+  // --- Crono del presupuesto: visible mientras la pregunta esta viva ---
+  const cp = document.getElementById("led-presu");
+  if (v.fase === "pregunta") {
+    const queda = v.presuCorre
+      ? Math.max(0, v.presuFin - Date.now())
+      : Math.max(0, v.presuRest);
+    document.getElementById("led-presu-n").textContent = (queda / 1000).toFixed(1);
+    document.getElementById("led-presu-et").textContent =
+      v.bloqueados.length > 0 ? "SIGUE EL TIEMPO" : "TIEMPO";
+    cp.classList.add("ver");
+    cp.classList.toggle("parado", !v.presuCorre);
+    cp.classList.toggle("final", queda < 10000);
+    cp.classList.toggle("urgente", v.presuCorre && queda < 5000);
+  } else {
+    cp.classList.remove("ver", "parado", "final", "urgente");
+  }
+
+  // --- Crono rojo de respuesta: sustituye al anterior ---
   const caja = document.getElementById("led-crono");
   if (v.fase === "respondiendo" && v.cronoFin) {
     const queda = Math.max(0, v.cronoFin - Date.now());
@@ -784,6 +826,8 @@ function difundir() {
     turno: E.turno, marcada: E.marcada, bloqueados: E.bloqueados,
     puntos: E.puntos, meta: AJ.meta,
     cronoFin: E.cronoRespFin, cronoTotal: AJ.resp,
+    presuFin: presuCorriendo ? Date.now() + presuRestante : 0,
+    presuRest: presuRestante, presuCorre: presuCorriendo,
     veredicto: E.fase === "veredicto" ? (E.marcada && E.marcada.bien ? "ok" : "no") : null,
     ganador: E.ganador
   }});
