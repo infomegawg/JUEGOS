@@ -188,6 +188,35 @@ body.led { overflow: hidden; }
 .crono-presu.final .et { color: #ff93a4; }
 .crono-presu.urgente { animation: urge .5s steps(2) infinite; }
 
+/* ---------- RANKING DE PULSACIÓN ---------- */
+.ranking {
+  position: absolute; z-index: 7; top: 84px; left: 44px;
+  display: flex; flex-direction: column; gap: 10px;
+  opacity: 0; transform: translateX(-24px);
+  transition: opacity 260ms ease, transform 260ms ease;
+}
+.ranking.ver { opacity: 1; transform: none; }
+.ranking .fila {
+  display: grid; grid-template-columns: 54px 1fr auto; align-items: center; gap: 16px;
+  padding: 10px 22px 10px 10px; border-radius: 999px;
+  border: 3px solid color-mix(in srgb, var(--eq) 55%, transparent);
+  background: rgba(6,0,14,0.88);
+  transition: all 220ms ease;
+}
+.ranking .pos {
+  font-size: 30px; font-weight: 900; text-align: center; line-height: 1;
+  color: var(--eq); text-shadow: 0 0 16px var(--eq);
+}
+.ranking .quien { font-size: 26px; font-weight: 900; letter-spacing: 4px; color: #fff; }
+.ranking .ms { font-size: 16px; color: var(--texto2); min-width: 72px; text-align: right; }
+.ranking .fila.turno {
+  border-color: var(--eq);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--eq) 60%, transparent);
+  background: color-mix(in srgb, var(--eq) 16%, rgba(6,0,14,0.9));
+}
+.ranking .fila.fallo { opacity: .34; filter: saturate(.3); }
+.ranking .fila.fallo .quien { text-decoration: line-through; }
+
 /* ---------- CARTEL CORRECTO / INCORRECTO ---------- */
 .veredicto {
   position: absolute; inset: 0; z-index: 9;
@@ -393,6 +422,8 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
 
       <div class="banda" id="led-banda"><span id="led-banda-txt"></span></div>
 
+      <div class="ranking" id="led-ranking"></div>
+
       <div class="crono-presu" id="led-presu">
         <span class="et" id="led-presu-et">TIEMPO</span>
         <span class="n" id="led-presu-n">30</span>
@@ -483,7 +514,7 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
         <h2>Tiempos</h2>
         <div class="relojes">
           <div class="reloj" id="reloj-presu"><div class="et">PRESUPUESTO</div><div class="v" id="v-presu">30.0</div></div>
-          <div class="reloj" id="reloj-resp"><div class="et">RESPUESTA</div><div class="v" id="v-resp">—</div></div>
+          <div class="reloj" id="reloj-resp"><div class="et">VENTANA / COLA</div><div class="v" id="v-resp">—</div></div>
         </div>
         <div class="mini">Los dos se ven también en la pantalla grande: el del presupuesto en el color de la categoría y el de respuesta en rojo.</div>
       </div>
@@ -504,7 +535,7 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
         <h2>Ajustes</h2>
         <div class="ajuste"><span>Presupuesto por pregunta (s)</span><input type="number" id="aj-presu" value="30" min="5" max="120"></div>
         <div class="ajuste"><span>Opciones aparecen a los (s)</span><input type="number" id="aj-opciones" value="10" min="0" max="60"></div>
-        <div class="ajuste"><span>Tiempo para responder (s)</span><input type="number" id="aj-resp" value="10" min="3" max="30"></div>
+        <div class="ajuste"><span>Ventana para 2.º y 3.º (s)</span><input type="number" id="aj-ventana" value="1.2" min="0" max="5" step="0.1"></div>
         <div class="ajuste"><span>Aciertos para ganar</span><input type="number" id="aj-meta" value="16" min="1" max="30"></div>
         <div class="ajuste">
           <span>Tras un fallo, reanudar</span>
@@ -518,7 +549,8 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
         <div class="ajuste"><span>Tecla pulsador A</span><input type="text" id="aj-k0" value="ScrollLock" readonly onclick="capturarTecla(0)"></div>
         <div class="ajuste"><span>Tecla pulsador B</span><input type="text" id="aj-k1" value="Pause" readonly onclick="capturarTecla(1)"></div>
         <div class="ajuste"><span>Tecla pulsador C</span><input type="text" id="aj-k2" value="Insert" readonly onclick="capturarTecla(2)"></div>
-        <div class="mini">«Tras un fallo, reanudar» es lo que se les da a los otros dos equipos cuando uno falla: 20, 15 o 10 s, o lo que quedara del presupuesto.</div>
+        <div class="mini">«Ventana para 2.º y 3.º»: al pulsar el primero se para el reloj, pero durante esos segundos las pulsaciones que vienen de camino siguen contando y forman la cola. Súbela si en el ensayo veis que alguien se queda fuera por poco.</div>
+        <div class="mini">«Tras un fallo, reanudar» solo se usa cuando se acaba la cola: es el tiempo que se les da a los equipos que no llegaron a pulsar.</div>
         <div class="mini">Pincha en una tecla y pulsa el mando que quieras asignarle. Los ajustes se guardan solos en este ordenador.</div>
       </div>
     </div>
@@ -605,7 +637,7 @@ function reservaDe(ci, usadas) {
    2. ESTADO
    ========================================================= */
 const AJ = Object.assign({
-  presu: 30, opciones: 10, resp: 10, meta: 16, reanudar: "20",
+  presu: 30, opciones: 10, ventana: 1.2, meta: 16, reanudar: "20",
   teclas: ["ScrollLock", "Pause", "Insert"]
 }, JSON.parse(localStorage.getItem("trivial_ajustes") || "{}"));
 
@@ -620,7 +652,9 @@ let E = {
   marcada: null,         // { i: nºopcion, bien: true/false }
   puntos: [0, 0, 0],
   ganador: null,
-  cronoRespFin: 0,       // instante en que se acaba el tiempo de respuesta
+  cola: [],              // equipos en orden de pulsación
+  tiempos: [],            // milisegundos de cada uno respecto al primero
+  ventanaFin: 0,          // instante en que se cierra la ventana de gracia
   anuladas: 0
 };
 let ORDEN = construirOrden();
@@ -672,7 +706,7 @@ const VISTA = {
   fase: "espera", idx: 0, total: 30, cat: CATEGORIAS[0].nombre, color: CATEGORIAS[0].color,
   enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
   turno: null, marcada: null, puntos: [0,0,0], meta: 16,
-  cronoFin: 0, cronoTotal: 10, veredicto: null, ganador: null, bloqueados: [],
+  cola: [], tiempos: [], ventanaFin: 0, veredicto: null, ganador: null, bloqueados: [],
   presuFin: 0, presuRest: 0, presuCorre: false, pausa: false
 };
 
@@ -697,6 +731,26 @@ function pintarLED() {
   const v = VISTA;
   document.documentElement.style.setProperty("--activo", v.color);
   document.getElementById("led-pausa").classList.toggle("ver", !!v.pausa);
+
+  // Ranking de pulsación: quién llegó 1.º, 2.º y 3.º
+  const rk = document.getElementById("led-ranking");
+  const cola = v.cola || [];
+  const verRanking = cola.length > 0 &&
+    ["ventana", "respondiendo", "veredicto"].includes(v.fase);
+  rk.classList.toggle("ver", verRanking);
+  if (verRanking) {
+    rk.innerHTML = cola.map((eqi, n) => {
+      const eq = EQUIPOS[eqi];
+      const ms = (v.tiempos && v.tiempos[n]) || 0;
+      const clases = "fila" + (v.turno === eqi ? " turno" : "") +
+                     ((v.bloqueados || []).includes(eqi) ? " fallo" : "");
+      return '<div class="' + clases + '" style="--eq:' + eq.color + '">' +
+               '<div class="pos">' + (n + 1) + '.º</div>' +
+               '<div class="quien">' + eq.nombre + '</div>' +
+               '<div class="ms">' + (n === 0 ? "" : "+" + ms + " ms") + '</div>' +
+             '</div>';
+    }).join("");
+  }
 
   // Cabecera
   document.getElementById("led-cuenta").innerHTML =
@@ -864,7 +918,7 @@ function ticCrono() {
 
   // --- Crono del presupuesto: visible mientras la pregunta esta viva ---
   const cp = document.getElementById("led-presu");
-  if (v.fase === "pregunta") {
+  if (v.fase === "pregunta" || v.fase === "ventana") {
     const queda = v.presuCorre
       ? Math.max(0, v.presuFin - Date.now())
       : Math.max(0, v.presuRest);
@@ -879,16 +933,9 @@ function ticCrono() {
     cp.classList.remove("ver", "parado", "final", "urgente");
   }
 
-  // --- Crono rojo de respuesta: sustituye al anterior ---
-  const caja = document.getElementById("led-crono");
-  if (v.fase === "respondiendo" && v.cronoFin) {
-    const queda = Math.max(0, v.cronoFin - Date.now());
-    document.getElementById("led-crono-n").textContent = (queda / 1000).toFixed(1);
-    caja.classList.add("ver");
-    caja.classList.toggle("urgente", queda < 3000);
-  } else {
-    caja.classList.remove("ver", "urgente");
-  }
+  // El crono rojo de respuesta ya no se usa: ahora responde el 1.º de la cola
+  // con el speaker al lado, sin cuenta atrás.
+  document.getElementById("led-crono").classList.remove("ver", "urgente");
 }
 
 /* =========================================================
@@ -900,16 +947,17 @@ if (!esLED) {
   // Ajustes guardados
   document.getElementById("aj-presu").value = AJ.presu;
   document.getElementById("aj-opciones").value = AJ.opciones;
-  document.getElementById("aj-resp").value = AJ.resp;
+  if (AJ.ventana == null) AJ.ventana = 1.2;      // ajuste de versiones anteriores
+  document.getElementById("aj-ventana").value = AJ.ventana;
   document.getElementById("aj-meta").value = AJ.meta;
   if (AJ.reanudar === "fijo") AJ.reanudar = "20";
   document.getElementById("aj-reanudar").value = AJ.reanudar;
   AJ.teclas.forEach((k, i) => document.getElementById("aj-k" + i).value = k);
-  ["aj-presu","aj-opciones","aj-resp","aj-meta","aj-reanudar"].forEach(id => {
+  ["aj-presu","aj-opciones","aj-ventana","aj-meta","aj-reanudar"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
       AJ.presu = +document.getElementById("aj-presu").value;
       AJ.opciones = +document.getElementById("aj-opciones").value;
-      AJ.resp = +document.getElementById("aj-resp").value;
+      AJ.ventana = +document.getElementById("aj-ventana").value;
       AJ.meta = +document.getElementById("aj-meta").value;
       AJ.reanudar = document.getElementById("aj-reanudar").value;
       guardarAjustes(); difundir();
@@ -983,7 +1031,8 @@ function difundir() {
     opcionesVisibles: E.opcionesVisibles,
     turno: E.turno, marcada: E.marcada, bloqueados: E.bloqueados,
     puntos: E.puntos, meta: AJ.meta,
-    cronoFin: E.cronoRespFin, cronoTotal: AJ.resp,
+    cola: E.cola, tiempos: E.tiempos,
+    ventanaFin: E.ventanaFin,
     presuFin: presuCorriendo ? Date.now() + presuRestante : 0,
     presuRest: presuRestante, presuCorre: presuCorriendo, pausa: enPausa,
     veredicto: E.fase === "veredicto" ? (E.marcada && E.marcada.bien ? "ok" : "no") : null,
@@ -1002,15 +1051,15 @@ function togglePausa() {
   if (!enPausa) {
     enPausa = true;
     guardado.presuCorria = presuCorriendo;
-    guardado.respQuedaba = (E.fase === "respondiendo" && E.cronoRespFin)
-      ? Math.max(0, E.cronoRespFin - Date.now()) : 0;
+    guardado.respQuedaba = (E.fase === "ventana" && E.ventanaFin)
+      ? Math.max(0, E.ventanaFin - Date.now()) : 0;
     presuCorriendo = false;
-    E.cronoRespFin = 0;                 // así no sigue corriendo por detrás
+    E.ventanaFin = 0;                   // así no sigue corriendo por detrás
     apuntar("⏸ JUEGO PARADO por el operador.");
   } else {
     enPausa = false;
-    if (guardado.respQuedaba > 0 && E.fase === "respondiendo") {
-      E.cronoRespFin = Date.now() + guardado.respQuedaba;
+    if (guardado.respQuedaba > 0 && E.fase === "ventana") {
+      E.ventanaFin = Date.now() + guardado.respQuedaba;
     }
     presuCorriendo = guardado.presuCorria;
     ultimoTick = performance.now();     // sin esto se comería el tiempo parado
@@ -1047,10 +1096,8 @@ function ticPanel() {
   }
   ultimoTick = ahora;
 
-  // Tiempo de respuesta agotado
-  if (E.fase === "respondiendo" && E.cronoRespFin && Date.now() >= E.cronoRespFin) {
-    resolver(null, false, "sin responder a tiempo");
-  }
+  // Se acabó la ventana de gracia: se cierra la cola y empieza a responder el 1.º
+  if (E.fase === "ventana" && E.ventanaFin && Date.now() >= E.ventanaFin) cerrarVentana();
 
   pintarRelojes();
 }
@@ -1060,9 +1107,12 @@ function pintarRelojes() {
   const rp = document.getElementById("reloj-presu");
   rp.className = "reloj " + (presuCorriendo ? "corriendo" : (E.fase === "respondiendo" ? "parado" : ""));
   const rr = document.getElementById("reloj-resp");
-  if (E.fase === "respondiendo" && E.cronoRespFin) {
-    document.getElementById("v-resp").textContent = (Math.max(0, E.cronoRespFin - Date.now()) / 1000).toFixed(1);
+  if (E.fase === "ventana" && E.ventanaFin) {
+    document.getElementById("v-resp").textContent = (Math.max(0, E.ventanaFin - Date.now()) / 1000).toFixed(1);
     rr.className = "reloj resp";
+  } else if (E.cola.length) {
+    document.getElementById("v-resp").textContent = E.cola.map(x => EQUIPOS[x].nombre.slice(-1)).join("·");
+    rr.className = "reloj";
   } else {
     document.getElementById("v-resp").textContent = "—";
     rr.className = "reloj";
@@ -1077,6 +1127,7 @@ function iniciarJuego() {
   E.fase = "categoria"; E.idx = 0; E.ci = ORDEN[0].ci;
   ORDEN[0].q = barajarOpciones(ORDEN[0].q); E.pregunta = ORDEN[0].q;
   E.opcionesVisibles = false; E.turno = null; E.bloqueados = []; E.marcada = null; E.ganador = null;
+  E.cola = []; E.tiempos = []; E.ventanaFin = 0;
   presuRestante = AJ.presu * 1000; presuCorriendo = false;
   apuntar("JUEGO INICIADO · categoría " + CATEGORIAS[E.ci].nombre);
   pintarPanel(); difundir();
@@ -1095,14 +1146,47 @@ function lanzarPregunta() {
 // Alguien pulsa: se para el presupuesto y arranca el tiempo de respuesta.
 function pulsar(i, manual) {
   if (enPausa) return;
-  if (E.fase !== "pregunta") return;
-  if (E.turno != null) return;
-  if (E.bloqueados.includes(i)) return;
-  E.turno = i; E.fase = "respondiendo"; E.marcada = null;
-  presuCorriendo = false;
-  E.cronoRespFin = Date.now() + AJ.resp * 1000;
+  if (E.fase !== "pregunta" && E.fase !== "ventana") return;
+  if (E.bloqueados.includes(i)) return;     // ya falló en esta pregunta
+  if (E.cola.includes(i)) return;           // ya está en la cola
+
+  const ahora = performance.now();
+
+  if (E.cola.length === 0) {
+    // Primera pulsación: se para el reloj y se abre la ventana de gracia,
+    // para que las pulsaciones que venían de camino entren en la cola.
+    presuCorriendo = false;
+    E.fase = "ventana";
+    E.t0 = ahora;
+    E.ventanaFin = Date.now() + (+AJ.ventana || 0) * 1000;
+    apuntar((manual ? "[a mano] " : "") + EQUIPOS[i].nombre + " pulsa primero. Quedaban " +
+            (presuRestante / 1000).toFixed(1) + " s.");
+  } else {
+    apuntar((manual ? "[a mano] " : "") + EQUIPOS[i].nombre + " pulsa " + (E.cola.length + 1) +
+            ".º, a " + Math.round(ahora - E.t0) + " ms del primero.");
+  }
+
+  E.cola.push(i);
+  E.tiempos.push(Math.round(ahora - E.t0));
   sonido("puls");
-  apuntar((manual ? "[a mano] " : "") + EQUIPOS[i].nombre + " pulsa. Quedaban " + (presuRestante/1000).toFixed(1) + " s.");
+
+  // Si ya han pulsado todos los que podían, no hay nada que esperar.
+  const quedan = 3 - E.bloqueados.length;
+  if (E.cola.length >= quedan || (+AJ.ventana || 0) === 0) { cerrarVentana(); return; }
+
+  pintarPanel(); difundir();
+}
+
+/* Cierra la ventana de gracia y da el turno al primero de la cola. */
+function cerrarVentana() {
+  if (E.fase !== "ventana" || !E.cola.length) return;
+  E.ventanaFin = 0;
+  E.fase = "respondiendo";
+  E.turno = E.cola[0];
+  E.marcada = null;
+  apuntar("Orden: " + E.cola.map((x, n) =>
+    (n + 1) + ".º " + EQUIPOS[x].nombre + (n ? " (+" + E.tiempos[n] + " ms)" : "")
+  ).join(" · "));
   pintarPanel(); difundir();
 }
 
@@ -1121,7 +1205,6 @@ function marcarLibre(bien) {
 function resolver(opcion, bien, nota) {
   E.fase = "veredicto";
   E.marcada = { i: (opcion != null ? opcion : -1), bien: bien };
-  E.cronoRespFin = 0;
   const eq = EQUIPOS[E.turno];
 
   if (bien) {
@@ -1142,26 +1225,38 @@ function resolver(opcion, bien, nota) {
       apuntar("Los tres han fallado. Pregunta cerrada sin punto.");
       cerrarPregunta();
     } else {
-      // Se reabre a los que quedan y el reloj sigue donde se quedó.
-      E.fase = "pregunta"; E.turno = null; E.marcada = null;
-      if (AJ.reanudar === "fijo") AJ.reanudar = "20";   // ajuste de versiones anteriores
-      if (AJ.reanudar !== "restante") presuRestante = (parseInt(AJ.reanudar, 10) || 20) * 1000;
-      presuCorriendo = true; ultimoTick = performance.now();
-      apuntar("Reabierto a los demás con " + (presuRestante/1000).toFixed(1) + " s.");
-      pintarPanel(); difundir();
+      // ¿Queda alguien en la cola que no haya fallado todavía?
+      const siguiente = E.cola.find(x => !E.bloqueados.includes(x));
+      if (siguiente != null) {
+        // Sí: responde directo, sin volver a pulsar.
+        const puesto = E.cola.indexOf(siguiente) + 1;
+        E.fase = "respondiendo"; E.turno = siguiente; E.marcada = null;
+        apuntar("Turno para " + EQUIPOS[siguiente].nombre + ", que pulsó " + puesto + ".º");
+        pintarPanel(); difundir();
+      } else {
+        // No: se reabre el reloj a los que ni siquiera llegaron a pulsar.
+        E.fase = "pregunta"; E.turno = null; E.marcada = null;
+        E.cola = []; E.tiempos = []; E.ventanaFin = 0;
+        if (AJ.reanudar === "fijo") AJ.reanudar = "20";   // ajuste de versiones anteriores
+        if (AJ.reanudar !== "restante") presuRestante = (parseInt(AJ.reanudar, 10) || 20) * 1000;
+        presuCorriendo = true; ultimoTick = performance.now();
+        apuntar("Se acabó la cola. Reabierto a los demás con " + (presuRestante/1000).toFixed(1) + " s.");
+        pintarPanel(); difundir();
+      }
     }
   }, bien ? 3200 : 2600);
 }
 
 function cerrarPorTiempo(manual) {
-  if (!["pregunta", "respondiendo"].includes(E.fase)) return;
-  presuCorriendo = false; E.turno = null; E.cronoRespFin = 0;
+  if (!["pregunta", "ventana", "respondiendo"].includes(E.fase)) return;
+  presuCorriendo = false; E.turno = null; E.ventanaFin = 0;
   apuntar(manual ? "Pregunta cerrada a mano." : "Se agotó el presupuesto. Nadie acertó.");
   cerrarPregunta();
 }
 
 function cerrarPregunta() {
-  E.fase = "cerrada"; presuCorriendo = false; E.cronoRespFin = 0;
+  E.fase = "cerrada"; presuCorriendo = false; E.ventanaFin = 0;
+  E.cola = []; E.tiempos = [];
   E.opcionesVisibles = true;     // al cerrar se enseña la solución
   const g = E.puntos.findIndex(p => p >= AJ.meta);
   if (g >= 0) { E.ganador = g; E.fase = "fin"; apuntar("🏆 " + EQUIPOS[g].nombre + " llega a " + AJ.meta + ". FIN.", "ok"); }
@@ -1202,6 +1297,7 @@ function anularPregunta() {
   nueva = barajarOpciones(nueva);
   E.pregunta = nueva; ORDEN[E.idx].q = nueva;
   E.fase = "categoria"; E.opcionesVisibles = false; E.turno = null; E.bloqueados = []; E.marcada = null;
+  E.cola = []; E.tiempos = []; E.ventanaFin = 0;
   presuRestante = AJ.presu * 1000; presuCorriendo = false;
   E.anuladas++;
   pintarPanel(); difundir();
@@ -1216,7 +1312,8 @@ function ajustarPunto(i, d) {
 function reiniciarTodo() {
   if (!confirm("¿Reiniciar el juego entero? Se pierden marcador y acta.")) return;
   E = { fase: "espera", idx: 0, ci: 0, pregunta: null, opcionesVisibles: false, turno: null,
-        bloqueados: [], marcada: null, puntos: [0,0,0], ganador: null, cronoRespFin: 0, anuladas: 0 };
+        bloqueados: [], marcada: null, puntos: [0,0,0], ganador: null,
+        cola: [], tiempos: [], ventanaFin: 0, anuladas: 0 };
   ORDEN = construirOrden(); usadasReserva = new Set();
   presuRestante = AJ.presu * 1000; presuCorriendo = false; acta = [];
   document.getElementById("acta").innerHTML = "";
