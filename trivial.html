@@ -566,7 +566,7 @@ function reservaDe(ci, usadas) {
    2. ESTADO
    ========================================================= */
 const AJ = Object.assign({
-  presu: 30, opciones: 10, resp: 10, meta: 16, reanudar: "restante",
+  presu: 30, opciones: 10, resp: 10, meta: 16, reanudar: "fijo",
   teclas: ["ScrollLock", "Pause", "Insert"]
 }, JSON.parse(localStorage.getItem("trivial_ajustes") || "{}"));
 
@@ -1024,7 +1024,7 @@ function resolver(opcion, bien, nota) {
     } else {
       // Se reabre a los que quedan y el reloj sigue donde se quedó.
       E.fase = "pregunta"; E.turno = null; E.marcada = null;
-      if (AJ.reanudar === "fijo") presuRestante = Math.min(presuRestante, 20000) || 20000;
+      if (AJ.reanudar === "fijo") presuRestante = 20000;
       presuCorriendo = true; ultimoTick = performance.now();
       apuntar("Reabierto a los demás con " + (presuRestante/1000).toFixed(1) + " s.");
       pintarPanel(); difundir();
