@@ -129,7 +129,7 @@ body.led { overflow: hidden; }
 .bloque-preg { position: relative; z-index: 2; width: 100%; max-width: 1250px; text-align: center; opacity: 0; pointer-events: none; transition: opacity 450ms ease; }
 .centro.con-pregunta .bloque-preg { opacity: 1; }
 .bloque-preg { transition: opacity 450ms ease, max-width 300ms ease, transform 300ms ease; }
-.centro.con-ranking .bloque-preg { max-width: 940px; transform: translateX(-120px); }
+.centro.con-ranking .bloque-preg { max-width: 900px; transform: translateX(-205px); }
 .enunciado { font-size: 46px; line-height: 1.3; font-weight: 700; color: #fff; text-shadow: 0 2px 30px rgba(0,0,0,0.9); }
 
 .opciones { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 46px; opacity: 0; transform: translateY(18px); transition: opacity 500ms ease, transform 500ms ease; }
@@ -192,31 +192,47 @@ body.led { overflow: hidden; }
 
 /* ---------- RANKING DE PULSACIÓN ---------- */
 .ranking {
-  position: absolute; z-index: 7; top: 184px; right: 44px;
-  display: flex; flex-direction: column; gap: 10px; align-items: stretch;
-  opacity: 0; transform: translateX(24px);
-  transition: opacity 260ms ease, transform 260ms ease;
+  position: absolute; z-index: 7; top: 50%; right: 46px;
+  width: 392px; padding: 20px 20px 22px; border-radius: 20px;
+  border: 1px solid rgba(176,97,255,0.30);
+  background: linear-gradient(180deg, rgba(22,6,42,0.96), rgba(8,1,16,0.96));
+  box-shadow: 0 24px 70px rgba(0,0,0,0.6);
+  opacity: 0; transform: translateY(-50%) translateX(30px);
+  transition: opacity 280ms ease, transform 280ms ease;
 }
-.ranking.ver { opacity: 1; transform: none; }
+.ranking.ver { opacity: 1; transform: translateY(-50%); }
+.ranking .tit {
+  font-size: 13px; letter-spacing: 6px; color: #9b7fc0;
+  text-align: center; margin-bottom: 16px;
+}
 .ranking .fila {
-  display: grid; grid-template-columns: 54px 1fr auto; align-items: center; gap: 16px;
-  padding: 10px 22px 10px 10px; border-radius: 999px;
-  border: 3px solid color-mix(in srgb, var(--eq) 55%, transparent);
-  background: rgba(6,0,14,0.88);
+  display: flex; align-items: center; gap: 16px;
+  padding: 13px 18px; margin-bottom: 10px; border-radius: 13px;
+  border: 2px solid color-mix(in srgb, var(--eq) 42%, transparent);
+  background: rgba(6,0,14,0.7);
   transition: all 220ms ease;
 }
+.ranking .fila:last-child { margin-bottom: 0; }
 .ranking .pos {
-  font-size: 30px; font-weight: 900; text-align: center; line-height: 1;
-  color: var(--eq); text-shadow: 0 0 16px var(--eq);
+  flex: 0 0 46px; width: 46px; height: 46px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 900; line-height: 1;
+  color: #06000c; background: var(--eq);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--eq) 70%, transparent);
 }
-.ranking .quien { font-size: 26px; font-weight: 900; letter-spacing: 4px; color: #fff; }
-.ranking .ms { font-size: 16px; color: var(--texto2); min-width: 72px; text-align: right; }
+.ranking .quien {
+  flex: 1 1 auto; min-width: 0;
+  font-size: 23px; font-weight: 900; letter-spacing: 2px; color: #fff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ranking .ms { flex: 0 0 auto; font-size: 15px; color: #9b7fc0; font-variant-numeric: tabular-nums; }
 .ranking .fila.turno {
   border-color: var(--eq);
-  box-shadow: 0 0 40px color-mix(in srgb, var(--eq) 60%, transparent);
-  background: color-mix(in srgb, var(--eq) 16%, rgba(6,0,14,0.9));
+  box-shadow: 0 0 36px color-mix(in srgb, var(--eq) 55%, transparent);
+  background: color-mix(in srgb, var(--eq) 15%, rgba(6,0,14,0.85));
 }
-.ranking .fila.fallo { opacity: .34; filter: saturate(.3); }
+.ranking .fila.turno .quien { color: var(--eq); }
+.ranking .fila.fallo { opacity: .3; filter: saturate(.25); }
 .ranking .fila.fallo .quien { text-decoration: line-through; }
 
 /* ---------- CARTEL CORRECTO / INCORRECTO ---------- */
@@ -742,17 +758,18 @@ function pintarLED() {
   rk.classList.toggle("ver", verRanking);
   document.getElementById("led-centro").classList.toggle("con-ranking", verRanking);
   if (verRanking) {
-    rk.innerHTML = cola.map((eqi, n) => {
-      const eq = EQUIPOS[eqi];
-      const ms = (v.tiempos && v.tiempos[n]) || 0;
-      const clases = "fila" + (v.turno === eqi ? " turno" : "") +
-                     ((v.bloqueados || []).includes(eqi) ? " fallo" : "");
-      return '<div class="' + clases + '" style="--eq:' + eq.color + '">' +
-               '<div class="pos">' + (n + 1) + '.º</div>' +
-               '<div class="quien">' + eq.nombre + '</div>' +
-               '<div class="ms">' + (n === 0 ? "" : "+" + ms + " ms") + '</div>' +
-             '</div>';
-    }).join("");
+    rk.innerHTML = '<div class="tit">ORDEN DE PULSACIÓN</div>' +
+      cola.map((eqi, n) => {
+        const eq = EQUIPOS[eqi];
+        const ms = (v.tiempos && v.tiempos[n]) || 0;
+        const clases = "fila" + (v.turno === eqi ? " turno" : "") +
+                       ((v.bloqueados || []).includes(eqi) ? " fallo" : "");
+        return '<div class="' + clases + '" style="--eq:' + eq.color + '">' +
+                 '<div class="pos">' + (n + 1) + '</div>' +
+                 '<div class="quien">' + eq.nombre + '</div>' +
+                 '<div class="ms">' + (n === 0 ? "" : "+" + ms + " ms") + '</div>' +
+               '</div>';
+      }).join("");
   }
 
   // Cabecera
