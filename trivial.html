@@ -491,13 +491,16 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
         <div class="ajuste">
           <span>Tras un fallo, reanudar</span>
           <select id="aj-reanudar" style="padding:6px;border-radius:6px;border:1px solid #4a3568;background:#0d0518;color:#fff">
+            <option value="20">20 s</option>
+            <option value="15">15 s</option>
+            <option value="10">10 s</option>
             <option value="restante">el tiempo que quedaba</option>
-            <option value="fijo">20 s fijos</option>
           </select>
         </div>
         <div class="ajuste"><span>Tecla pulsador A</span><input type="text" id="aj-k0" value="ScrollLock" readonly onclick="capturarTecla(0)"></div>
         <div class="ajuste"><span>Tecla pulsador B</span><input type="text" id="aj-k1" value="Pause" readonly onclick="capturarTecla(1)"></div>
         <div class="ajuste"><span>Tecla pulsador C</span><input type="text" id="aj-k2" value="Insert" readonly onclick="capturarTecla(2)"></div>
+        <div class="mini">«Tras un fallo, reanudar» es lo que se les da a los otros dos equipos cuando uno falla: 20, 15 o 10 s, o lo que quedara del presupuesto.</div>
         <div class="mini">Pincha en una tecla y pulsa el mando que quieras asignarle. Los ajustes se guardan solos en este ordenador.</div>
       </div>
     </div>
@@ -566,7 +569,7 @@ function reservaDe(ci, usadas) {
    2. ESTADO
    ========================================================= */
 const AJ = Object.assign({
-  presu: 30, opciones: 10, resp: 10, meta: 16, reanudar: "fijo",
+  presu: 30, opciones: 10, resp: 10, meta: 16, reanudar: "20",
   teclas: ["ScrollLock", "Pause", "Insert"]
 }, JSON.parse(localStorage.getItem("trivial_ajustes") || "{}"));
 
@@ -784,6 +787,7 @@ if (!esLED) {
   document.getElementById("aj-opciones").value = AJ.opciones;
   document.getElementById("aj-resp").value = AJ.resp;
   document.getElementById("aj-meta").value = AJ.meta;
+  if (AJ.reanudar === "fijo") AJ.reanudar = "20";
   document.getElementById("aj-reanudar").value = AJ.reanudar;
   AJ.teclas.forEach((k, i) => document.getElementById("aj-k" + i).value = k);
   ["aj-presu","aj-opciones","aj-resp","aj-meta","aj-reanudar"].forEach(id => {
@@ -1024,7 +1028,8 @@ function resolver(opcion, bien, nota) {
     } else {
       // Se reabre a los que quedan y el reloj sigue donde se quedó.
       E.fase = "pregunta"; E.turno = null; E.marcada = null;
-      if (AJ.reanudar === "fijo") presuRestante = 20000;
+      if (AJ.reanudar === "fijo") AJ.reanudar = "20";   // ajuste de versiones anteriores
+      if (AJ.reanudar !== "restante") presuRestante = (parseInt(AJ.reanudar, 10) || 20) * 1000;
       presuCorriendo = true; ultimoTick = performance.now();
       apuntar("Reabierto a los demás con " + (presuRestante/1000).toFixed(1) + " s.");
       pintarPanel(); difundir();
