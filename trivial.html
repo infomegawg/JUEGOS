@@ -648,6 +648,7 @@ if (esLED) {
   enviar({ t: "hola" });
   setInterval(() => enviar({ t: "hola" }), 3000);
   requestAnimationFrame(bucleCrono);
+  setInterval(ticCrono, 100);          // respaldo si la ventana queda tapada
   pintarLED();
 }
 
@@ -736,6 +737,11 @@ function pintarLED() {
 // El crono de respuesta se anima en la propia LED: las dos ventanas están en
 // el mismo ordenador, así que comparten reloj y no hay desfase.
 function bucleCrono() {
+  ticCrono();
+  requestAnimationFrame(bucleCrono);
+}
+
+function ticCrono() {
   const v = VISTA;
 
   // --- Crono del presupuesto: visible mientras la pregunta esta viva ---
@@ -765,7 +771,6 @@ function bucleCrono() {
   } else {
     caja.classList.remove("ver", "urgente");
   }
-  requestAnimationFrame(bucleCrono);
 }
 
 /* =========================================================
@@ -826,6 +831,7 @@ if (!esLED) {
 
   setInterval(() => { enviar({ t: "ping" }); marcarLED(); }, 2000);
   requestAnimationFrame(buclePanel);
+  setInterval(ticPanel, 100);          // respaldo si la ventana queda tapada
   pintarPanel();
   apuntar("Panel listo. " + (bancoDeEjemplo ? "Banco de ejemplo." : BANCO.length + " preguntas cargadas."));
 }
@@ -898,9 +904,19 @@ function togglePausa() {
   pintarPanel(); difundir();
 }
 
+// requestAnimationFrame se congela si la ventana queda detrás de otra o
+// minimizada, y con él se pararía el juego entero. Por eso el reloj lo
+// mueven dos motores: rAF cuando se ve, y un setInterval de respaldo que
+// el navegador sí mantiene. El tiempo se mide con el reloj del sistema,
+// así que dé igual cada cuánto entre: nunca se pierden segundos.
 function buclePanel() {
+  ticPanel();
+  requestAnimationFrame(buclePanel);
+}
+
+function ticPanel() {
   const ahora = performance.now();
-  if (enPausa) { ultimoTick = ahora; pintarRelojes(); requestAnimationFrame(buclePanel); return; }
+  if (enPausa) { ultimoTick = ahora; pintarRelojes(); return; }
   if (presuCorriendo) {
     presuRestante -= (ahora - ultimoTick);
     if (presuRestante <= 0) { presuRestante = 0; cerrarPorTiempo(false); }
@@ -918,7 +934,6 @@ function buclePanel() {
   }
 
   pintarRelojes();
-  requestAnimationFrame(buclePanel);
 }
 
 function pintarRelojes() {
