@@ -190,9 +190,9 @@ body.led { overflow: hidden; }
 
 /* ---------- RANKING DE PULSACIÓN ---------- */
 .ranking {
-  position: absolute; z-index: 7; top: 84px; left: 44px;
-  display: flex; flex-direction: column; gap: 10px;
-  opacity: 0; transform: translateX(-24px);
+  position: absolute; z-index: 7; top: 184px; right: 44px;
+  display: flex; flex-direction: column; gap: 10px; align-items: stretch;
+  opacity: 0; transform: translateX(24px);
   transition: opacity 260ms ease, transform 260ms ease;
 }
 .ranking.ver { opacity: 1; transform: none; }
