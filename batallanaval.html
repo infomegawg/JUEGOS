@@ -739,7 +739,8 @@ let ultimoEventoKey = null;
 const ESPERA_ENTRE_JUGADAS_MS = 5000;
 
 /* ===== CRONO DE TURNO Y OPORTUNIDADES =====
-   El manual da treinta segundos por turno y treinta oportunidades por equipo.
+   El manual daba treinta oportunidades por equipo; subidas a cuarenta por
+   decision de direccion (12-nov-2026). Treinta segundos por turno.
    El crono es un AVISO, no un arbitro: al llegar a cero no cierra el turno ni
    consume nada por su cuenta, porque eso cambia el resultado de la partida y
    lo decide la mesa. Lo que hace es que los dos capitanes vean el mismo
@@ -754,7 +755,7 @@ const SEGUNDOS_POR_TURNO = 30;
 // de turno se le ha apagado el movil, la partida no puede quedarse colgada.
 const MARGEN_RESCATE_MS = 6000;
 let pasandoPorTiempo = false;   // evita mandar dos veces el mismo vencimiento
-const OPORTUNIDADES_POR_EQUIPO = 30;
+const OPORTUNIDADES_POR_EQUIPO = 40;
 let ticCrono = null;
 let esperaHasta = 0;
 let turnoAnterior = null;   // para detectar el cambio de turno
