@@ -428,8 +428,8 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <div class="flota-rival-resumen" id="flota-rival-resumen"></div>
         <div id="jugadas-caja" style="display:none;margin-top:10px;padding-top:10px;
              border-top:1px solid var(--border);font-size:12px;color:var(--texto2);line-height:1.6;">
-          Te quedan <b id="jugadas-restantes" style="font-size:18px;color:#fff;">40</b> jugadas<br>
-          <span style="opacity:.75;">Rival: <b id="jugadas-rival">40</b></span>
+          Te quedan <b id="jugadas-restantes" style="font-size:18px;color:#fff;">50</b> jugadas<br>
+          <span style="opacity:.75;">Rival: <b id="jugadas-rival">50</b></span>
           <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);">
             &#9201; Tu tiempo: <b id="tiempo-mio" style="font-family:var(--font);font-size:17px;color:#ffd9b8;">0:00</b><br>
             <span style="opacity:.75;">Rival: <b id="tiempo-rival" style="font-family:var(--font);">0:00</b></span><br>
@@ -471,7 +471,7 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <h3 id="espectador-nombre-a">EQUIPO A</h3>
         <div class="marcador-esp" id="marcador-esp-a">
           <div class="crono" id="crono-esp-a">—</div>
-          <div class="jugadas"><b id="jug-esp-a">40</b> jugadas</div>
+          <div class="jugadas"><b id="jug-esp-a">50</b> jugadas</div>
           <div class="tiempo"><b id="tiempo-esp-a">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-a"></div>
@@ -484,7 +484,7 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <h3 id="espectador-nombre-b">EQUIPO B</h3>
         <div class="marcador-esp" id="marcador-esp-b">
           <div class="crono" id="crono-esp-b">—</div>
-          <div class="jugadas"><b id="jug-esp-b">40</b> jugadas</div>
+          <div class="jugadas"><b id="jug-esp-b">50</b> jugadas</div>
           <div class="tiempo"><b id="tiempo-esp-b">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-b"></div>
@@ -753,9 +753,9 @@ const ESPERA_ENTRE_JUGADAS_MS = 5000;
 
 /* ===== CRONO DE TURNO Y OPORTUNIDADES =====
    El manual daba treinta oportunidades y treinta segundos por turno. Por
-   decision de direccion (12-nov-2026): cuarenta oportunidades y quince
+   decision de direccion (12-nov-2026): cincuenta oportunidades y diez
    segundos. Sin saldo global de decision: el reloj de turno hace el tope.
-   Techo de la partida: 80 jugadas x (5 s de espera + 15 s) = 26 min 40 s.
+   Techo de la partida: 100 jugadas x (5 s de espera + 10 s) = 25 min.
    El crono es un AVISO, no un arbitro: al llegar a cero no cierra el turno ni
    consume nada por su cuenta, porque eso cambia el resultado de la partida y
    lo decide la mesa. Lo que hace es que los dos capitanes vean el mismo
@@ -765,12 +765,14 @@ const ESPERA_ENTRE_JUGADAS_MS = 5000;
    del reloj del movil que dispara). Los dos moviles son telefonos con hora de
    red, asi que el desfase es de decimas; si algun dia importara al segundo,
    habria que pasarlo a hora de servidor. */
-const SEGUNDOS_POR_TURNO = 15;
+const SEGUNDOS_POR_TURNO = 10;
+// A partir de aqui el reloj avisa en naranja: el ultimo tercio del turno.
+const AVISO_SEGUNDOS = Math.max(2, Math.round(SEGUNDOS_POR_TURNO / 3));
 // Margen que se le da al rival antes de pasar el turno el mismo: si al capitan
 // de turno se le ha apagado el movil, la partida no puede quedarse colgada.
 const MARGEN_RESCATE_MS = 6000;
 let pasandoPorTiempo = false;   // evita mandar dos veces el mismo vencimiento
-const OPORTUNIDADES_POR_EQUIPO = 40;
+const OPORTUNIDADES_POR_EQUIPO = 50;
 let ticCrono = null;
 let esperaHasta = 0;
 let turnoAnterior = null;   // para detectar el cambio de turno
@@ -1259,7 +1261,7 @@ function toastBatalla(texto) {
 }
 
 /* Instante en el que vence el turno: los cinco segundos de preparacion mas
-   los quince de decision, contados desde que cambio el turno. */
+   los diez de decision, contados desde que cambio el turno. */
 function finDelTurno() {
   const d = ultimaPartida;
   if (!d || d.fase !== 'batalla' || !d.turno || !d.turno_desde) return null;
@@ -1375,7 +1377,7 @@ function pintarBannerTurno() {
   banner.innerHTML = q > 0
     ? '🎯 Te quedan <b style="font-family:var(--font);font-size:1.3em;letter-spacing:1px;">' + q + 's</b> para disparar'
     : '⏰ <b style="font-family:var(--font);font-size:1.2em;letter-spacing:1px;">SE TE ACABÓ EL TIEMPO</b> — pierdes la jugada';
-  banner.className = "turno-banner " + (q === 0 ? "agotado" : q <= 10 ? "espera" : "mio");
+  banner.className = "turno-banner " + (q === 0 ? "agotado" : q <= AVISO_SEGUNDOS ? "espera" : "mio");
 }
 
 function vigilarCrono() {
@@ -1438,7 +1440,7 @@ function pintarMarcadoresEspectador() {
     }
     const q = segundosDeTurno();
     crono.textContent = q > 0 ? q + "s" : "¡TIEMPO!";
-    crono.className = "crono " + (q === 0 ? "rojo" : q <= 10 ? "naranja" : "verde");
+    crono.className = "crono " + (q === 0 ? "rojo" : q <= AVISO_SEGUNDOS ? "naranja" : "verde");
   });
 }
 
