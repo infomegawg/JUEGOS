@@ -509,6 +509,12 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         </div>
         <div>
           <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users-group"></i> Equipos creados</div>
+          <!-- Al acabar una prueba hay que dejar la lista limpia: si no, el
+               staff vuelve a ver equipos viejos al crear los de la siguiente. -->
+          <button class="btn btn-rojo" id="btn-disolver-prueba" style="width:100%;padding:7px;font-size:11px;margin-bottom:8px;"
+                  onclick="disolverEquiposDeLaPrueba()">
+            <i class="ti ti-users-minus"></i> Disolver todos los equipos de esta prueba
+          </button>
           <div id="equipos-admin-list"><div style="font-size:11px;color:var(--texto2);">Sin equipos</div></div>
         </div>
       </div>
@@ -1499,7 +1505,7 @@ function renderEquiposAdminList() {
     return `<div style="background:#f3eeff;border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;">
       <div style="font-size:12px;font-weight:800;color:var(--morado);">👥 ${eq.nombre}</div>
       <div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">${vivos} vivos de ${eq.dorsales.length} · #${eq.dorsales.join(', #')}</div>
-      <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Creado por ${eq.creado_por||'—'}</div>
+      <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Creado por ${eq.creado_por||'—'} · ${eq.prueba || 'sin prueba'}</div>
       <button class="btn btn-verde" style="width:100%;padding:6px;font-size:10px;margin-bottom:6px;" onclick="anunciarEquipoFormado('${id}')"><i class="ti ti-volume"></i> Anunciar por megafonía</button>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="editarEquipoStaff('${id}')">Editar</button>
@@ -1605,6 +1611,30 @@ async function editarEquipoStaff(id) {
     await db.collection("equipos").doc(id).update({ nombre: nuevoNombre.trim(), dorsales: nuevosDorsales });
     mostrarNotif("Equipo actualizado");
   } catch(e) { console.error(e); mostrarNotif("Error al actualizar el equipo"); }
+}
+
+// Disuelve de una vez todos los equipos de la prueba que esta en curso. No
+// toca a los jugadores: solo marca activo:false, igual que el boton de uno en
+// uno. Los equipos de otras pruebas se quedan como estan.
+async function disolverEquiposDeLaPrueba() {
+  const prueba = document.getElementById("prueba-select").value;
+  const lista = Object.entries(equiposStaffCache)
+    .filter(([, eq]) => (eq.prueba || "") === prueba);
+  if (!lista.length) { mostrarNotif("No hay equipos de " + prueba); return; }
+  if (!confirm("¿Disolver los " + lista.length + " equipos de \"" + prueba + "\"?\n\n" +
+               lista.map(([, eq]) => "· " + eq.nombre).join("\n") +
+               "\n\nNo afecta a los jugadores: solo desaparece la agrupación.")) return;
+  try {
+    // En lotes de 400 por si algun dia hay muchos equipos: el limite de un
+    // batch de Firestore son 500 operaciones.
+    for (let i = 0; i < lista.length; i += 400) {
+      const lote = db.batch();
+      lista.slice(i, i + 400).forEach(([id]) =>
+        lote.update(db.collection("equipos").doc(id), { activo: false }));
+      await lote.commit();
+    }
+    mostrarNotif(lista.length + " equipos de " + prueba + " disueltos");
+  } catch(e) { console.error(e); mostrarNotif("No se han podido disolver los equipos"); }
 }
 
 async function disolverEquipoStaff(id) {
