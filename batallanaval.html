@@ -447,10 +447,6 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
              border-top:1px solid var(--border);font-size:12px;color:var(--texto2);line-height:1.6;">
           Disparos hechos: <b id="jugadas-restantes" style="font-size:18px;color:#fff;">0</b><br>
           <span style="opacity:.75;">Rival: <b id="jugadas-rival">0</b></span>
-          <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);">
-            &#9201; Tu tiempo: <b id="tiempo-mio" style="font-family:var(--font);font-size:17px;color:#ffd9b8;">0:00</b><br>
-            <span style="opacity:.75;">Rival: <b id="tiempo-rival" style="font-family:var(--font);">0:00</b></span>
-          </div>
         </div>
       </div>
       <div class="board-block">
@@ -486,7 +482,6 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <div class="marcador-esp" id="marcador-esp-a">
           <div class="crono" id="crono-esp-a">—</div>
           <div class="jugadas"><b id="jug-esp-a">0</b> disparos</div>
-          <div class="tiempo"><b id="tiempo-esp-a">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-a"></div>
         <div class="log-bajo-tablero">
@@ -499,7 +494,6 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <div class="marcador-esp" id="marcador-esp-b">
           <div class="crono" id="crono-esp-b">—</div>
           <div class="jugadas"><b id="jug-esp-b">0</b> disparos</div>
-          <div class="tiempo"><b id="tiempo-esp-b">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-b"></div>
         <div class="log-bajo-tablero">
@@ -1404,8 +1398,6 @@ function pintarMarcadorTurno() {
   const suyas = porHistorial(rival);
   document.getElementById("jugadas-restantes").textContent = mias;
   document.getElementById("jugadas-rival").textContent = suyas;
-  document.getElementById("tiempo-mio").textContent = mmss(tiempoVivo(d, miEquipo));
-  document.getElementById("tiempo-rival").textContent = mmss(tiempoVivo(d, rival));
 }
 
 /* El banner de "es tu turno" con la cuenta atras incorporada. Se tiñe de
@@ -1459,8 +1451,6 @@ function pintarMarcadoresEspectador() {
     // turnos perdidos por tiempo incluidos.
     const gastadas = (d.historial || []).filter(h => h.equipoLetra === letra).length;
     document.getElementById("jug-esp-" + letra.toLowerCase()).textContent = gastadas;
-    document.getElementById("tiempo-esp-" + letra.toLowerCase()).textContent =
-      mmss(tiempoVivo(d, letra));
 
     const crono = document.getElementById("crono-esp-" + letra.toLowerCase());
     if (terminada) {
@@ -1714,11 +1704,26 @@ function renderFin() {
       '<b>' + d.equipoA + ':</b> ' + r.A.hundidos + ' barcos · ' + r.A.impactos + ' impactos · ' + mmss(r.A.ms) + '<br>' +
       '<b>' + d.equipoB + ':</b> ' + r.B.hundidos + ' barcos · ' + r.B.impactos + ' impactos · ' + mmss(r.B.ms) +
     '</div>';
+  // Dato para la organizacion, no para el juego: cuanto ha tardado de verdad
+  // cada capitan en decidir. Sirve para afinar la espera entre jugadas.
+  const ritmo = ['A', 'B'].map(letra => {
+    const tiros = (d.historial || []).filter(h => h.equipoLetra === letra).length;
+    const ms = tiempoGastado(d, letra);
+    const media = tiros ? (ms / tiros / 1000) : 0;
+    return '<b>' + (letra === 'A' ? d.equipoA : d.equipoB) + ':</b> ' + tiros +
+           ' disparos · ' + mmss(ms) + ' pensando · ' + media.toFixed(1) + ' s por tiro';
+  }).join('<br>');
+
   caja.innerHTML = (d.ganador
       ? '🏆 GANADOR: ' + (d.ganador === 'A' ? d.equipoA : d.equipoB).toUpperCase()
       : '⚖️ EMPATE ABSOLUTO — TARJETAS OMEGA') +
     '<div style="font-size:14px;color:var(--texto2);margin-top:8px;">' + textoMotivoFin(d) + '</div>' +
-    detalle;
+    detalle +
+    '<div style="font-size:13px;color:var(--texto2);line-height:1.8;margin-top:18px;' +
+         'padding-top:14px;border-top:1px solid var(--border);">' +
+      '<div style="font-size:10px;letter-spacing:3px;margin-bottom:8px;opacity:.7;">RITMO DE JUEGO · USO INTERNO</div>' +
+      ritmo +
+    '</div>';
 }
 
 /* ===== ANUNCIOS DE VOZ + OVERLAY ===== */
