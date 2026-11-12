@@ -161,6 +161,8 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .led-btn.accion-naranja:hover { background: #b35200; color: #fff; border-color: transparent; }
 .led-btn.accion-verde { background: #15803d; }
 .led-btn.accion-verde:hover { background: #11642f; color: #fff; border-color: transparent; }
+.led-btn.accion-morada { background: #7018cc; }
+.led-btn.accion-morada:hover { background: #5a12a6; color: #fff; border-color: transparent; }
 .led-btn.accion-roja { background: #c81e2e; }
 .led-btn.accion-roja:hover { background: #a01825; color: #fff; border-color: transparent; }
 
@@ -277,6 +279,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/acreditacion.html','_blank')"><i class="ti ti-id-badge-2"></i> Acreditación (puerta)</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/panel-acreditacion.html','_blank')"><i class="ti ti-chart-bar"></i> Panel de acreditación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1','_blank')"><i class="ti ti-anchor"></i> Batalla Naval (ver en directo)</button>
+          <button class="led-btn accion accion-morada" id="btn-sorteo-batalla" onclick="sortearInicioBatalla()" style="grid-column:1/-1;"><i class="ti ti-dice"></i> Sortear quién empieza (Batalla Naval)</button>
           <button class="led-btn accion accion-naranja" id="btn-pausa-batalla" onclick="alternarPausaBatalla()"><i class="ti ti-player-pause"></i> Pausar Batalla Naval</button>
           <button class="led-btn accion accion-roja" onclick="reiniciarBatallaNaval()"><i class="ti ti-refresh-alert"></i> Reiniciar Batalla Naval</button>
         </div>
@@ -2501,6 +2504,32 @@ function escucharPausaBatalla() {
     b.classList.toggle("accion-verde", batallaPausada);
     b.classList.toggle("accion-naranja", !batallaPausada);
   }, (e) => console.warn("pausa batalla:", e));
+}
+
+/* Sorteo del primer turno de Batalla Naval. Antes lo pulsaba uno de los dos
+   capitanes desde su PC, y los capitanes son participantes: no deben tocar el
+   boton que decide quien abre. Ahora sale de aqui y las tres pantallas (los dos
+   capitanes y la de espectador) lo ven animado. */
+async function sortearInicioBatalla() {
+  const ref = db.collection("batalla_naval").doc("partida_actual");
+  try {
+    let aviso = "";
+    await db.runTransaction(async (tx) => {
+      const doc = await tx.get(ref);
+      if (!doc.exists) { aviso = "No hay ninguna partida en curso"; return; }
+      const d = doc.data();
+      if (d.fase !== "batalla") { aviso = "Las dos flotas todavia no estan colocadas"; return; }
+      if (d.turno) { aviso = "El primer turno ya esta sorteado"; return; }
+      const elegido = Math.random() < 0.5 ? "A" : "B";
+      tx.update(ref, {
+        turno: elegido,
+        turno_desde: Date.now(),
+        ultimoEvento: { tipo: "inicio", equipoLetra: elegido, ts: Date.now() }
+      });
+      aviso = "Sorteado: empieza " + (elegido === "A" ? d.equipoA : d.equipoB);
+    });
+    mostrarNotif(aviso);
+  } catch (e) { console.error(e); mostrarNotif("No se ha podido sortear"); }
 }
 
 async function alternarPausaBatalla() {
