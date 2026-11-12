@@ -85,6 +85,15 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)); gap: 5px; margin-top: 8px; }
 .cell { aspect-ratio: 1; border-radius: 5px; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; background: #ede8f8; border: 1px solid var(--border); color: var(--morado); }
 .cell.elim { background: #fce8eb; border-color: rgba(212,18,48,0.4); color: rgba(212,18,48,0.5); text-decoration: line-through; }
+/* Dorsal que ya esta en otro equipo de esta prueba: se ve de lejos pero se
+   puede pulsar, que la decision es del arbitro. */
+.cell.ya-en-equipo {
+  border-color: #e04a4a;
+  color: #c01f1f;
+  background: #ffecec;
+  box-shadow: inset 0 0 0 2px rgba(224,74,74,.18);
+}
+.cell.ya-en-equipo.sel { box-shadow: inset 0 0 0 2px rgba(224,74,74,.5); }
 .cell.sel { background: #fff3d6; border-color: var(--naranja); color: var(--naranja); box-shadow: inset 0 0 0 2px var(--naranja); }
 
 /* ===== EQUIPOS ===== */
@@ -10347,7 +10356,12 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
   <div id="crear-equipo-form" style="display:none;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
     <label style="display:block;font-size:11px;font-weight:800;margin-bottom:4px;">Nombre del equipo</label>
     <input type="text" id="nuevo-equipo-nombre" placeholder="Ej: Fuego, Azul, Los Tigres..." style="margin-bottom:10px;"/>
+    <div id="aviso-equipos-viejos" style="display:none;background:#fff4e5;border:1px solid #f0b670;border-radius:8px;
+         padding:8px;margin-bottom:8px;font-size:11px;line-height:1.45;color:#8a4b00;"></div>
     <div style="font-size:11px;color:var(--texto2);margin-bottom:6px;">Selecciona los dorsales del equipo (<span id="nuevo-equipo-count">0</span>)</div>
+    <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">
+      En rojo, los que ya están en otro equipo de esta prueba.
+    </div>
     <input type="text" id="nuevo-equipo-search" placeholder="Buscar dorsal..." oninput="renderGridNuevoEquipo()" style="margin-bottom:8px;"/>
     <div class="grid" id="grid-nuevo-equipo" style="max-height:260px;overflow-y:auto;"></div>
     <div style="display:flex;gap:8px;margin-top:10px;">
@@ -10938,21 +10952,65 @@ function cerrarCrearEquipo() {
   document.getElementById("crear-equipo-form").style.display = "none";
 }
 
+/* Dorsales que ya estan en otro equipo activo DE ESTA MISMA PRUEBA. Es el unico
+   caso que rompe algo: el mismo dorsal en dos equipos de La Ruleta. Que un
+   dorsal este en un equipo de otra prueba es normal y no se avisa. */
+function dorsalesYaEnEquipo() {
+  const prueba = document.getElementById("prueba-select-staff").value;
+  const mapa = {};
+  Object.values(equipos).forEach(e => {
+    if (e.activo === false) return;
+    if ((e.prueba || "") !== prueba) return;
+    (e.dorsales || []).forEach(d => { if (!mapa[d]) mapa[d] = e.nombre; });
+  });
+  return mapa;
+}
+
+/* Equipos activos que son de OTRA prueba: son restos que coordinacion deberia
+   haber disuelto al acabarla. No es un error, pero conviene decirlo. */
+function equiposDeOtrasPruebas() {
+  const prueba = document.getElementById("prueba-select-staff").value;
+  return Object.values(equipos)
+    .filter(e => e.activo !== false && (e.prueba || "") !== prueba).length;
+}
+
 function renderGridNuevoEquipo() {
   const grid = document.getElementById("grid-nuevo-equipo");
   const q = document.getElementById("nuevo-equipo-search").value.trim().toLowerCase();
+  const ocupados = dorsalesYaEnEquipo();
   let lista = Object.values(participantes).filter(p => p.vivo).sort((a,b) => a.dorsal - b.dorsal);
   if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q));
   grid.innerHTML = lista.map(p => {
-    const cls = seleccionNuevoEquipo.has(p.dorsal) ? 'cell sel' : 'cell';
-    return `<div class="${cls}" onclick="toggleSeleccionNuevoEquipo(${p.dorsal})">${p.dorsal}</div>`;
+    const equipoPrevio = ocupados[p.dorsal];
+    let cls = seleccionNuevoEquipo.has(p.dorsal) ? 'cell sel' : 'cell';
+    if (equipoPrevio) cls += ' ya-en-equipo';
+    const tit = equipoPrevio ? ` title="Ya está en &quot;${equipoPrevio}&quot;"` : '';
+    return `<div class="${cls}"${tit} onclick="toggleSeleccionNuevoEquipo(${p.dorsal})">${p.dorsal}</div>`;
   }).join('');
   document.getElementById("nuevo-equipo-count").textContent = seleccionNuevoEquipo.size;
+
+  // Aviso de restos de pruebas anteriores
+  const aviso = document.getElementById("aviso-equipos-viejos");
+  const sobran = equiposDeOtrasPruebas();
+  if (sobran) {
+    aviso.style.display = "block";
+    aviso.innerHTML = "⚠️ Hay " + sobran + (sobran === 1 ? " equipo" : " equipos") +
+      " de otra prueba sin disolver. Dilo a coordinación para que limpien la lista.";
+  } else {
+    aviso.style.display = "none";
+  }
 }
 
 function toggleSeleccionNuevoEquipo(dorsal) {
-  if (seleccionNuevoEquipo.has(dorsal)) seleccionNuevoEquipo.delete(dorsal);
-  else seleccionNuevoEquipo.add(dorsal);
+  if (seleccionNuevoEquipo.has(dorsal)) {
+    seleccionNuevoEquipo.delete(dorsal);
+  } else {
+    seleccionNuevoEquipo.add(dorsal);
+    // Se deja seleccionar igual: a veces el arbitro sabe que el equipo viejo
+    // ya no vale. Pero que lo sepa en el momento, no al final.
+    const ya = dorsalesYaEnEquipo()[dorsal];
+    if (ya) toast("Ojo: el #" + dorsal + " ya está en \"" + ya + "\"");
+  }
   renderGridNuevoEquipo();
 }
 
@@ -10962,6 +11020,16 @@ async function guardarNuevoEquipo() {
   if (!nombre) { toast("Ponle un nombre al equipo"); return; }
   const dorsales = Array.from(seleccionNuevoEquipo).sort((a,b) => a - b);
   if (!dorsales.length) { toast("Selecciona al menos un dorsal"); return; }
+  // Ultimo filtro antes de guardar: si algun dorsal ya esta en otro equipo de
+  // esta prueba, se enseña cual y se pide confirmacion expresa.
+  const ocupados = dorsalesYaEnEquipo();
+  const choques = dorsales.filter(d => ocupados[d]);
+  if (choques.length) {
+    const detalle = choques.map(d => "· El #" + d + " ya está en \"" + ocupados[d] + "\"").join("\n");
+    if (!confirm("Hay " + choques.length + (choques.length === 1 ? " dorsal" : " dorsales") +
+                 " que ya están en otro equipo de esta prueba:\n\n" + detalle +
+                 "\n\n¿Crear el equipo \"" + nombre + "\" de todas formas?")) return;
+  }
   enviando = true;
   try {
     await enviarConColaOffline("equipos", {
@@ -10988,7 +11056,7 @@ function renderEquiposList() {
     const esMio = e.creado_por === staffNombre;
     return `<div class="equipo-card">
       <div class="nombre">👥 ${e.nombre}</div>
-      <div class="meta">${vivos.length} vivos de ${e.dorsales.length} · #${e.dorsales.join(', #')} · creado por ${e.creado_por||'—'}</div>
+      <div class="meta">${vivos.length} vivos de ${e.dorsales.length} · #${e.dorsales.join(', #')} · creado por ${e.creado_por||'—'} · ${e.prueba || 'sin prueba'}</div>
       <div class="btns">
         <button class="btn btn-naranja" ${vivos.length ? '' : 'disabled'} onclick="proponerEquipo('${id}')">Proponer eliminar (${vivos.length})</button>
         <button class="btn btn-ghost" ${esMio ? '' : 'disabled title="Solo quien lo creó puede borrarlo"'} onclick="borrarEquipo('${id}')"><i class="ti ti-trash"></i></button>
@@ -11145,6 +11213,10 @@ function escucharEquiposStaffApp() {
     equipos = {};
     snap.forEach(d => { equipos[d.id] = d.data(); });
     renderEquiposList();
+    // Si otro arbitro crea un equipo mientras este tiene el formulario abierto,
+    // los dorsales en rojo se actualizan al instante.
+    const form = document.getElementById("crear-equipo-form");
+    if (form && form.style.display === "block") renderGridNuevoEquipo();
   });
 }
 
