@@ -546,7 +546,9 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
       <div class="caja">
         <h2>Marcador</h2>
         <div class="marcador-panel" id="marcador-panel"></div>
-        <div class="mini">Gana quien más aciertos tenga tras las 30 preguntas, o el primero que llegue a 16.</div>
+        <div class="mini">Gana quien más aciertos tenga tras las 30 preguntas, o el primero que llegue a 16.
+          Si hay empate en cabeza, la app juega sola la ronda extra de cinco y, si hace falta,
+          la muerte súbita. Solo las tarjetas Omega se sortean a mano.</div>
       </div>
 
       <div class="caja">
@@ -558,10 +560,10 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
         <div class="ajuste">
           <span>Tras un fallo, reanudar</span>
           <select id="aj-reanudar" style="padding:6px;border-radius:6px;border:1px solid #4a3568;background:#0d0518;color:#fff">
+            <option value="restante">el tiempo que quedaba</option>
             <option value="20">20 s</option>
             <option value="15">15 s</option>
             <option value="10">10 s</option>
-            <option value="restante">el tiempo que quedaba</option>
           </select>
         </div>
         <div class="ajuste"><span>Tecla pulsador A</span><input type="text" id="aj-k0" value="ScrollLock" readonly onclick="capturarTecla(0)"></div>
@@ -646,6 +648,42 @@ function construirOrden() {
   }
   return orden;
 }
+/* En las 30 juegan los tres. En el desempate, solo los empatados. */
+function juega(i) { return !E.empatados.length || E.empatados.includes(i); }
+function cuantosJuegan() { return E.empatados.length || 3; }
+
+/* El marcador que cuenta ahora mismo. La ronda extra lleva el suyo aparte,
+   como pide el manual: no se suma al de las 30. */
+function marcadorVivo() { return E.etapa === "extra" ? E.puntosExtra : E.puntos; }
+
+/* Las cinco preguntas de la ronda extra: una por categoria, en el orden de
+   siempre (direccion decidio que las categorias no se sortean). */
+function construirOrdenExtra() {
+  const orden = [];
+  CATEGORIAS.forEach((cat, ci) => {
+    const q = BANCO.filter(x => x.cat === cat.nombre && x.uso === "extra" && !usadasReserva.has(x.id))[0];
+    if (q) { usadasReserva.add(q.id); orden.push({ ci: ci, q: q }); }
+  });
+  return orden;
+}
+
+/* Muerte subita: hasta cinco preguntas de reserva. Aqui la categoria SI se
+   sortea, que es lo que dice el manual (15.5), porque no hay rotacion que
+   mantener y asi nadie sabe a quien le va a tocar su categoria fuerte. */
+function construirOrdenSubita() {
+  const orden = [];
+  for (let n = 0; n < 5; n++) {
+    const candidatas = CATEGORIAS
+      .map((cat, ci) => ({ ci: ci, q: BANCO.filter(x => x.cat === cat.nombre && x.uso !== "ordinaria" && !usadasReserva.has(x.id))[0] }))
+      .filter(x => x.q);
+    if (!candidatas.length) break;
+    const elegida = candidatas[Math.floor(Math.random() * candidatas.length)];
+    usadasReserva.add(elegida.q.id);
+    orden.push(elegida);
+  }
+  return orden;
+}
+
 function reservaDe(ci, usadas) {
   const cat = CATEGORIAS[ci].nombre;
   return BANCO.filter(q => q.cat === cat && q.uso !== "ordinaria" && !usadas.has(q.id))[0] || null;
@@ -655,12 +693,20 @@ function reservaDe(ci, usadas) {
    2. ESTADO
    ========================================================= */
 const AJ = Object.assign({
-  presu: 30, opciones: 10, ventana: 2.5, meta: 16, reanudar: "20",
+  presu: 30, opciones: 10, ventana: 2.5, meta: 16, reanudar: "restante",
   teclas: ["ScrollLock", "Pause", "Insert"]
 }, JSON.parse(localStorage.getItem("trivial_ajustes") || "{}"));
 
 let E = {
   fase: "espera",        // espera | categoria | pregunta | respondiendo | veredicto | cerrada | fin
+  // En que parte del juego estamos:
+  //   "ordinaria" las 30 preguntas
+  //   "extra"     la ronda de cinco entre los empatados en cabeza
+  //   "subita"    muerte subita: el primer acierto gana
+  etapa: "ordinaria",
+  empatados: [],         // equipos que siguen jugando el desempate ([] = los tres)
+  puntosExtra: [0, 0, 0],// marcador propio de la ronda extra, separado del grande
+  motivoFin: null,       // "puntos" | "meta" | "subita" | "tarjetas"
   idx: 0,
   ci: 0,
   pregunta: null,
@@ -675,6 +721,14 @@ let E = {
   ventanaFin: 0,          // instante en que se cierra la ventana de gracia
   anuladas: 0
 };
+// Migracion unica al criterio del manual (decision del 12-nov-2026). Si el
+// operador lo cambia despues a mano, su eleccion manda: la marca ya esta puesta.
+if (!AJ.migrado_restante) {
+  AJ.reanudar = "restante";
+  AJ.migrado_restante = true;
+  try { localStorage.setItem("trivial_ajustes", JSON.stringify(AJ)); } catch (e) {}
+}
+
 let ORDEN = construirOrden();
 let usadasReserva = new Set();
 let presuRestante = AJ.presu * 1000;
@@ -724,6 +778,7 @@ const VISTA = {
   fase: "espera", idx: 0, total: 30, cat: CATEGORIAS[0].nombre, color: CATEGORIAS[0].color,
   enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
   turno: null, marcada: null, puntos: [0,0,0], meta: 16,
+  etapa: "ordinaria", empatados: [], motivoFin: null,
   cola: [], tiempos: [], ventanaFin: 0, veredicto: null, ganador: null, bloqueados: [],
   presuFin: 0, presuRest: 0, presuCorre: false, pausa: false
 };
@@ -773,8 +828,10 @@ function pintarLED() {
   }
 
   // Cabecera
+  const etiquetaEtapa = v.etapa === "extra" ? "RONDA DE DESEMPATE · "
+                      : v.etapa === "subita" ? "MUERTE SÚBITA · " : "";
   document.getElementById("led-cuenta").innerHTML =
-    v.fase === "fin" ? "" : `PREGUNTA <b>${Math.min(v.idx + 1, v.total)}</b> / ${v.total}`;
+    v.fase === "fin" ? "" : etiquetaEtapa + `PREGUNTA <b>${Math.min(v.idx + 1, v.total)}</b> / ${v.total}`;
 
   // Espera / fin
   const espera = document.getElementById("led-espera");
@@ -789,7 +846,7 @@ function pintarLED() {
       arrancarConfeti(eq.color);
     } else {
       espera.innerHTML = `<div class="big">EMPATE</div>
-        <div class="small">SE JUEGA LA RONDA DE DESEMPATE</div>`;
+        <div class="small">SE RESUELVE CON TARJETAS OMEGA</div>`;
       pararConfeti();
     }
   } else {
@@ -855,8 +912,10 @@ function pintarLED() {
     const pips = d.querySelector(".pips");
     if (pips.children.length !== v.meta) pips.innerHTML = '<span class="pip"></span>'.repeat(v.meta);
     [...pips.children].forEach((p, k) => p.classList.toggle("on", k < v.puntos[i]));
+    const juegaEste = !(v.empatados || []).length || v.empatados.includes(i);
     d.classList.toggle("activo", v.turno === i && (v.fase === "respondiendo" || v.fase === "veredicto"));
-    d.classList.toggle("fuera", v.bloqueados.includes(i) && v.fase === "pregunta");
+    d.classList.toggle("fuera",
+      !juegaEste || (v.bloqueados.includes(i) && v.fase === "pregunta"));
   });
 }
 
@@ -1050,7 +1109,11 @@ function difundir() {
     correcta: E.pregunta ? E.pregunta.c : 0,
     opcionesVisibles: E.opcionesVisibles,
     turno: E.turno, marcada: E.marcada, bloqueados: E.bloqueados,
-    puntos: E.puntos, meta: AJ.meta,
+    etapa: E.etapa, empatados: E.empatados, motivoFin: E.motivoFin,
+    // En la ronda extra manda su marcador propio, de cinco; en las demas
+    // etapas, el de las treinta.
+    puntos: E.etapa === "extra" ? E.puntosExtra : E.puntos,
+    meta: E.etapa === "extra" ? ORDEN.length : AJ.meta,
     cola: E.cola, tiempos: E.tiempos,
     ventanaFin: E.ventanaFin,
     presuFin: presuCorriendo ? Date.now() + presuRestante : 0,
@@ -1143,6 +1206,12 @@ function pintarRelojes() {
    9. PANEL: la partida
    ========================================================= */
 function iniciarJuego() {
+  // Siempre se empieza por las 30 ordinarias. Si antes se jugo una partida que
+  // acabo en desempate, hay que deshacer esa etapa o la siguiente arrancaria
+  // con las cinco preguntas del desempate y con dos equipos mudos.
+  E.etapa = "ordinaria"; E.empatados = []; E.puntosExtra = [0, 0, 0]; E.motivoFin = null;
+  usadasReserva = new Set();
+  ORDEN = construirOrden();
   if (!ORDEN.length) { alert("No hay preguntas ordinarias en el banco."); return; }
   E.fase = "categoria"; E.idx = 0; E.ci = ORDEN[0].ci;
   ORDEN[0].q = barajarOpciones(ORDEN[0].q); E.pregunta = ORDEN[0].q;
@@ -1167,6 +1236,7 @@ function lanzarPregunta() {
 function pulsar(i, manual) {
   if (enPausa) return;
   if (E.fase !== "pregunta" && E.fase !== "ventana") return;
+  if (!juega(i)) return;                    // no juega este desempate
   if (E.bloqueados.includes(i)) return;     // ya falló en esta pregunta
   if (E.cola.includes(i)) return;           // ya está en la cola
 
@@ -1191,7 +1261,7 @@ function pulsar(i, manual) {
   sonido("puls");
 
   // Si ya han pulsado todos los que podían, no hay nada que esperar.
-  const quedan = 3 - E.bloqueados.length;
+  const quedan = cuantosJuegan() - E.bloqueados.length;
   if (E.cola.length >= quedan || (+AJ.ventana || 0) === 0) { cerrarVentana(); return; }
 
   pintarPanel(); difundir();
@@ -1228,9 +1298,20 @@ function resolver(opcion, bien, nota) {
   const eq = EQUIPOS[E.turno];
 
   if (bien) {
-    E.puntos[E.turno]++;
+    if (E.etapa === "subita") {
+      // Muerte subita: el primer acierto valido decide y se acaba el juego.
+      sonido("ok");
+      E.ganador = E.turno; E.motivoFin = "subita";
+      apuntar("✔ " + eq.nombre + " ACIERTA en muerte súbita. GANA.", "ok");
+      pintarPanel(); difundir();
+      setTimeout(() => { E.fase = "fin"; pintarPanel(); difundir(); }, 3200);
+      return;
+    }
+    const m = marcadorVivo();
+    m[E.turno]++;
     sonido("ok");
-    apuntar("✔ " + eq.nombre + " ACIERTA" + (nota ? " (" + nota + ")" : "") + ". Lleva " + E.puntos[E.turno] + ".", "ok");
+    apuntar("✔ " + eq.nombre + " ACIERTA" + (nota ? " (" + nota + ")" : "") +
+            ". Lleva " + m[E.turno] + (E.etapa === "extra" ? " en la ronda extra." : "."), "ok");
   } else {
     E.bloqueados.push(E.turno);
     sonido("no");
@@ -1241,8 +1322,8 @@ function resolver(opcion, bien, nota) {
   setTimeout(() => {
     if (bien) {
       cerrarPregunta();
-    } else if (E.bloqueados.length >= 3) {
-      apuntar("Los tres han fallado. Pregunta cerrada sin punto.");
+    } else if (E.bloqueados.length >= cuantosJuegan()) {
+      apuntar("Han fallado todos los que jugaban. Pregunta cerrada sin punto.");
       cerrarPregunta();
     } else {
       // ¿Queda alguien en la cola que no haya fallado todavía?
@@ -1278,30 +1359,99 @@ function cerrarPregunta() {
   E.fase = "cerrada"; presuCorriendo = false; E.ventanaFin = 0;
   E.cola = []; E.tiempos = [];
   E.opcionesVisibles = true;     // al cerrar se enseña la solución
-  const g = E.puntos.findIndex(p => p >= AJ.meta);
-  if (g >= 0) { E.ganador = g; E.fase = "fin"; apuntar("🏆 " + EQUIPOS[g].nombre + " llega a " + AJ.meta + ". FIN.", "ok"); }
+  // Llegar a la meta solo termina el juego durante las 30 ordinarias.
+  if (E.etapa === "ordinaria") {
+    const g = E.puntos.findIndex(p => p >= AJ.meta);
+    if (g >= 0) {
+      E.ganador = g; E.motivoFin = "meta"; E.fase = "fin";
+      apuntar("🏆 " + EQUIPOS[g].nombre + " llega a " + AJ.meta + ". FIN.", "ok");
+    }
+  }
   pintarPanel(); difundir();
 }
 
 function siguientePregunta() {
   if (E.fase !== "cerrada") return;
   E.idx++;
-  if (E.idx >= ORDEN.length) {
-    const max = Math.max(...E.puntos);
-    const lideres = E.puntos.map((p, i) => [p, i]).filter(x => x[0] === max).map(x => x[1]);
-    E.ganador = lideres.length === 1 ? lideres[0] : null;
-    E.fase = "fin";
-    apuntar(E.ganador != null
-      ? "🏆 Fin de las 30. Gana " + EQUIPOS[E.ganador].nombre + " con " + max + "."
-      : "Fin de las 30. EMPATE en cabeza: toca ronda extra de cinco preguntas.", "ok");
-    pintarPanel(); difundir(); return;
-  }
+  if (E.idx >= ORDEN.length) { cerrarEtapa(); return; }
   E.ci = ORDEN[E.idx].ci;
   ORDEN[E.idx].q = barajarOpciones(ORDEN[E.idx].q); E.pregunta = ORDEN[E.idx].q;
   E.fase = "categoria"; E.opcionesVisibles = false;
   E.turno = null; E.bloqueados = []; E.marcada = null;
   presuRestante = AJ.presu * 1000; presuCorriendo = false;
   apuntar("— Categoría " + CATEGORIAS[E.ci].nombre + " —");
+  pintarPanel(); difundir();
+}
+
+/* Se han acabado las preguntas de la etapa en curso: se decide si hay ganador
+   o si toca bajar un escalon mas en la cadena de desempate. */
+function cerrarEtapa() {
+  if (E.etapa === "ordinaria") {
+    const lideres = lideresDe(E.puntos, [0, 1, 2]);
+    if (lideres.length === 1) {
+      E.ganador = lideres[0]; E.motivoFin = "puntos"; E.fase = "fin";
+      apuntar("🏆 Fin de las 30. Gana " + EQUIPOS[E.ganador].nombre +
+              " con " + E.puntos[E.ganador] + ".", "ok");
+      pintarPanel(); difundir(); return;
+    }
+    arrancarEtapa("extra", lideres);
+    return;
+  }
+
+  if (E.etapa === "extra") {
+    const lideres = lideresDe(E.puntosExtra, E.empatados);
+    if (lideres.length === 1) {
+      E.ganador = lideres[0]; E.motivoFin = "puntos"; E.fase = "fin";
+      apuntar("🏆 La ronda extra la gana " + EQUIPOS[E.ganador].nombre +
+              " con " + E.puntosExtra[E.ganador] + " de 5.", "ok");
+      pintarPanel(); difundir(); return;
+    }
+    arrancarEtapa("subita", lideres);
+    return;
+  }
+
+  // Muerte subita agotada sin un solo acierto: lo resuelven las tarjetas.
+  E.ganador = null; E.motivoFin = "tarjetas"; E.fase = "fin";
+  apuntar("Cinco preguntas de muerte súbita sin acierto. Se resuelve con TARJETAS OMEGA: " +
+          E.empatados.map(i => EQUIPOS[i].nombre).join(" y ") + ".", "no");
+  pintarPanel(); difundir();
+}
+
+/* Quien va en cabeza, mirando solo a los equipos que siguen vivos. */
+function lideresDe(puntos, candidatos) {
+  const max = Math.max(...candidatos.map(i => puntos[i]));
+  return candidatos.filter(i => puntos[i] === max);
+}
+
+function arrancarEtapa(etapa, empatados) {
+  const nuevas = etapa === "extra" ? construirOrdenExtra() : construirOrdenSubita();
+  if (!nuevas.length) {
+    // Sin preguntas en el banco no se puede seguir: se para y lo resuelve
+    // coordinacion, pero se dice en voz alta en vez de fallar en silencio.
+    E.ganador = null; E.motivoFin = "tarjetas"; E.fase = "fin";
+    apuntar("No quedan preguntas para " + (etapa === "extra" ? "la ronda extra" : "la muerte súbita") +
+            ". Se resuelve con TARJETAS OMEGA.", "no");
+    pintarPanel(); difundir(); return;
+  }
+
+  E.etapa = etapa;
+  E.empatados = empatados.slice();
+  if (etapa === "extra") E.puntosExtra = [0, 0, 0];
+  ORDEN = nuevas;
+  E.idx = 0;
+  E.ci = ORDEN[0].ci;
+  ORDEN[0].q = barajarOpciones(ORDEN[0].q);
+  E.pregunta = ORDEN[0].q;
+  E.fase = "categoria";
+  E.opcionesVisibles = false;
+  E.turno = null; E.bloqueados = []; E.marcada = null;
+  E.cola = []; E.tiempos = []; E.ventanaFin = 0;
+  presuRestante = AJ.presu * 1000; presuCorriendo = false;
+
+  const quienes = empatados.map(i => EQUIPOS[i].nombre).join(" y ");
+  apuntar(etapa === "extra"
+    ? "— EMPATE en cabeza. RONDA EXTRA de " + ORDEN.length + " preguntas entre " + quienes + " —"
+    : "— Siguen empatados. MUERTE SÚBITA entre " + quienes + ": el primer acierto gana —", "ok");
   pintarPanel(); difundir();
 }
 
@@ -1331,7 +1481,8 @@ function ajustarPunto(i, d) {
 
 function reiniciarTodo() {
   if (!confirm("¿Reiniciar el juego entero? Se pierden marcador y acta.")) return;
-  E = { fase: "espera", idx: 0, ci: 0, pregunta: null, opcionesVisibles: false, turno: null,
+  E = { fase: "espera", etapa: "ordinaria", empatados: [], puntosExtra: [0,0,0],
+        motivoFin: null, idx: 0, ci: 0, pregunta: null, opcionesVisibles: false, turno: null,
         bloqueados: [], marcada: null, puntos: [0,0,0], ganador: null,
         cola: [], tiempos: [], ventanaFin: 0, anuladas: 0 };
   ORDEN = construirOrden(); usadasReserva = new Set();
@@ -1357,8 +1508,10 @@ function pintarPanel() {
   document.getElementById("b-cerrar").disabled = p || !["pregunta","respondiendo"].includes(f);
 
   const q = E.pregunta;
+  const etapaTxt = E.etapa === "extra" ? "RONDA EXTRA · "
+                 : E.etapa === "subita" ? "MUERTE SÚBITA · " : "";
   document.getElementById("f-id").textContent = q
-    ? "Pregunta " + (E.idx + 1) + " de " + ORDEN.length + " · " + CATEGORIAS[E.ci].nombre + " · " + q.id
+    ? etapaTxt + "Pregunta " + (E.idx + 1) + " de " + ORDEN.length + " · " + CATEGORIAS[E.ci].nombre + " · " + q.id
     : "Sin empezar";
   document.getElementById("f-enun").textContent = q ? q.p : "Pulsa «Iniciar juego» para colocar la primera categoría en la pantalla.";
 
@@ -1380,12 +1533,18 @@ function pintarPanel() {
 
   const pista = {
     espera: "Pulsa «Iniciar juego».",
-    categoria: "La LED muestra el cubo de la categoría. Espera a que los tres representantes estén colocados y con los oídos tapados, y entonces «Lanzar pregunta».",
+    categoria: (E.etapa === "ordinaria"
+      ? "La LED muestra el cubo de la categoría. Espera a que los tres representantes estén colocados y con los oídos tapados, y entonces «Lanzar pregunta»."
+      : "DESEMPATE: solo juegan " + E.empatados.map(i => EQUIPOS[i].nombre).join(" y ") +
+        ". Los pulsadores de los demás están mudos. Coloca a sus representantes y «Lanzar pregunta»."),
     pregunta: "Pregunta en el aire. Los pulsadores están activos; el presupuesto corre.",
     respondiendo: "Tiene el turno un equipo. Marca abajo la respuesta que ha dicho, o déjalo correr si se le acaba el tiempo.",
     veredicto: "Mostrando el resultado en pantalla…",
     cerrada: "Pregunta cerrada y solución en pantalla. Cuando quieras, «Siguiente pregunta».",
-    fin: "Juego terminado."
+    fin: E.motivoFin === "tarjetas"
+      ? "Empate sin resolver: toca sortear las tarjetas Omega entre " +
+        E.empatados.map(i => EQUIPOS[i].nombre).join(" y ") + "."
+      : "Juego terminado."
   }[f] || "";
   document.getElementById("f-pista").textContent = pista;
 
@@ -1394,11 +1553,12 @@ function pintarPanel() {
     if (d) {
       d.classList.toggle("turno", E.turno === i);
       d.classList.toggle("bloq", E.bloqueados.includes(i));
-      d.querySelector(".p").textContent = E.puntos[i];
+      d.querySelector(".p").textContent = marcadorVivo()[i];
       d.querySelector(".k").textContent = AJ.teclas[i];
+      d.classList.toggle("bloq", E.bloqueados.includes(i) || !juega(i));
     }
     const m = document.getElementById("mp-" + i);
-    if (m) m.querySelector(".v").textContent = E.puntos[i];
+    if (m) m.querySelector(".v").textContent = marcadorVivo()[i];
   });
 }
 
