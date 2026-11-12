@@ -776,6 +776,14 @@ const OPORTUNIDADES_POR_EQUIPO = 50;
 let ticCrono = null;
 let esperaHasta = 0;
 let turnoAnterior = null;   // para detectar el cambio de turno
+/* Medición local del tiempo de decisión. decisionDesde es el instante, en el
+   reloj de ESTE equipo, en que su tablero queda habilitado (es decir, cuando
+   termina su propia cuenta atrás de preparación). Todo se mide contra eso, no
+   contra turno_desde, que viene del reloj del rival. */
+let decisionDesde = 0;
+let decisionPausaMs = 0;      // pausa acumulada dentro de este turno
+let decisionTurnoRef = null;  // a qué turno_desde corresponde lo anterior
+let pausaLocalDesde = 0;      // instante local en que empezó la pausa en curso
 let ticEspera = null;
 let ultimoHistorialLen = null;
 let yaTransicionoFase = false;
@@ -1084,6 +1092,8 @@ async function disparar(fila, col) {
   if (Date.now() < esperaHasta) return; // aún en la espera entre jugadas
   if (!ultimaPartida || ultimaPartida.fase !== 'batalla' || ultimaPartida.turno !== miEquipo) return;
   const coord = coordId(fila, col);
+  // Se congela aquí, en el instante del clic, y con el reloj de este equipo.
+  const msLocal = msDecisionLocal();
   try {
     await db.runTransaction(async (tx) => {
       const doc = await tx.get(partidaRef);
@@ -1118,9 +1128,12 @@ async function disparar(fila, col) {
       const gano = totalCeldas > 0 && totalImpactos >= totalCeldas;
 
       // Lo que ha tardado en decidir esta jugada, sin los cinco segundos de
-      // preparacion (son forzados, no es pensar) y sin las pausas.
-      const msConsumidos = Math.min(SEGUNDOS_POR_TURNO * 1000,
-        Math.max(0, Date.now() - (d.turno_desde || Date.now()) - ESPERA_ENTRE_JUGADAS_MS));
+      // preparacion (son forzados, no es pensar) y sin las pausas. Se mide con
+      // el reloj de este equipo; turno_desde solo se usa si no hay medida
+      // local, por ejemplo tras recargar la página a mitad de turno.
+      const msConsumidos = (msLocal !== null) ? msLocal
+        : Math.min(SEGUNDOS_POR_TURNO * 1000,
+            Math.max(0, Date.now() - (d.turno_desde || Date.now()) - ESPERA_ENTRE_JUGADAS_MS));
       const historial = (d.historial || []).concat([{
         equipoLetra: miEquipo, coord, resultado,
         hora: new Date().toLocaleTimeString('es-ES'), ms: msConsumidos
@@ -1178,9 +1191,38 @@ function tiempoGastado(d, letra) {
     .reduce((suma, h) => suma + (h.ms || 0), 0);
 }
 
+/* Vigila las pausas con el reloj local, para descontarlas del turno en curso.
+   Se llama desde el mismo intervalo que repinta los cronos. */
+function vigilarPausaLocal() {
+  const pausada = !!(ultimaPartida && ultimaPartida.pausada);
+  if (pausada && !pausaLocalDesde) {
+    pausaLocalDesde = Date.now();
+  } else if (!pausada && pausaLocalDesde) {
+    decisionPausaMs += Date.now() - pausaLocalDesde;
+    pausaLocalDesde = 0;
+  }
+}
+
+/* Tiempo de decisión de MI turno medido en local. Devuelve null si no se puede
+   medir (pantalla de espectador, recarga a mitad de turno, turno del rival):
+   en ese caso se usa la estimacion por turno_desde, que es aproximada pero
+   sirve para pintar. */
+function msDecisionLocal() {
+  const d = ultimaPartida;
+  if (!decisionDesde || !d || !d.turno_desde) return null;
+  if (decisionTurnoRef !== d.turno_desde) return null;   // es otro turno
+  const pausaViva = pausaLocalDesde ? (Date.now() - pausaLocalDesde) : 0;
+  return Math.min(SEGUNDOS_POR_TURNO * 1000,
+    Math.max(0, Date.now() - decisionDesde - decisionPausaMs - pausaViva));
+}
+
 /* Lo que lleva consumido el turno que esta en curso ahora mismo. */
 function msDelTurnoEnCurso(d) {
   if (!d || d.fase !== 'batalla' || !d.turno || !d.turno_desde) return 0;
+  if (miEquipo && d.turno === miEquipo) {
+    const local = msDecisionLocal();
+    if (local !== null) return local;
+  }
   const ahora = (d.pausada && d.pausa_desde) ? d.pausa_desde : Date.now();
   return Math.min(SEGUNDOS_POR_TURNO * 1000,
     Math.max(0, ahora - d.turno_desde - ESPERA_ENTRE_JUGADAS_MS));
@@ -1383,6 +1425,7 @@ function pintarBannerTurno() {
 function vigilarCrono() {
   if (ticCrono) clearInterval(ticCrono);
   ticCrono = setInterval(() => {
+    vigilarPausaLocal();
     pintarMarcadorTurno();
     pintarMarcadoresEspectador();
     vigilarVencimiento();
@@ -1448,6 +1491,13 @@ function pintarMarcadoresEspectador() {
 // de segundo; al agotarse, se vuelve a pintar para habilitar el tablero.
 function iniciarEsperaTurno() {
   esperaHasta = Date.now() + ESPERA_ENTRE_JUGADAS_MS;
+  // La decisión empieza a contar cuando acabe ESTA cuenta atrás, no cuando el
+  // rival escribió su disparo: así el contador nunca corre mientras el capitán
+  // sigue viendo "Prepara tu disparo".
+  decisionDesde = esperaHasta;
+  decisionPausaMs = 0;
+  pausaLocalDesde = (ultimaPartida && ultimaPartida.pausada) ? Date.now() : 0;
+  decisionTurnoRef = (ultimaPartida && ultimaPartida.turno_desde) || null;
   if (ticEspera) clearInterval(ticEspera);
   ticEspera = setInterval(() => {
     if (Date.now() >= esperaHasta) {
