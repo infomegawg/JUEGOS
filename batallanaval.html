@@ -156,6 +156,10 @@ input::placeholder { color: var(--texto2); }
   letter-spacing: 1px; text-transform: uppercase; }
 .marcador-esp .jugadas b { font-family: var(--font); font-size: clamp(18px, 2.8vh, 36px);
   color: #fff; display: block; line-height: 1.1; }
+.marcador-esp .tiempo { font-size: clamp(10px, 1.3vh, 17px); color: var(--texto2);
+  letter-spacing: 1px; text-transform: uppercase; }
+.marcador-esp .tiempo b { font-family: var(--font); font-size: clamp(16px, 2.4vh, 32px);
+  color: #ffd9b8; display: block; line-height: 1.1; }
 .marcador-esp.apagado .crono { opacity: .35; }
 .marcador-esp .crono.verde   { background: #0d3b22; border-color: #22c55e; color: #b6ffcf; }
 .marcador-esp .crono.naranja { background: #4a2a06; border-color: #ff7a1a; color: #ffd9b8; }
@@ -424,8 +428,15 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <div class="flota-rival-resumen" id="flota-rival-resumen"></div>
         <div id="jugadas-caja" style="display:none;margin-top:10px;padding-top:10px;
              border-top:1px solid var(--border);font-size:12px;color:var(--texto2);line-height:1.6;">
-          Te quedan <b id="jugadas-restantes" style="font-size:18px;color:#fff;">30</b> jugadas<br>
-          <span style="opacity:.75;">Rival: <b id="jugadas-rival">30</b></span>
+          Te quedan <b id="jugadas-restantes" style="font-size:18px;color:#fff;">40</b> jugadas<br>
+          <span style="opacity:.75;">Rival: <b id="jugadas-rival">40</b></span>
+          <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);">
+            &#9201; Tu tiempo: <b id="tiempo-mio" style="font-family:var(--font);font-size:17px;color:#ffd9b8;">0:00</b><br>
+            <span style="opacity:.75;">Rival: <b id="tiempo-rival" style="font-family:var(--font);">0:00</b></span><br>
+            <span style="opacity:.6;font-size:11px;line-height:1.4;display:block;margin-top:5px;">
+              Si se empata a barcos hundidos y a impactos, gana quien menos tiempo haya gastado.
+            </span>
+          </div>
         </div>
       </div>
       <div class="board-block">
@@ -460,7 +471,8 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <h3 id="espectador-nombre-a">EQUIPO A</h3>
         <div class="marcador-esp" id="marcador-esp-a">
           <div class="crono" id="crono-esp-a">—</div>
-          <div class="jugadas"><b id="jug-esp-a">30</b> jugadas</div>
+          <div class="jugadas"><b id="jug-esp-a">40</b> jugadas</div>
+          <div class="tiempo"><b id="tiempo-esp-a">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-a"></div>
         <div class="log-bajo-tablero">
@@ -472,7 +484,8 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <h3 id="espectador-nombre-b">EQUIPO B</h3>
         <div class="marcador-esp" id="marcador-esp-b">
           <div class="crono" id="crono-esp-b">—</div>
-          <div class="jugadas"><b id="jug-esp-b">30</b> jugadas</div>
+          <div class="jugadas"><b id="jug-esp-b">40</b> jugadas</div>
+          <div class="tiempo"><b id="tiempo-esp-b">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-b"></div>
         <div class="log-bajo-tablero">
@@ -1102,22 +1115,40 @@ async function disparar(fila, col) {
       const totalImpactos = flota.reduce((s,b) => s + (b.impactos||0), 0);
       const gano = totalCeldas > 0 && totalImpactos >= totalCeldas;
 
+      // Lo que ha tardado en decidir esta jugada, sin los cinco segundos de
+      // preparacion (son forzados, no es pensar) y sin las pausas.
+      const msConsumidos = Math.min(SEGUNDOS_POR_TURNO * 1000,
+        Math.max(0, Date.now() - (d.turno_desde || Date.now()) - ESPERA_ENTRE_JUGADAS_MS));
       const historial = (d.historial || []).concat([{
         equipoLetra: miEquipo, coord, resultado,
-        hora: new Date().toLocaleTimeString('es-ES')
+        hora: new Date().toLocaleTimeString('es-ES'), ms: msConsumidos
       }]);
+
+      const flotaFinalA = targetLetra === 'A' ? flota : (d.flotaA || []);
+      const flotaFinalB = targetLetra === 'B' ? flota : (d.flotaB || []);
+      const restan = (letra) => Math.max(0, OPORTUNIDADES_POR_EQUIPO -
+        historial.filter(h => h.equipoLetra === letra).length);
 
       const actualizacion = {
         [disparosKey]: disparosRecibidos,
         [flotaKey]: flota,
         historial: historial,
-        turno: gano ? null : targetLetra,
         turno_desde: Date.now(),
         ultimoEvento: { tipo: 'disparo', equipoLetra: miEquipo, coord, resultado, ts: TS() }
       };
       if (gano) {
+        actualizacion.turno = null;
         actualizacion.fase = 'terminada';
         actualizacion.ganador = miEquipo;
+        actualizacion.motivoFin = 'flota';
+      } else if (restan(targetLetra) > 0) {
+        actualizacion.turno = targetLetra;        // lo normal: se alterna
+      } else if (restan(miEquipo) > 0) {
+        // El rival agoto sus disparos y yo no: sigo yo solo. Manual 13.3.7,
+        // agotar los disparos no es derrota automatica.
+        actualizacion.turno = miEquipo;
+      } else {
+        Object.assign(actualizacion, cierrePorAgotamiento(flotaFinalA, flotaFinalB, historial));
       }
       tx.update(partidaRef, actualizacion);
     });
@@ -1131,6 +1162,83 @@ function jugadasHechas(d, letra) {
   if (!recibidos) return 0;
   // Un barco hundido marca de golpe todas sus casillas; esas no son disparos.
   return Object.values(recibidos).filter(v => v === 'agua' || v === 'tocado').length;
+}
+
+/* ===== TIEMPO CONSUMIDO Y RECUENTO FINAL =====
+   Cada jugada del historial guarda los milisegundos que su capitan tardo en
+   decidirla (campo ms). La pausa no se le cobra a nadie: el Panel Central, al
+   reanudar, empuja turno_desde hacia delante lo que haya durado la parada, asi
+   que el tiempo transcurrido ya viene limpio. Un turno perdido por tiempo se
+   cobra entero, para que dejar correr el reloj no salga gratis. */
+function tiempoGastado(d, letra) {
+  return ((d && d.historial) || [])
+    .filter(h => h.equipoLetra === letra)
+    .reduce((suma, h) => suma + (h.ms || 0), 0);
+}
+
+/* Lo que lleva consumido el turno que esta en curso ahora mismo. */
+function msDelTurnoEnCurso(d) {
+  if (!d || d.fase !== 'batalla' || !d.turno || !d.turno_desde) return 0;
+  const ahora = (d.pausada && d.pausa_desde) ? d.pausa_desde : Date.now();
+  return Math.min(SEGUNDOS_POR_TURNO * 1000,
+    Math.max(0, ahora - d.turno_desde - ESPERA_ENTRE_JUGADAS_MS));
+}
+
+/* Lo gastado mas el turno en marcha: es el numero que se ve en pantalla, para
+   que el capitan vea su reloj subir mientras piensa. */
+function tiempoVivo(d, letra) {
+  return tiempoGastado(d, letra) + (d && d.turno === letra ? msDelTurnoEnCurso(d) : 0);
+}
+
+function mmss(ms) {
+  const t = Math.max(0, Math.round(ms / 1000));
+  return Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+}
+
+/* Lo que ha conseguido un equipo = lo que le ha hecho a la flota del rival. */
+function marcadorDe(flotaRival, historial, letra) {
+  const barcos = flotaRival || [];
+  return {
+    hundidos: barcos.filter(b => (b.impactos || 0) >= b.celdas.length).length,
+    impactos: barcos.reduce((sm, b) => sm + Math.min(b.impactos || 0, b.celdas.length), 0),
+    ms: (historial || []).filter(h => h.equipoLetra === letra)
+          .reduce((sm, h) => sm + (h.ms || 0), 0)
+  };
+}
+
+/* Nadie ha hundido la flota entera y los dos equipos se han quedado sin
+   disparos: se decide por recuento. Criterio de direccion (12-nov-2026): mas
+   barcos hundidos; si empatan, mas impactos; si siguen empatados, MENOS tiempo
+   consumido; y solo si todo empata, tarjetas Omega entre capitanes. Sustituye
+   al 13.4 del manual, que remataba en tarjetas y no usaba el tiempo. */
+function cierrePorAgotamiento(flotaA, flotaB, historial) {
+  const a = marcadorDe(flotaB, historial, 'A');   // A dispara a la flota de B
+  const b = marcadorDe(flotaA, historial, 'B');
+  let ganador = null, motivoFin = 'tarjetas';
+  if (a.hundidos !== b.hundidos) {
+    ganador = a.hundidos > b.hundidos ? 'A' : 'B'; motivoFin = 'hundidos';
+  } else if (a.impactos !== b.impactos) {
+    ganador = a.impactos > b.impactos ? 'A' : 'B'; motivoFin = 'impactos';
+  } else if (a.ms !== b.ms) {
+    ganador = a.ms < b.ms ? 'A' : 'B'; motivoFin = 'tiempo';
+  }
+  return {
+    turno: null, fase: 'terminada', ganador: ganador,
+    motivoFin: motivoFin, recuento: { A: a, B: b }
+  };
+}
+
+function textoMotivoFin(d) {
+  const r = d.recuento || {};
+  const A = r.A || {}, B = r.B || {};
+  // El numero del ganador va siempre delante, que es como se canta.
+  const gana = d.ganador === 'A' ? A : B, pierde = d.ganador === 'A' ? B : A;
+  if (d.motivoFin === 'flota') return "Flota rival destruida";
+  if (d.motivoFin === 'hundidos') return "Mas barcos hundidos: " + gana.hundidos + " a " + pierde.hundidos;
+  if (d.motivoFin === 'impactos') return "Empate a " + gana.hundidos + " barcos hundidos. Gana por impactos: " + gana.impactos + " a " + pierde.impactos;
+  if (d.motivoFin === 'tiempo') return "Empate a barcos y a impactos. Gana por tiempo: " + mmss(gana.ms) + " contra " + mmss(pierde.ms);
+  if (d.motivoFin === 'tarjetas') return "Empate absoluto: lo deciden las tarjetas Omega entre capitanes";
+  return "";
 }
 
 /* Aviso corto y efímero en la pantalla del capitán. */
@@ -1187,15 +1295,23 @@ async function pasarTurnoPorTiempo(letraQueLoPierde, turnoDesdeEsperado) {
       if (d.turno !== letraQueLoPierde) return;              // ya paso
       if (d.turno_desde !== turnoDesdeEsperado) return;       // turno distinto
       const otro = letraQueLoPierde === 'A' ? 'B' : 'A';
-      tx.update(partidaRef, {
-        turno: otro,
+      // Dejar correr el reloj cuesta el turno entero: si no, callarse seria la
+      // forma barata de no gastar tiempo en el desempate.
+      const historial = (d.historial || []).concat([{
+        equipoLetra: letraQueLoPierde, coord: '—', resultado: 'tiempo',
+        hora: new Date().toLocaleTimeString('es-ES'), ms: SEGUNDOS_POR_TURNO * 1000
+      }]);
+      const restan = (letra) => Math.max(0, OPORTUNIDADES_POR_EQUIPO -
+        historial.filter(h => h.equipoLetra === letra).length);
+      const cambio = {
         turno_desde: Date.now(),
-        historial: (d.historial || []).concat([{
-          equipoLetra: letraQueLoPierde, coord: '—', resultado: 'tiempo',
-          hora: new Date().toLocaleTimeString('es-ES')
-        }]),
+        historial: historial,
         ultimoEvento: { tipo: 'tiempo', equipoLetra: letraQueLoPierde, ts: TS() }
-      });
+      };
+      if (restan(otro) > 0) cambio.turno = otro;
+      else if (restan(letraQueLoPierde) > 0) cambio.turno = letraQueLoPierde;
+      else Object.assign(cambio, cierrePorAgotamiento(d.flotaA || [], d.flotaB || [], historial));
+      tx.update(partidaRef, cambio);
     });
   } catch (e) {
     console.error(e);
@@ -1235,6 +1351,8 @@ function pintarMarcadorTurno() {
   const suyas = Math.max(0, OPORTUNIDADES_POR_EQUIPO - porHistorial(rival));
   document.getElementById("jugadas-restantes").textContent = mias;
   document.getElementById("jugadas-rival").textContent = suyas;
+  document.getElementById("tiempo-mio").textContent = mmss(tiempoVivo(d, miEquipo));
+  document.getElementById("tiempo-rival").textContent = mmss(tiempoVivo(d, rival));
 }
 
 /* El banner de "es tu turno" con la cuenta atras incorporada. Se tiñe de
@@ -1274,19 +1392,30 @@ function pintarMarcadoresEspectador() {
   if (!modoEspectador) return;
   const d = ultimaPartida;
   const enJuego = d && d.fase === 'batalla' && !!d.turno;
+  // Al terminar la partida los marcadores NO desaparecen: el publico tiene que
+  // poder leer el tiempo final de cada equipo, que es lo que puede decidirla.
+  const terminada = d && d.fase === 'terminada';
   ['A', 'B'].forEach(letra => {
     const caja = document.getElementById("marcador-esp-" + letra.toLowerCase());
     if (!caja) return;
-    caja.style.display = enJuego ? "flex" : "none";
-    if (!enJuego) return;
+    caja.style.display = (enJuego || terminada) ? "flex" : "none";
+    if (!enJuego && !terminada) return;
 
     // Jugadas gastadas = las que ya figuran en el historial, disparos y
     // turnos perdidos por tiempo incluidos.
     const gastadas = (d.historial || []).filter(h => h.equipoLetra === letra).length;
     document.getElementById("jug-esp-" + letra.toLowerCase()).textContent =
       Math.max(0, OPORTUNIDADES_POR_EQUIPO - gastadas);
+    document.getElementById("tiempo-esp-" + letra.toLowerCase()).textContent =
+      mmss(tiempoVivo(d, letra));
 
     const crono = document.getElementById("crono-esp-" + letra.toLowerCase());
+    if (terminada) {
+      caja.classList.add("apagado");
+      crono.textContent = "—";
+      crono.className = "crono";
+      return;
+    }
     const suTurno = d.turno === letra;
     caja.classList.toggle("apagado", !suTurno);
     if (!suTurno) {
@@ -1403,7 +1532,11 @@ function renderEspectador() {
 
   const banner = document.getElementById("espectador-banner");
   if (d.fase === 'terminada') {
-    banner.textContent = `🏆 GANADOR: ${(d.ganador === 'A' ? d.equipoA : d.equipoB).toUpperCase()}`;
+    banner.innerHTML = d.ganador
+      ? '🏆 <b>GANADOR: ' + (d.ganador === 'A' ? d.equipoA : d.equipoB).toUpperCase() + '</b>' +
+        '<div style="font-size:.55em;letter-spacing:1px;margin-top:6px;opacity:.85;">' + textoMotivoFin(d) + '</div>'
+      : '⚖️ <b>EMPATE ABSOLUTO</b>' +
+        '<div style="font-size:.55em;letter-spacing:1px;margin-top:6px;opacity:.85;">' + textoMotivoFin(d) + '</div>';
     banner.className = "turno-banner mio";
   } else if (d.fase === 'colocacion') {
     banner.textContent = `Colocando flotas... (${d.listoA ? '✓' : '…'} ${d.equipoA} · ${d.listoB ? '✓' : '…'} ${d.equipoB})`;
@@ -1514,8 +1647,18 @@ function renderLog(d, contenedorId, opciones) {
 
 function renderFin() {
   const d = ultimaPartida;
-  const nombreGanador = d.ganador === 'A' ? d.equipoA : d.equipoB;
-  document.getElementById("fin-resultado").textContent = `🏆 GANADOR: ${nombreGanador.toUpperCase()}`;
+  const caja = document.getElementById("fin-resultado");
+  const r = d.recuento;
+  const detalle = !r ? "" :
+    '<div style="font-size:14px;color:var(--texto2);line-height:1.8;margin-top:14px;">' +
+      '<b>' + d.equipoA + ':</b> ' + r.A.hundidos + ' barcos · ' + r.A.impactos + ' impactos · ' + mmss(r.A.ms) + '<br>' +
+      '<b>' + d.equipoB + ':</b> ' + r.B.hundidos + ' barcos · ' + r.B.impactos + ' impactos · ' + mmss(r.B.ms) +
+    '</div>';
+  caja.innerHTML = (d.ganador
+      ? '🏆 GANADOR: ' + (d.ganador === 'A' ? d.equipoA : d.equipoB).toUpperCase()
+      : '⚖️ EMPATE ABSOLUTO — TARJETAS OMEGA') +
+    '<div style="font-size:14px;color:var(--texto2);margin-top:8px;">' + textoMotivoFin(d) + '</div>' +
+    detalle;
 }
 
 /* ===== ANUNCIOS DE VOZ + OVERLAY ===== */
@@ -1558,14 +1701,24 @@ function anunciarEvento(d) {
     const frases = [`${conEquipo(nombre)} lanza ${ev.coord}`, resultadoTexto];
     // Si ese disparo ha acabado la partida, se encadena el anuncio de la flota
     // destruida y, al callar la voz, el cartel de ganador (ese ya sin audio).
-    const finDePartida = d.fase === 'terminada' && !!d.ganador;
-    if (finDePartida) {
+    const finDePartida = d.fase === 'terminada';
+    if (finDePartida && d.motivoFin === 'flota') {
       const perdedor = d.ganador === 'A' ? d.equipoB : d.equipoA;
       frases.push(`La flota del ${conEquipo(perdedor)} ha sido destruida`);
+    } else if (finDePartida) {
+      frases.push("Se han agotado los disparos de los dos equipos");
+      if (d.ganador) {
+        const g = d.ganador === 'A' ? d.equipoA : d.equipoB;
+        if (d.motivoFin === 'hundidos') frases.push(`Gana ${conEquipo(g)} por barcos hundidos`);
+        else if (d.motivoFin === 'impactos') frases.push(`Empate a barcos hundidos. Gana ${conEquipo(g)} por impactos`);
+        else frases.push(`Empate a barcos e impactos. Gana ${conEquipo(g)} por tiempo consumido`);
+      } else {
+        frases.push("Empate absoluto. Lo deciden las tarjetas Omega");
+      }
     }
     mostrarOverlayEvento(`${nombre.toUpperCase()} LANZA ${ev.coord}`, resultadoTexto.toUpperCase(), finDePartida ? 20000 : undefined);
     hablar(frases, finDePartida ? () => mostrarOverlayGanador(d) : null);
-  } else if (d.fase === 'terminada' && d.ganador) {
+  } else if (d.fase === 'terminada') {
     // Partida terminada sin un disparo asociado (p. ej. al recargar): solo cartel
     mostrarOverlayGanador(d);
   }
@@ -1573,6 +1726,10 @@ function anunciarEvento(d) {
 
 // Cartel de ganador: aparece tras la locución y NO lleva audio.
 function mostrarOverlayGanador(d) {
+  if (!d.ganador) {
+    mostrarOverlayEvento("EMPATE ABSOLUTO", "TARJETAS OMEGA", 15000);
+    return;
+  }
   const nombreGanador = d.ganador === 'A' ? d.equipoA : d.equipoB;
   mostrarOverlayEvento("GANADOR", nombreGanador.toUpperCase(), 15000);
 }
