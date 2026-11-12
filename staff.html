@@ -123,6 +123,24 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
   display: flex; align-items: center; justify-content: center;
 }
 
+/* Estado del aviso de ayuda: ocupa la parte baja y no se va solo. */
+#sos-estado { display: none; position: fixed; left: 10px; right: 10px; bottom: 10px; z-index: 60;
+  border-radius: 14px; padding: 14px 15px; color: #fff; box-shadow: 0 6px 22px rgba(0,0,0,.28); }
+#sos-estado.show { display: block; }
+#sos-estado.esperando { background: linear-gradient(135deg,#e07b00,#c25f00); }
+#sos-estado.atendido  { background: linear-gradient(135deg,#1a9a52,#0e7a42); }
+#sos-estado.sinred    { background: linear-gradient(135deg,#55556b,#3a3a4c); }
+#sos-estado .tit { font-size: 15px; font-weight: 900; letter-spacing: .3px; display: flex; align-items: center; gap: 8px; }
+#sos-estado .txt { font-size: 12.5px; line-height: 1.5; margin-top: 5px; opacity: .95; }
+#sos-estado .pie { font-size: 11px; margin-top: 8px; opacity: .85; }
+#sos-estado .cerrar { margin-top: 10px; width: 100%; background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.45); color: #fff; font-weight: 800; font-size: 12px;
+  padding: 9px; border-radius: 9px; }
+#sos-estado.esperando .punto { width: 10px; height: 10px; border-radius: 50%; background: #fff;
+  animation: sospulso 1.1s infinite; flex: 0 0 10px; }
+@keyframes sospulso { 0%,100% { opacity: 1; transform: scale(1); } 50% { opacity: .35; transform: scale(.7); } }
+body.sos-activo #sos-btn { display: none; }
+
 /* ===== BARRA DE ACCIÓN FIJA ===== */
 .action-bar {
   position: fixed; left: 0; right: 0; bottom: 0; background: #fff; border-top: 1px solid var(--border);
@@ -10403,6 +10421,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 </div>
 
 <button id="sos-btn" onclick="pedirAyuda()">🆘</button>
+<div id="sos-estado"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -11105,18 +11124,91 @@ async function borrarEquipo(id) {
 
 /* ===== SOS / AYUDA ===== */
 let sosEnviando = false;
+let sosEscucha = null;      // suscripcion al documento del aviso en curso
+let sosDesde = 0;           // hora de envio, para el contador del pie
+let sosReloj = null;
+
+function sosPintar(estado, hora) {
+  const c = document.getElementById("sos-estado");
+  document.body.classList.add("sos-activo");
+  c.className = "show " + estado;
+  if (estado === "esperando") {
+    c.innerHTML =
+      '<div class="tit"><span class="punto"></span>AVISO ENVIADO</div>' +
+      '<div class="txt">El Panel Central ya lo está viendo. <b>Quédate en tu puesto</b> ' +
+      'y mantén el móvil a mano: un supervisor va hacia ti.</div>' +
+      '<div class="pie" id="sos-pie">Enviado hace unos segundos</div>' +
+      '<button class="cerrar" onclick="sosCerrar()">Ya está resuelto, quitar el aviso</button>';
+  } else if (estado === "atendido") {
+    c.innerHTML =
+      '<div class="tit">✅ SUPERVISOR EN CAMINO</div>' +
+      '<div class="txt">El Panel Central ha recibido tu aviso y ha mandado a alguien. ' +
+      'Espera en tu puesto, llega enseguida.</div>' +
+      (hora ? '<div class="pie">Confirmado a las ' + hora + '</div>' : "") +
+      '<button class="cerrar" onclick="sosCerrar()">Entendido</button>';
+  } else {
+    c.innerHTML =
+      '<div class="tit">📶 SIN COBERTURA</div>' +
+      '<div class="txt">Tu aviso está guardado y se enviará solo en cuanto vuelva la red. ' +
+      'Si es urgente, avisa por radio o busca al supervisor más cercano.</div>' +
+      '<button class="cerrar" onclick="sosCerrar()">Entendido</button>';
+  }
+}
+
+function sosCerrar() {
+  if (sosEscucha) { sosEscucha(); sosEscucha = null; }
+  if (sosReloj) { clearInterval(sosReloj); sosReloj = null; }
+  document.getElementById("sos-estado").className = "";
+  document.body.classList.remove("sos-activo");
+}
+
+/* El pie va contando para que se note que el aviso sigue vivo. */
+function sosArrancarReloj() {
+  if (sosReloj) clearInterval(sosReloj);
+  sosReloj = setInterval(() => {
+    const pie = document.getElementById("sos-pie");
+    if (!pie) return;
+    const min = Math.floor((Date.now() - sosDesde) / 60000);
+    pie.textContent = min < 1 ? "Enviado hace unos segundos"
+      : "Enviado hace " + min + (min === 1 ? " minuto" : " minutos");
+  }, 15000);
+}
+
 async function pedirAyuda() {
   if (sosEnviando) return;
   if (!confirm("¿Enviar aviso de ayuda al Panel Central?")) return;
   sosEnviando = true;
+  const datos = {
+    staff_nombre: staffNombre,
+    prueba: document.getElementById("prueba-select-staff").value,
+    creado_en: TS(),
+    atendido: false
+  };
   try {
-    await enviarConColaOffline("staff_ayuda", {
-      staff_nombre: staffNombre,
-      prueba: document.getElementById("prueba-select-staff").value,
-      creado_en: TS(),
-      atendido: false
-    });
-    toast("Aviso enviado, esperando ayuda");
+    const ref = await db.collection("staff_ayuda").add(datos);
+    sosDesde = Date.now();
+    sosPintar("esperando");
+    sosArrancarReloj();
+    // En cuanto el panel lo marque atendido, el movil lo canta solo.
+    if (sosEscucha) sosEscucha();
+    sosEscucha = ref.onSnapshot(d => {
+      const v = d.data();
+      if (!v || !v.atendido) return;
+      const t = v.atendido_en && v.atendido_en.toDate ? v.atendido_en.toDate() : new Date();
+      const hora = String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+      sosPintar("atendido", hora);
+      if (sosReloj) { clearInterval(sosReloj); sosReloj = null; }
+      try { navigator.vibrate && navigator.vibrate([120, 80, 120]); } catch(e) {}
+      if (sosEscucha) { sosEscucha(); sosEscucha = null; }
+    }, e => console.error(e));
+  } catch(e) {
+    console.error("Fallo al enviar el SOS, se guarda en cola offline:", e);
+    const cola = leerCola();
+    cola.push({ coleccion: "staff_ayuda",
+      datos: { ...datos, creado_en: null, creado_en_local: Date.now() } });
+    guardarCola(cola);
+    actualizarBannerOffline();
+    sosPintar("sinred");
   } finally {
     setTimeout(() => { sosEnviando = false; }, 3000);
   }
