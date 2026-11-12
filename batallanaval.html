@@ -185,6 +185,20 @@ input::placeholder { color: var(--texto2); }
 .overlay.show { display: flex; }
 .overlay .titulo { font-family: var(--font); font-size: 18px; color: var(--naranja); letter-spacing: 4px; }
 .overlay .ganador { font-family: var(--font); font-size: 56px; color: #fff; text-shadow: 0 0 40px var(--naranja); text-align: center; }
+/* Sorteo de inicio: el nombre va saltando de un equipo a otro y se clava en
+   el ganador. En espectador se agranda, que se ve desde la grada. */
+.overlay .ganador.sorteando { opacity: .82; filter: blur(0.4px); }
+.overlay .ganador.clavado {
+  color: var(--naranja);
+  animation: clavar 620ms cubic-bezier(.2,1.6,.4,1) 1;
+}
+@keyframes clavar {
+  0%   { transform: scale(1);    text-shadow: 0 0 40px var(--naranja); }
+  40%  { transform: scale(1.22); text-shadow: 0 0 90px var(--naranja), 0 0 160px var(--naranja); }
+  100% { transform: scale(1);    text-shadow: 0 0 60px var(--naranja); }
+}
+body.espectador-mode .overlay .ganador { font-size: clamp(56px, 11vh, 150px); }
+body.espectador-mode .overlay .titulo { font-size: clamp(18px, 2.6vh, 38px); }
 
 /* ===== BARCOS DISPONIBLES (lateral) ===== */
 .flota-sidebar { display: flex; flex-direction: column; gap: 10px; min-width: 150px; }
@@ -417,8 +431,11 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
   <!-- BATALLA -->
   <div class="screen" id="pantalla-batalla">
     <div class="turno-banner" id="turno-banner"></div>
-    <div id="sorteo-bar" style="display:none;text-align:center;margin-bottom:18px;">
-      <button class="btn btn-naranja" onclick="sortearInicio()">🎲 Sortear quién empieza</button>
+    <!-- El sorteo lo lanza el Panel Central, no los capitanes: un participante
+         no debe tocar el boton que decide quien abre la partida. -->
+    <div id="sorteo-bar" style="display:none;text-align:center;margin-bottom:18px;
+         font-size:13px;letter-spacing:2px;color:var(--texto2);">
+      ⏳ ESPERANDO EL SORTEO DE COORDINACIÓN
     </div>
     <div class="boards-row">
       <!-- Ayuda para el capitán: qué le queda a flote al rival -->
@@ -1075,21 +1092,8 @@ function renderBoardHTML(opts) {
 }
 
 /* ===== BATALLA ===== */
-async function sortearInicio() {
-  try {
-    await db.runTransaction(async (tx) => {
-      const doc = await tx.get(partidaRef);
-      const d = doc.data();
-      if (d.turno) return; // ya decidido por el otro capitán
-      const elegido = Math.random() < 0.5 ? 'A' : 'B';
-      tx.update(partidaRef, {
-        turno: elegido,
-        turno_desde: Date.now(),
-        ultimoEvento: { tipo: 'inicio', equipoLetra: elegido, ts: TS() }
-      });
-    });
-  } catch(e) { console.error(e); }
-}
+/* El sorteo del primer turno lo ejecuta el Panel Central (alternarPausaBatalla
+   y companía viven alli). Aqui solo se recibe el resultado y se anima. */
 
 async function disparar(fila, col) {
   if (partidaEnPausa()) { toastBatalla("La partida está en pausa"); return; }
@@ -1742,9 +1746,7 @@ function anunciarEvento(d) {
   const ev = d.ultimoEvento;
   if (!ev) return;
   if (ev.tipo === 'inicio') {
-    const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
-    hablar([`Empieza ${conEquipo(nombre)}`]);
-    mostrarOverlayEvento("SORTEO", `EMPIEZA ${nombre.toUpperCase()}`);
+    animarSorteoInicio(d, ev.equipoLetra);
   } else if (ev.tipo === 'tiempo') {
     const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
     hablar([`Se acabó el tiempo. ${conEquipo(nombre)} pierde la jugada`]);
@@ -1788,6 +1790,67 @@ function mostrarOverlayGanador(d) {
   }
   const nombreGanador = d.ganador === 'A' ? d.equipoA : d.equipoB;
   mostrarOverlayEvento("GANADOR", nombreGanador.toUpperCase(), 15000);
+}
+
+/* Sorteo de quien empieza: el nombre salta de un equipo al otro, cada vez mas
+   despacio, y se clava en el ganador. Dura lo mismo en las tres pantallas
+   porque las tres reciben el mismo evento de Firestore; las decimas de
+   diferencia por la red no se notan en un cartel de tres segundos. */
+let sorteoEnMarcha = false;
+function animarSorteoInicio(d, letraGanadora) {
+  if (sorteoEnMarcha) return;
+  sorteoEnMarcha = true;
+  const nombreA = (d.equipoA || "EQUIPO A").toUpperCase();
+  const nombreB = (d.equipoB || "EQUIPO B").toUpperCase();
+  const ganador = (letraGanadora === 'A' ? nombreA : nombreB);
+
+  const overlay = document.getElementById("overlay-evento");
+  const caja = document.getElementById("overlay-texto");
+  document.getElementById("overlay-titulo").textContent = "SORTEO DEL PRIMER TURNO";
+  caja.textContent = nombreA;
+  caja.classList.add("sorteando");
+  caja.classList.remove("clavado");
+  overlay.classList.add("show");
+  const turno = ++overlayTurno;
+
+  // Intervalos crecientes: empieza rapidisimo y va frenando, como una ruleta.
+  const pasos = [70,70,70,70,80,80,90,100,110,125,145,170,200,240,290,350,430,520];
+  let i = 0, cual = 0;
+  const siguiente = () => {
+    if (turno !== overlayTurno) { sorteoEnMarcha = false; return; }
+    if (i >= pasos.length) {
+      // Se clava en el ganador y se canta.
+      caja.textContent = ganador;
+      caja.classList.remove("sorteando");
+      caja.classList.add("clavado");
+      sonidoSiHay();
+      hablar(["El primer turno es para " + conEquipo(letraGanadora === 'A' ? (d.equipoA||"equipo A") : (d.equipoB||"equipo B"))]);
+      setTimeout(() => {
+        if (turno === overlayTurno) overlay.classList.remove("show");
+        caja.classList.remove("clavado");
+        sorteoEnMarcha = false;
+      }, 3400);
+      return;
+    }
+    cual = 1 - cual;
+    caja.textContent = cual ? nombreB : nombreA;
+    setTimeout(siguiente, pasos[i++]);
+  };
+  setTimeout(siguiente, pasos[i++]);
+}
+
+/* Pitido corto del momento en que se clava, si el navegador deja. */
+function sonidoSiHay() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "square"; o.frequency.value = 880;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.35);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.36);
+  } catch (e) { /* sin audio, no pasa nada */ }
 }
 
 /* ===== RENDER PRINCIPAL SEGÚN ESTADO ===== */
