@@ -153,6 +153,16 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .led-btn { padding: 8px; border-radius: 6px; font-family: var(--font); font-size: 9px; font-weight: 700; letter-spacing: 1px; cursor: pointer; border: 1px solid var(--border2); background: #f3eeff; color: var(--texto2); text-transform: uppercase; transition: all .2s; text-align: center; }
 .led-btn:hover { border-color: var(--morado2); color: var(--morado2); }
 .led-btn.active { background: var(--morado); border-color: var(--morado2); color: white; }
+/* Acciones de Batalla Naval. El panel tiene el fondo blanco, asi que van en
+   solido con texto blanco: un naranja o un rojo pastel sobre blanco no se lee. */
+.led-btn.accion { color: #fff; border: 1px solid transparent; font-weight: 800; }
+.led-btn.accion i { color: #fff; }
+.led-btn.accion-naranja { background: #d96400; }
+.led-btn.accion-naranja:hover { background: #b35200; color: #fff; border-color: transparent; }
+.led-btn.accion-verde { background: #15803d; }
+.led-btn.accion-verde:hover { background: #11642f; color: #fff; border-color: transparent; }
+.led-btn.accion-roja { background: #c81e2e; }
+.led-btn.accion-roja:hover { background: #a01825; color: #fff; border-color: transparent; }
 
 /* ===== MODAL JUGADOR ===== */
 .modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 100; align-items: center; justify-content: center; }
@@ -267,8 +277,8 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/acreditacion.html','_blank')"><i class="ti ti-id-badge-2"></i> Acreditación (puerta)</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/panel-acreditacion.html','_blank')"><i class="ti ti-chart-bar"></i> Panel de acreditación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1','_blank')"><i class="ti ti-anchor"></i> Batalla Naval (ver en directo)</button>
-          <button class="led-btn" id="btn-pausa-batalla" onclick="alternarPausaBatalla()" style="border-color:var(--naranja);color:#ffd9b8;"><i class="ti ti-player-pause"></i> Pausar Batalla Naval</button>
-          <button class="led-btn" onclick="reiniciarBatallaNaval()" style="border-color:#ff3b4e;color:#ffb3ba;"><i class="ti ti-refresh-alert"></i> Reiniciar Batalla Naval</button>
+          <button class="led-btn accion accion-naranja" id="btn-pausa-batalla" onclick="alternarPausaBatalla()"><i class="ti ti-player-pause"></i> Pausar Batalla Naval</button>
+          <button class="led-btn accion accion-roja" onclick="reiniciarBatallaNaval()"><i class="ti ti-refresh-alert"></i> Reiniciar Batalla Naval</button>
         </div>
       </div>
 
@@ -2485,8 +2495,11 @@ function escucharPausaBatalla() {
     b.innerHTML = batallaPausada
       ? '<i class="ti ti-player-play"></i> Reanudar Batalla Naval'
       : '<i class="ti ti-player-pause"></i> Pausar Batalla Naval';
-    b.style.borderColor = batallaPausada ? "var(--verde)" : "var(--naranja)";
-    b.style.color = batallaPausada ? "#b6ffcf" : "#ffd9b8";
+    // Verde solido al reanudar, naranja solido al pausar. Nada de pasteles:
+    // el panel es blanco y no se leian.
+    b.classList.add("accion");
+    b.classList.toggle("accion-verde", batallaPausada);
+    b.classList.toggle("accion-naranja", !batallaPausada);
   }, (e) => console.warn("pausa batalla:", e));
 }
 
