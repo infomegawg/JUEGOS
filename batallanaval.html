@@ -428,14 +428,11 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <div class="flota-rival-resumen" id="flota-rival-resumen"></div>
         <div id="jugadas-caja" style="display:none;margin-top:10px;padding-top:10px;
              border-top:1px solid var(--border);font-size:12px;color:var(--texto2);line-height:1.6;">
-          Te quedan <b id="jugadas-restantes" style="font-size:18px;color:#fff;">50</b> jugadas<br>
-          <span style="opacity:.75;">Rival: <b id="jugadas-rival">50</b></span>
+          Disparos hechos: <b id="jugadas-restantes" style="font-size:18px;color:#fff;">0</b><br>
+          <span style="opacity:.75;">Rival: <b id="jugadas-rival">0</b></span>
           <div style="margin-top:9px;padding-top:9px;border-top:1px solid var(--border);">
             &#9201; Tu tiempo: <b id="tiempo-mio" style="font-family:var(--font);font-size:17px;color:#ffd9b8;">0:00</b><br>
-            <span style="opacity:.75;">Rival: <b id="tiempo-rival" style="font-family:var(--font);">0:00</b></span><br>
-            <span style="opacity:.6;font-size:11px;line-height:1.4;display:block;margin-top:5px;">
-              Si se empata a barcos hundidos y a impactos, gana quien menos tiempo haya gastado.
-            </span>
+            <span style="opacity:.75;">Rival: <b id="tiempo-rival" style="font-family:var(--font);">0:00</b></span>
           </div>
         </div>
       </div>
@@ -471,7 +468,7 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <h3 id="espectador-nombre-a">EQUIPO A</h3>
         <div class="marcador-esp" id="marcador-esp-a">
           <div class="crono" id="crono-esp-a">—</div>
-          <div class="jugadas"><b id="jug-esp-a">50</b> jugadas</div>
+          <div class="jugadas"><b id="jug-esp-a">0</b> disparos</div>
           <div class="tiempo"><b id="tiempo-esp-a">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-a"></div>
@@ -484,7 +481,7 @@ body.espectador-mode .overlay .ganador { font-size: clamp(48px, 11vh, 120px); }
         <h3 id="espectador-nombre-b">EQUIPO B</h3>
         <div class="marcador-esp" id="marcador-esp-b">
           <div class="crono" id="crono-esp-b">—</div>
-          <div class="jugadas"><b id="jug-esp-b">50</b> jugadas</div>
+          <div class="jugadas"><b id="jug-esp-b">0</b> disparos</div>
           <div class="tiempo"><b id="tiempo-esp-b">0:00</b> tiempo</div>
         </div>
         <div class="board" id="board-espectador-b"></div>
@@ -772,7 +769,14 @@ const AVISO_SEGUNDOS = Math.max(2, Math.round(SEGUNDOS_POR_TURNO / 3));
 // de turno se le ha apagado el movil, la partida no puede quedarse colgada.
 const MARGEN_RESCATE_MS = 6000;
 let pasandoPorTiempo = false;   // evita mandar dos veces el mismo vencimiento
-const OPORTUNIDADES_POR_EQUIPO = 50;
+/* SIN LIMITE DE DISPAROS (decision de direccion, 12-nov-2026). Se juega hasta
+   hundir una flota. El 64 son todas las casillas del tablero: como no se puede
+   disparar dos veces a la misma, nadie puede pasar de ahi, y a las 127 jugadas
+   entre los dos la flota esta hundida a la fuerza. Queda solo como red de
+   seguridad para que la partida no pueda quedarse colgada.
+   Consecuencia: el recuento final (hundidos, impactos, tiempo, tarjetas) ya no
+   se alcanza nunca. Se conserva el codigo, pero no decide ninguna partida. */
+const OPORTUNIDADES_POR_EQUIPO = 64;
 let ticCrono = null;
 let esperaHasta = 0;
 let turnoAnterior = null;   // para detectar el cambio de turno
@@ -1391,8 +1395,9 @@ function pintarMarcadorTurno() {
   // El hundimiento reescribe casillas ya disparadas, asi que el recuento por
   // casillas se queda corto: se usa el historial, que es disparo a disparo.
   const porHistorial = (letra) => (d.historial || []).filter(h => h.equipoLetra === letra).length;
-  const mias = Math.max(0, OPORTUNIDADES_POR_EQUIPO - porHistorial(miEquipo));
-  const suyas = Math.max(0, OPORTUNIDADES_POR_EQUIPO - porHistorial(rival));
+  // Sin limite de disparos, lo que interesa es cuantos lleva hechos cada uno.
+  const mias = porHistorial(miEquipo);
+  const suyas = porHistorial(rival);
   document.getElementById("jugadas-restantes").textContent = mias;
   document.getElementById("jugadas-rival").textContent = suyas;
   document.getElementById("tiempo-mio").textContent = mmss(tiempoVivo(d, miEquipo));
@@ -1449,8 +1454,7 @@ function pintarMarcadoresEspectador() {
     // Jugadas gastadas = las que ya figuran en el historial, disparos y
     // turnos perdidos por tiempo incluidos.
     const gastadas = (d.historial || []).filter(h => h.equipoLetra === letra).length;
-    document.getElementById("jug-esp-" + letra.toLowerCase()).textContent =
-      Math.max(0, OPORTUNIDADES_POR_EQUIPO - gastadas);
+    document.getElementById("jug-esp-" + letra.toLowerCase()).textContent = gastadas;
     document.getElementById("tiempo-esp-" + letra.toLowerCase()).textContent =
       mmss(tiempoVivo(d, letra));
 
