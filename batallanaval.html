@@ -749,13 +749,13 @@ let ultimoEventoKey = null;
 // Retardo obligatorio entre jugadas: tras un disparo, el capitán al que le toca
 // no puede marcar nada hasta que pasan estos segundos (da tiempo a que se oiga
 // la locución y a que el equipo reaccione en la lona física).
-const ESPERA_ENTRE_JUGADAS_MS = 5000;
+const ESPERA_ENTRE_JUGADAS_MS = 10000;
 
 /* ===== CRONO DE TURNO Y OPORTUNIDADES =====
    El manual daba treinta oportunidades y treinta segundos por turno. Por
    decision de direccion (12-nov-2026): cincuenta oportunidades y diez
    segundos. Sin saldo global de decision: el reloj de turno hace el tope.
-   Techo de la partida: 100 jugadas x (5 s de espera + 10 s) = 25 min.
+   Techo de la partida: 100 jugadas x (10 s de espera + 10 s) = 33 min 20 s.
    El crono es un AVISO, no un arbitro: al llegar a cero no cierra el turno ni
    consume nada por su cuenta, porque eso cambia el resultado de la partida y
    lo decide la mesa. Lo que hace es que los dos capitanes vean el mismo
