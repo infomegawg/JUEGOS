@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>Lona — Batalla Naval</title>
+<meta name="theme-color" content="#0a0a14"/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Orbitron:wght@700;800;900&display=swap" rel="stylesheet"/>
+
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+
+<style>
+/* ============================================================
+   LONA · BATALLA NAVAL
+   Pantalla para el staff que marca las X sobre el tablero fisico
+   de 5x2 m. Se lee de un vistazo, con el movil en una mano y el
+   rotulador o la pieza en la otra: una sola jugada grande cada
+   vez, el color ya dice que X toca, y un boton enorme.
+   Solo LEE de la base de datos: desde aqui no se puede disparar
+   ni tocar la partida.
+   ============================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+:root {
+  --fondo: #0a0a14;
+  --caja: #151525;
+  --borde: #2a2a40;
+  --texto2: #9a9ab8;
+  --verde: #18a05a;
+  --rojo: #cc1f33;
+  --naranja: #ff7a18;
+  --font: 'Orbitron', monospace;
+}
+html, body { height: 100%; }
+body {
+  background: var(--fondo);
+  color: #fff;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* ---------- Cabecera ---------- */
+.cab {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; background: #0f0f1c;
+  border-bottom: 1px solid var(--borde); flex-shrink: 0;
+}
+.cab .lado {
+  font-family: var(--font); font-size: 13px; font-weight: 900; letter-spacing: 2px;
+}
+.cab .lado.rojo { color: #ff6b7a; }
+.cab .lado.azul { color: #6bb6ff; }
+.cab .conexion {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--verde);
+  box-shadow: 0 0 8px var(--verde); flex-shrink: 0;
+}
+.cab .conexion.mala { background: var(--naranja); box-shadow: 0 0 8px var(--naranja); }
+.cab .espaciador { flex: 1; }
+.cab button {
+  background: none; border: 1px solid var(--borde); color: var(--texto2);
+  border-radius: 7px; padding: 6px 10px; font-size: 11px; font-weight: 800;
+  font-family: inherit; cursor: pointer;
+}
+
+/* ---------- Zona grande de la jugada ---------- */
+#jugada {
+  flex: 1 1 auto; min-height: 0; overflow: hidden;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; padding: 10px 12px; position: relative;
+  transition: background 180ms;
+}
+#jugada.agua { background: linear-gradient(170deg, #0e6b3d, #18a05a); }
+#jugada.tocado { background: linear-gradient(170deg, #8f1222, #cc1f33); }
+#jugada.espera { background: var(--fondo); }
+
+#jugada .que {
+  font-size: 12px; font-weight: 900; letter-spacing: 4px;
+  opacity: .85; margin-bottom: 2px;
+}
+#jugada .coord {
+  font-family: var(--font); font-weight: 900;
+  font-size: clamp(54px, min(26vw, 17vh), 150px); line-height: 1;
+  letter-spacing: 2px; text-shadow: 0 6px 30px rgba(0,0,0,.45);
+}
+#jugada .marca {
+  font-size: clamp(15px, min(5.5vw, 3.4vh), 26px); font-weight: 900; letter-spacing: 1px;
+  margin-top: 4px;
+}
+#jugada .donde {
+  font-size: 13px; font-weight: 700; opacity: .8; margin-top: 6px; line-height: 1.5;
+}
+#jugada .cola {
+  background: rgba(0,0,0,.38); border-radius: 20px; padding: 4px 14px;
+  font-size: 11px; font-weight: 900; letter-spacing: 2px; margin-bottom: 8px;
+}
+#jugada.espera .espera-txt {
+  font-size: 15px; font-weight: 800; color: var(--texto2);
+  letter-spacing: 2px; line-height: 1.7;
+}
+#jugada.espera .espera-icono { font-size: 54px; margin-bottom: 10px; opacity: .5; }
+
+/* Destello al llegar una jugada nueva */
+@keyframes destello { 0%,100% { filter: none; } 35% { filter: brightness(1.75); } }
+#jugada.nueva { animation: destello 620ms ease-out 2; }
+
+/* ---------- Boton de colocada ---------- */
+#barra-boton { flex-shrink: 0; padding: 10px 12px 12px; background: #0f0f1c; border-top: 1px solid var(--borde); }
+#btn-colocada {
+  width: 100%; border: none; border-radius: 14px;
+  padding: clamp(14px, 2.4vh, 20px) 10px; font-family: inherit;
+  font-size: clamp(16px, 2.4vh, 19px); font-weight: 900;
+  letter-spacing: 2px; color: #fff; background: #2b2b45; cursor: pointer;
+}
+#btn-colocada.lista { background: linear-gradient(135deg, #7018cc, #a033ff); box-shadow: 0 6px 20px rgba(140,40,230,.4); }
+#btn-colocada:disabled { opacity: .35; }
+#btn-colocada:active.lista { transform: scale(.985); }
+.pie { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 11px; color: var(--texto2); font-weight: 700; }
+.pie .espaciador { flex: 1; }
+.pie button {
+  background: none; border: 1px solid var(--borde); color: var(--texto2);
+  border-radius: 7px; padding: 5px 9px; font-size: 11px; font-weight: 800; font-family: inherit; cursor: pointer;
+}
+
+/* ---------- Tablero de referencia ---------- */
+#ref { flex-shrink: 0; background: #0d0d18; border-top: 1px solid var(--borde); padding: 8px 12px 10px; }
+#ref .titulo {
+  font-size: 9px; letter-spacing: 3px; color: var(--texto2);
+  font-weight: 900; text-align: center; margin-bottom: 6px;
+}
+#ref table { margin: 0 auto; border-collapse: collapse; }
+#ref td, #ref th {
+  width: min(10.5vw, 3.5vh); height: min(10.5vw, 3.5vh);
+  max-width: 34px; max-height: 34px;
+  text-align: center; vertical-align: middle;
+  font-size: 11px; font-weight: 800;
+}
+#ref th { color: var(--texto2); font-size: 10px; }
+#ref td {
+  border: 1px solid #262640; border-radius: 4px; color: #4a4a68;
+  font-family: var(--font);
+}
+#ref td.agua { background: rgba(24,160,90,.3); color: #7fe0a8; }
+#ref td.tocado { background: rgba(204,31,51,.45); color: #ffb3bd; }
+#ref td.hundido { background: #000; color: #ff6b7a; border-color: #5a1020; }
+#ref td.objetivo {
+  background: #fff; color: #000; border-color: #fff;
+  animation: latir 900ms ease-in-out infinite;
+}
+@keyframes latir { 0%,100% { box-shadow: 0 0 0 0 rgba(255,255,255,.8); } 50% { box-shadow: 0 0 0 5px rgba(255,255,255,0); } }
+
+/* Movil bajito (muchos Android de 640 px de alto): manda la jugada. El tablero
+   de referencia pierde el titulo y el aviso de hundido se aprieta, antes que
+   dejar la coordenada a medias. */
+@media (max-height: 740px) {
+  #ref { padding: 5px 12px 7px; }
+  #ref .titulo { display: none; }
+  #ref td, #ref th { font-size: 9px; }
+  #jugada .donde { font-size: 12px; margin-top: 3px; }
+  .pie { margin-top: 6px; }
+}
+
+/* ---------- Elegir lado / acceso ---------- */
+.capa {
+  position: fixed; inset: 0; z-index: 90; background: var(--fondo);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 24px;
+}
+.capa h2 { font-family: var(--font); font-size: 17px; letter-spacing: 3px; text-align: center; }
+.capa p { font-size: 12px; color: var(--texto2); text-align: center; line-height: 1.6; max-width: 320px; }
+.capa .opcion {
+  width: 100%; max-width: 340px; border: none; border-radius: 14px; padding: 22px;
+  font-family: inherit; font-size: 16px; font-weight: 900; letter-spacing: 1px;
+  color: #fff; cursor: pointer; line-height: 1.5;
+}
+.capa .opcion small { display: block; font-size: 11px; font-weight: 700; opacity: .8; letter-spacing: 0; margin-top: 4px; }
+.capa .opcion.rojo { background: linear-gradient(135deg, #8f1222, #cc1f33); }
+.capa .opcion.azul { background: linear-gradient(135deg, #123f8f, #1f6bcc); }
+.capa input {
+  width: 100%; max-width: 340px; padding: 14px; border-radius: 10px;
+  border: 1px solid var(--borde); background: #11111f; color: #fff;
+  font-family: inherit; font-size: 15px; font-weight: 700;
+}
+.capa .entrar {
+  width: 100%; max-width: 340px; border: none; border-radius: 10px; padding: 15px;
+  background: linear-gradient(135deg, #7018cc, #a033ff); color: #fff;
+  font-family: inherit; font-size: 15px; font-weight: 900; letter-spacing: 2px; cursor: pointer;
+}
+.capa .error { color: #ff8f9c; font-size: 12px; font-weight: 800; min-height: 16px; text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="cab">
+  <span class="conexion" id="conexion"></span>
+  <span class="lado" id="cab-lado">LONA</span>
+  <span class="espaciador"></span>
+  <button onclick="cambiarLado()">Cambiar lado</button>
+</div>
+
+<div id="jugada" class="espera">
+  <div class="cola" id="cola" style="display:none;"></div>
+  <div id="jugada-contenido" style="width:100%;">
+    <div class="espera-icono">&#9875;</div>
+    <div class="espera-txt" id="espera-txt">CONECTANDO...</div>
+  </div>
+</div>
+
+<div id="barra-boton">
+  <button id="btn-colocada" disabled onclick="marcarColocada()">ESPERANDO JUGADA</button>
+  <div class="pie">
+    <span id="pie-contador">Colocadas: 0</span>
+    <span class="espaciador"></span>
+    <button onclick="deshacerColocada()">Me he equivocado</button>
+  </div>
+</div>
+
+<div id="ref">
+  <div class="titulo" id="ref-titulo">TABLERO DE REFERENCIA</div>
+  <div id="ref-tabla"></div>
+</div>
+
+<script>
+/* ===== FIREBASE ===== */
+const firebaseConfig = {
+  apiKey: "AIzaSyAQjPK6bdZurVNRlj7PI6Suu9jRHQ6ycFk",
+  authDomain: "los-juegos-de-omega.firebaseapp.com",
+  projectId: "los-juegos-de-omega",
+  storageBucket: "los-juegos-de-omega.firebasestorage.app",
+  messagingSenderId: "602888359633",
+  appId: "1:602888359633:web:bfc738d469ad95fe37fff0"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+const auth = firebase.auth();
+const partidaRef = db.collection("batalla_naval").doc("partida_actual");
+
+const LETRAS = ['A','B','C','D','E','F','G','H'];
+const NOMBRES = { A: "EQUIPO ROJO", B: "EQUIPO AZUL" };
+
+/* ===== ESTADO ===== */
+let miLado = null;        // 'A' | 'B' — el tablero delante del que esta este staff
+let ultimaPartida = null;
+let colocadas = 0;        // cuantas de las jugadas recibidas ya estan puestas en la lona
+let ultimoTotal = 0;      // para detectar jugada nueva y avisar
+let clavePartida = "";    // para no arrastrar el contador de una partida a otra
+let primerPintado = true; // al abrir la app no se pita por lo que ya estaba ahi
+
+const rival = (l) => l === 'A' ? 'B' : 'A';
+function claveLS() { return "lona_" + miLado + "_" + clavePartida; }
+
+/* ===== ACCESO ===== */
+// Vale cualquier cuenta de la suite, incluida staff@juegos.com: esta pantalla
+// solo lee. Mientras no haya sesion no se pide nada a la base de datos.
+function pantallaAcceso() {
+  const capa = document.createElement("div");
+  capa.className = "capa";
+  capa.id = "capa-acceso";
+  capa.innerHTML =
+    '<h2>LONA · BATALLA NAVAL</h2>' +
+    '<p>Entra con el usuario del staff para ver las jugadas que hay que marcar en el tablero.</p>' +
+    '<input type="email" id="ac-email" placeholder="usuario" autocomplete="username" inputmode="email"/>' +
+    '<input type="password" id="ac-pass" placeholder="contraseña" autocomplete="current-password"/>' +
+    '<button class="entrar" id="ac-btn">ENTRAR</button>' +
+    '<div class="error" id="ac-error"></div>';
+  document.body.appendChild(capa);
+
+  const entrar = async () => {
+    const email = document.getElementById("ac-email").value.trim();
+    const pass = document.getElementById("ac-pass").value;
+    const err = document.getElementById("ac-error");
+    if (!email || !pass) { err.textContent = "Escribe el usuario y la contraseña"; return; }
+    document.getElementById("ac-btn").disabled = true;
+    err.textContent = "Entrando...";
+    try {
+      await auth.signInWithEmailAndPassword(email, pass);
+      location.reload();
+    } catch (e) {
+      const textos = {
+        "auth/invalid-email": "Ese usuario no tiene formato de correo",
+        "auth/user-not-found": "Usuario o contraseña incorrectos",
+        "auth/wrong-password": "Usuario o contraseña incorrectos",
+        "auth/invalid-credential": "Usuario o contraseña incorrectos",
+        "auth/too-many-requests": "Demasiados intentos, espera un momento",
+        "auth/network-request-failed": "Sin conexión: comprueba los datos del móvil"
+      };
+      err.textContent = textos[e.code] || ("No se ha podido entrar: " + e.code);
+      document.getElementById("ac-btn").disabled = false;
+    }
+  };
+  document.getElementById("ac-btn").addEventListener("click", entrar);
+  capa.addEventListener("keydown", (ev) => { if (ev.key === "Enter") entrar(); });
+}
+
+auth.onAuthStateChanged((usuario) => {
+  if (!usuario) { pantallaAcceso(); return; }
+  const capa = document.getElementById("capa-acceso");
+  if (capa) capa.remove();
+  elegirLado();
+});
+
+/* ===== QUE TABLERO VIGILA ESTE MOVIL ===== */
+// Se puede fijar en el enlace (lona.html?lado=A) para no equivocarse el dia
+// del evento, y si no se pregunta una vez y se recuerda en el movil.
+function elegirLado() {
+  const porEnlace = (new URLSearchParams(location.search).get("lado") || "").toUpperCase();
+  const guardado = localStorage.getItem("lona_lado");
+  const lado = (porEnlace === 'A' || porEnlace === 'B') ? porEnlace
+             : (guardado === 'A' || guardado === 'B') ? guardado : null;
+  if (lado) { fijarLado(lado); return; }
+
+  const capa = document.createElement("div");
+  capa.className = "capa";
+  capa.id = "capa-lado";
+  capa.innerHTML =
+    '<h2>¿DELANTE DE QUÉ TABLERO ESTÁS?</h2>' +
+    '<p>Elige el tablero que tienes delante, el de los barcos que te toca marcar. ' +
+    'Verás los disparos que recibe ESE tablero.</p>' +
+    '<button class="opcion rojo" onclick="fijarLado(\'A\')">TABLERO ROJO<small>Marco los disparos del Equipo Azul</small></button>' +
+    '<button class="opcion azul" onclick="fijarLado(\'B\')">TABLERO AZUL<small>Marco los disparos del Equipo Rojo</small></button>';
+  document.body.appendChild(capa);
+}
+
+function fijarLado(lado) {
+  miLado = lado;
+  localStorage.setItem("lona_lado", lado);
+  const capa = document.getElementById("capa-lado");
+  if (capa) capa.remove();
+  const cab = document.getElementById("cab-lado");
+  cab.textContent = "TABLERO " + (lado === 'A' ? "ROJO" : "AZUL");
+  cab.className = "lado " + (lado === 'A' ? "rojo" : "azul");
+  document.getElementById("ref-titulo").textContent =
+    "LO QUE YA DEBE ESTAR PUESTO EN LA LONA";
+  pintarRejilla();
+  escuchar();
+}
+
+function cambiarLado() {
+  if (!confirm("¿Cambiar de tablero? Solo si de verdad te has cambiado de lado.")) return;
+  localStorage.removeItem("lona_lado");
+  location.reload();
+}
+
+/* ===== ESCUCHA DE LA PARTIDA ===== */
+function escuchar() {
+  partidaRef.onSnapshot((doc) => {
+    document.getElementById("conexion").classList.remove("mala");
+    if (!doc.exists) { ultimaPartida = null; pintar(); return; }
+    ultimaPartida = doc.data();
+    sincronizarClavePartida();
+    pintar();
+  }, (e) => {
+    console.error(e);
+    document.getElementById("conexion").classList.add("mala");
+  });
+}
+
+// Cada partida lleva su propio contador de colocadas. Si el Panel Central
+// reinicia la partida, el historial se vacia y el contador vuelve a cero solo.
+function sincronizarClavePartida() {
+  const d = ultimaPartida || {};
+  // creado_en es un serverTimestamp: identifica la partida sin ambiguedad. Al
+  // crearla llega nulo durante un instante, de ahi el valor por defecto.
+  const base = (d.creado_en && d.creado_en.seconds) ? String(d.creado_en.seconds) : "partida";
+  if (clavePartida !== base) {
+    clavePartida = base;
+    colocadas = parseInt(localStorage.getItem(claveLS()) || "0", 10) || 0;
+    ultimoTotal = jugadasRecibidas().length;
+  }
+  // Si el Panel Central reinicia la partida el historial se acorta: el contador
+  // se recorta con el y no se queda pidiendo jugadas que ya no existen.
+  const total = jugadasRecibidas().length;
+  if (colocadas > total) { colocadas = total; guardarColocadas(); }
+}
+
+function guardarColocadas() {
+  try { localStorage.setItem(claveLS(), String(colocadas)); } catch (e) { /* modo privado */ }
+}
+
+/* Disparos que han caido en MI tablero, en orden. Las jugadas de coordenada
+   "—" son turnos perdidos por tiempo: no hay nada que marcar. */
+function jugadasRecibidas() {
+  const d = ultimaPartida;
+  if (!d || !d.historial) return [];
+  return d.historial.filter(h => h.equipoLetra === rival(miLado) && h.coord && h.coord !== '—');
+}
+
+/* ===== PINTAR ===== */
+function pintar() {
+  const lista = jugadasRecibidas();
+  const pendientes = lista.slice(colocadas);
+  const zona = document.getElementById("jugada");
+  const cont = document.getElementById("jugada-contenido");
+  const boton = document.getElementById("btn-colocada");
+  const cola = document.getElementById("cola");
+
+  // Aviso cuando llega una jugada nueva: vibracion, pitido y destello.
+  if (lista.length !== ultimoTotal) {
+    if (lista.length > ultimoTotal && !primerPintado) avisar();
+    ultimoTotal = lista.length;
+  }
+  primerPintado = false;
+
+  document.getElementById("pie-contador").textContent =
+    "Colocadas: " + colocadas + " de " + lista.length;
+
+  if (!pendientes.length) {
+    zona.className = "espera";
+    cola.style.display = "none";
+    boton.disabled = true;
+    boton.className = "";
+    boton.textContent = "TODO MARCADO";
+    cont.innerHTML =
+      '<div class="espera-icono">&#9875;</div>' +
+      '<div class="espera-txt">' + textoEspera() + '</div>';
+    pintarRejilla(null);
+    return;
+  }
+
+  const j = pendientes[0];
+  const esAgua = j.resultado === 'agua';
+  zona.className = esAgua ? "agua" : "tocado";
+
+  if (pendientes.length > 1) {
+    cola.style.display = "block";
+    cola.textContent = "+" + (pendientes.length - 1) + " EN ESPERA";
+  } else {
+    cola.style.display = "none";
+  }
+
+  const col = j.coord.charAt(0);
+  const fil = j.coord.slice(1);
+  // En la lona solo hay dos piezas: X verde (agua) y X roja (tocado). Un
+  // hundido se coloca igual que un tocado, asi que ni se menciona.
+  cont.innerHTML =
+    '<div class="que">PON UNA X ' + (esAgua ? 'VERDE' : 'ROJA') + '</div>' +
+    '<div class="coord">' + j.coord + '</div>' +
+    '<div class="marca">' + (esAgua ? '&#128994; AGUA' : '&#128308; TOCADO') + '</div>' +
+    '<div class="donde">columna <b>' + col + '</b> &nbsp;·&nbsp; fila <b>' + fil + '</b></div>';
+
+  boton.disabled = false;
+  boton.className = "lista";
+  boton.textContent = "✓ YA HE PUESTO LA " + j.coord;
+
+  pintarRejilla(j.coord);
+}
+
+function textoEspera() {
+  const d = ultimaPartida;
+  if (!d) return "NO HAY PARTIDA EN MARCHA";
+  if (d.pausada) return "PARTIDA EN PAUSA";
+  if (d.fase === 'terminada') return "PARTIDA TERMINADA";
+  if (d.fase !== 'batalla') return "PREPARANDO LA PARTIDA";
+  if (!d.turno) return "ESPERANDO EL SORTEO";
+  if (d.turno === rival(miLado)) return "DISPARA " + NOMBRES[rival(miLado)] + "...";
+  return "TURNO DE " + NOMBRES[miLado] +
+    "<br><span style=\"font-size:12px;opacity:.7;\">dispara tu equipo: aquí no hay nada que marcar</span>";
+}
+
+/* Rejilla de 8x8 con lo que YA esta marcado en este tablero. No muestra donde
+   estan los barcos: solo los disparos recibidos, lo mismo que se ve en la lona. */
+function pintarRejilla(objetivo) {
+  const d = ultimaPartida || {};
+  const recibidos = d['disparosRecibidos' + miLado] || {};
+  let html = '<table><tr><th></th>';
+  LETRAS.forEach(l => { html += '<th>' + l + '</th>'; });
+  html += '</tr>';
+  for (let f = 1; f <= 8; f++) {
+    html += '<tr><th>' + f + '</th>';
+    LETRAS.forEach(l => {
+      const id = l + f;
+      // "hundido" se dibuja igual que "tocado": en la lona es la misma X roja.
+      const r = recibidos[id] === 'hundido' ? 'tocado' : recibidos[id];
+      let cls = r ? r : '';
+      let txt = r ? '&#215;' : '';
+      if (objetivo && id === objetivo) { cls = 'objetivo'; txt = '&#215;'; }
+      html += '<td class="' + cls + '">' + txt + '</td>';
+    });
+    html += '</tr>';
+  }
+  html += '</table>';
+  document.getElementById("ref-tabla").innerHTML = html;
+}
+
+/* ===== AVISO DE JUGADA NUEVA ===== */
+function avisar() {
+  const zona = document.getElementById("jugada");
+  zona.classList.remove("nueva");
+  void zona.offsetWidth;          // reinicia la animacion
+  zona.classList.add("nueva");
+  setTimeout(() => zona.classList.remove("nueva"), 1400);
+  try { if (navigator.vibrate) navigator.vibrate([90, 70, 90]); } catch (e) {}
+  pitido();
+}
+
+// Pitido corto. En el movil solo suena si el staff ya ha tocado la pantalla
+// alguna vez; la vibracion funciona siempre, y es la que de verdad avisa.
+function pitido() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = "square"; o.frequency.value = 980;
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.26);
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.27);
+  } catch (e) { /* sin audio, queda la vibracion */ }
+}
+
+/* ===== BOTONES ===== */
+function marcarColocada() {
+  const total = jugadasRecibidas().length;
+  if (colocadas >= total) return;
+  colocadas++;
+  guardarColocadas();
+  try { if (navigator.vibrate) navigator.vibrate(35); } catch (e) {}
+  pintar();
+}
+
+function deshacerColocada() {
+  if (colocadas <= 0) { alert("No hay nada que deshacer."); return; }
+  colocadas--;
+  guardarColocadas();
+  pintar();
+}
+
+/* La pantalla no debe apagarse mientras se marca: se pide que siga encendida
+   si el navegador lo permite (Chrome de Android si, Safari antiguo no). */
+async function mantenerPantalla() {
+  try {
+    if ("wakeLock" in navigator) {
+      let lock = await navigator.wakeLock.request("screen");
+      document.addEventListener("visibilitychange", async () => {
+        if (document.visibilityState === "visible") {
+          try { lock = await navigator.wakeLock.request("screen"); } catch (e) {}
+        }
+      });
+    }
+  } catch (e) { /* da igual, es un extra */ }
+}
+mantenerPantalla();
+document.addEventListener("click", () => { /* desbloquea el audio del movil */ }, { once: true });
+</script>
+</body>
+</html>
