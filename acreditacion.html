@@ -186,6 +186,16 @@ input[type=text], input[type=number], select {
       <h2>Últimas acreditaciones</h2>
       <div class="lista-ult" id="ultimas"><div style="color:var(--texto2);font-size:12px;">Todavía ninguna</div></div>
     </div>
+    <div class="tarjeta" style="margin-top:10px;">
+      <h2>Listado de respaldo</h2>
+      <div style="color:var(--texto2);font-size:12px;line-height:1.6;margin-bottom:10px;">
+        Acreditados y su dorsal, sacados de este móvil. <b>Funciona sin internet.</b>
+        Hazlo al cerrar la acreditación.
+      </div>
+      <button class="btn btn-morado" onclick="guardarRespaldo()">GUARDAR ARCHIVO</button>
+      <button class="btn" style="margin-top:8px;" onclick="imprimirRespaldo()">Imprimir o guardar PDF</button>
+      <div id="respaldo-estado" style="font-size:11px;color:var(--texto2);margin-top:9px;line-height:1.6;"></div>
+    </div>
   </div>
 
   <!-- PASO 2: FICHA Y DORSAL -->
@@ -200,6 +210,24 @@ input[type=text], input[type=number], select {
     </div>
   </div>
 </div>
+
+<!-- Hoja de respaldo: invisible en pantalla, solo existe al imprimir -->
+<div id="hoja-respaldo"></div>
+<style>
+  #hoja-respaldo { display: none; }
+  @media print {
+    body > *:not(#hoja-respaldo) { display: none !important; }
+    body { background: #fff !important; }
+    #hoja-respaldo { display: block !important; background: #fff; color: #000;
+      font-family: Arial, Helvetica, sans-serif; padding: 8mm; }
+    #hoja-respaldo h1 { font-size: 15px; margin: 0 0 2px; text-transform: uppercase; }
+    #hoja-respaldo .sub { font-size: 9px; border-bottom: 2px solid #000;
+      padding-bottom: 5px; margin-bottom: 8px; }
+    #hoja-respaldo .cols { column-count: 3; column-gap: 6mm; font-size: 9.5px; line-height: 1.55; }
+    #hoja-respaldo .pie { font-size: 9px; border: 1px solid #000; padding: 5px;
+      margin-top: 8px; background: #F4F4F4; }
+  }
+</style>
 
 <div class="pie-nav">
   <button class="on" id="nav-acreditar" onclick="irA('acreditar')"><span class="ic">🎫</span>Acreditar</button>
@@ -11126,6 +11154,145 @@ function pintarCifras() {
   $("c-pen").textContent = pen;
   $("c-sal").textContent = salidos;
   $("c-men").textContent = men;
+}
+
+/* =========================================================
+   LISTADO DE RESPALDO
+   Todo sale de lo que este móvil ya tiene cargado en memoria, así que
+   funciona igual con Firebase caído o sin cobertura: la app guarda una
+   copia local de "entradas" y "participantes" desde que arranca.
+   Dos salidas distintas a propósito: el archivo de texto no necesita
+   impresora ni PDF y se puede mandar por WhatsApp; la impresión sirve
+   para sacar el folio o para "Guardar como PDF" sin impresora delante.
+   ========================================================= */
+
+function filasRespaldo() {
+  // El dorsal vive en la entrada o en el participante según por dónde se
+  // acreditara, así que se mira en los dos sitios.
+  const dorsalPorCodigo = {};
+  Object.values(participantes || {}).forEach(function (pa) {
+    if (pa && pa.entrada_codigo) dorsalPorCodigo[pa.entrada_codigo] = pa;
+  });
+
+  const filas = [];
+  Object.keys(entradas || {}).forEach(function (codigo) {
+    const e = entradas[codigo];
+    if (!e || !e.acreditada) return;
+    if (e.anulada || e.devuelta || e.valida === false) return;
+    const pa = dorsalPorCodigo[codigo] || null;
+    const dorsal = (pa && pa.dorsal) || e.dorsal || null;
+    filas.push({
+      dorsal: dorsal ? parseInt(dorsal, 10) : null,
+      nombre: (e.nombre || "").trim() || "(sin nombre)",
+      codigo: codigo,
+      tipo: e.tipo || "jugador",
+      menor: !!e.menor
+    });
+  });
+
+  filas.sort(function (a, b) {
+    if (a.dorsal && b.dorsal) return a.dorsal - b.dorsal;
+    if (a.dorsal) return -1;
+    if (b.dorsal) return 1;
+    return a.nombre.localeCompare(b.nombre, "es");
+  });
+  return filas;
+}
+
+function selloRespaldo() {
+  const d = new Date();
+  const dc = function (n) { return String(n).padStart(2, "0"); };
+  return dc(d.getDate()) + "/" + dc(d.getMonth() + 1) + "/" + d.getFullYear() +
+    " a las " + dc(d.getHours()) + ":" + dc(d.getMinutes());
+}
+
+function avisoRespaldo(txt, mal) {
+  const c = $("respaldo-estado");
+  if (!c) return;
+  c.style.color = mal ? "var(--rojo)" : "var(--verde)";
+  c.innerHTML = txt;
+}
+
+function guardarRespaldo() {
+  const filas = filasRespaldo();
+  if (!filas.length) { avisoRespaldo("Todavía no hay nadie acreditado en este móvil.", true); return; }
+
+  const jugadores = filas.filter(function (f) { return f.tipo === "jugador"; });
+  const sinDorsal = jugadores.filter(function (f) { return !f.dorsal; }).length;
+  const menores = filas.filter(function (f) { return f.menor; }).length;
+
+  const lineas = [];
+  lineas.push("LOS JUEGOS DE OMEGA - 21 de noviembre de 2026");
+  lineas.push("LISTADO DE ACREDITADOS");
+  lineas.push("Puesto: " + (puesto || "sin identificar") + "  |  Generado el " + selloRespaldo());
+  lineas.push("");
+  lineas.push("Acreditados: " + filas.length + "   Jugadores: " + jugadores.length +
+    "   Con dorsal: " + (jugadores.length - sinDorsal) + "   Menores: " + menores);
+  lineas.push("");
+  lineas.push("DORSAL  NOMBRE                                   CODIGO");
+  lineas.push("------  ---------------------------------------- -------------");
+  filas.forEach(function (f) {
+    const d = f.dorsal ? String(f.dorsal).padStart(3, "0")
+      : (f.tipo === "espectador" ? "ESP" : "---");
+    const n = (f.nombre + (f.menor ? " (MENOR)" : "")).slice(0, 40).padEnd(40, " ");
+    lineas.push(d.padEnd(6, " ") + "  " + n + " " + f.codigo);
+  });
+  lineas.push("");
+  lineas.push("(MENOR) = menor de edad. ESP = espectador, no lleva dorsal.");
+  lineas.push("--- = acreditado sin dorsal asignado todavia.");
+
+  const sello = new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-");
+  const nombreArchivo = "acreditados-" + sello + ".txt";
+
+  try {
+    const a = document.createElement("a");
+    const url = URL.createObjectURL(new Blob(["\uFEFF" + lineas.join("\r\n")],
+      { type: "text/plain;charset=utf-8" }));
+    a.href = url;
+    a.download = nombreArchivo;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+    avisoRespaldo("Guardado <b>" + nombreArchivo + "</b> con " + filas.length + " acreditados" +
+      (sinDorsal ? " &middot; <b>" + sinDorsal + (sinDorsal === 1 ? " jugador sigue" : " jugadores siguen") +
+        " sin dorsal</b>" : "") +
+      ".<br>Está en las descargas del móvil. Mándalo también por WhatsApp a Coordinación.");
+  } catch (err) {
+    console.error(err);
+    avisoRespaldo("Este móvil no ha dejado descargar el archivo. Usa el botón de imprimir y guarda el PDF.", true);
+  }
+}
+
+function imprimirRespaldo() {
+  const filas = filasRespaldo();
+  if (!filas.length) { avisoRespaldo("Todavía no hay nadie acreditado en este móvil.", true); return; }
+  const jugadores = filas.filter(function (f) { return f.tipo === "jugador"; });
+  const sinDorsal = jugadores.filter(function (f) { return !f.dorsal; }).length;
+  const menores = filas.filter(function (f) { return f.menor; }).length;
+
+  const escapar = function (t) {
+    return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  };
+  const cuerpo = filas.map(function (f) {
+    const d = f.dorsal ? String(f.dorsal).padStart(3, "0")
+      : (f.tipo === "espectador" ? "ESP" : "---");
+    return "<div><b>" + d + "</b> &nbsp;" + escapar(f.nombre) + (f.menor ? " <b>(M)</b>" : "") + "</div>";
+  }).join("");
+
+  $("hoja-respaldo").innerHTML =
+    "<h1>Acreditados y dorsal</h1>" +
+    '<div class="sub"><b>LOS JUEGOS DE OMEGA</b> &middot; 21 nov 2026 &middot; Paterna &middot; ' +
+    escapar(puesto || "puesto sin identificar") + " &middot; Generado el " + selloRespaldo() + "</div>" +
+    '<div class="cols">' + cuerpo + "</div>" +
+    '<div class="pie"><b>' + filas.length + " acreditados</b> &middot; " + jugadores.length +
+    " jugadores &middot; " + (jugadores.length - sinDorsal) + " con dorsal &middot; " + menores +
+    (menores === 1 ? " menor" : " menores") + ". <b>(M)</b> = menor de edad. <b>ESP</b> = espectador, no lleva dorsal. " +
+    "<b>---</b> = acreditado sin dorsal asignado todavía. " +
+    "Si el sistema se cae, este papel es la identidad oficial: un dorsal que no aparece aquí no juega.</div>";
+
+  window.print();
+  avisoRespaldo("Si no tienes impresora, elige <b>Guardar como PDF</b> en el destino de impresión.");
 }
 
 /* ===== CONEXIÓN ===== */
