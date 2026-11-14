@@ -10404,10 +10404,11 @@ const firebaseConfig = {
   messagingSenderId: "602888359633",
   appId: "1:602888359633:web:bfc738d469ad95fe37fff0"
 };
-// Instancia con nombre: esta app guarda su sesión aparte de la del staff,
-// para que en un mismo móvil quepan las dos cuentas a la vez.
-const appPuerta = firebase.initializeApp(firebaseConfig, "puerta");
-const db = appPuerta.firestore();
+// Instancia por defecto, la misma que la app de staff. Es a propósito: las
+// dos apps comparten la sesión, así que quien entra en una entra en la otra
+// y un staff puede pasar de acreditar a arbitrar sin volver a identificarse.
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 
 // Con datos móviles en un pabellón lleno la cobertura va y viene. Con esto la
 // app sigue funcionando sin conexión y sincroniza cuando vuelve.
@@ -10450,7 +10451,7 @@ const DORSAL_MIN = 1, DORSAL_MAX = 500;
    desbloqueadas todas las del evento en ese dispositivo.
    ========================================================= */
 
-const auth = appPuerta.auth();
+const auth = firebase.auth();
 let sesionIniciada = false;
 
 // Pantalla de acceso, creada desde el propio código para que todas las apps

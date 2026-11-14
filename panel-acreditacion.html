@@ -224,10 +224,8 @@ const firebaseConfig = {
   messagingSenderId: "602888359633",
   appId: "1:602888359633:web:bfc738d469ad95fe37fff0"
 };
-// Misma instancia con nombre que la app de acreditar: comparten la sesión
-// de la puerta entre ellas, y ninguna de las dos toca la del Panel Central.
-const appPuerta = firebase.initializeApp(firebaseConfig, "puerta");
-const db = appPuerta.firestore();
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
 const TS = firebase.firestore.FieldValue.serverTimestamp;
 const BORRAR = firebase.firestore.FieldValue.delete;
 
@@ -242,7 +240,7 @@ const BORRAR = firebase.firestore.FieldValue.delete;
    desbloqueadas todas las del evento en ese dispositivo.
    ========================================================= */
 
-const auth = appPuerta.auth();
+const auth = firebase.auth();
 let sesionIniciada = false;
 
 // Pantalla de acceso, creada desde el propio código para que todas las apps

@@ -65,6 +65,14 @@ service cloud.firestore {
       return identificado() && request.auth.token.email == 'puerta@juegos.com';
     }
 
+    // Quien puede acreditar en la puerta. El staff entra aquí a propósito:
+    // así se puede mover a cualquiera de la puerta al campo y al revés sin
+    // cerrar sesiones. A cambio, los móviles del staff pueden leer la lista
+    // de entradas, con los nombres y las edades.
+    function acredita() {
+      return esPuerta() || esStaff();
+    }
+
     // Panel Central, pantalla LED y capitanes: cualquier usuario identificado
     // que no sea el del staff ni el de la puerta.
     function esMando() {
@@ -74,10 +82,10 @@ service cloud.firestore {
     // ---- Jugadores y resultados ----
     // El staff los ve en su app para poder marcar, pero no elimina ni salva:
     // eso lo ejecuta el Panel Central al aprobar la propuesta.
-    // La puerta solo ACTUALIZA: al acreditar a alguien le pone su entrada, su
+    // Quien acredita (la puerta o el staff) solo ACTUALIZA: le pone su entrada, su
     // nombre y lo devuelve al juego. Ni crea dorsales ni los borra: los
     // dorsales se crean desde el Panel Central.
-    match /participantes/{dorsal}      { allow read: if identificado(); allow write: if esMando(); allow update: if esPuerta(); }
+    match /participantes/{dorsal}      { allow read: if identificado(); allow write: if esMando(); allow update: if acredita(); }
     match /eliminaciones/{dorsal}      { allow read: if identificado(); allow write: if esMando(); }
     match /eliminaciones_multiples/{d} { allow read: if identificado(); allow write: if esMando(); }
     match /salvaciones/{id}            { allow read: if identificado(); allow write: if esMando(); }
@@ -138,12 +146,12 @@ service cloud.firestore {
     // nunca: se quedan en el Excel de Enterticket.
     // No se borran desde las apps: una entrada que ya no vale se marca como
     // anulada, no se elimina.
-    // La puerta lee y actualiza: acreditar, marcar dentro y fuera, corregir un
+    // Quien acredita lee y actualiza: acreditar, marcar dentro y fuera, corregir un
     // dorsal mal dado. No crea entradas: esas entran con el XLSX de
     // Enterticket desde el Panel Central.
     match /entradas/{codigo} {
       allow read, create, update: if esMando();
-      allow read, update: if esPuerta();
+      allow read, update: if acredita();
       allow delete: if false;
     }
 
