@@ -133,6 +133,9 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .grid { display: grid; grid-template-columns: repeat(35, 1fr); gap: 3px; }
 /* Vistas "Equipos" y "Parejas": el mismo contenedor del grid, pero en vez de
    los 500 dorsales sueltos se pintan las agrupaciones, cada una con los suyos. */
+.barra-vista { padding: 8px 14px; border-bottom: 1px solid var(--border); background: var(--bg3); }
+.barra-fila { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.barra-sep { width: 1px; height: 24px; background: var(--border2); }
 .grid.agrupado { display: block; }
 .agrup { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
 .agrup .cab { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
@@ -486,6 +489,93 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:9px;" onclick="setFiltro('parejas')" id="f-parejas">Parejas</button>
         </div>
       </div>
+      <!-- HERRAMIENTAS DE CADA VISTA. Solo se ve la de la vista en curso. -->
+      <div id="barra-equipos" class="barra-vista" style="display:none;">
+        <div class="barra-fila">
+          <input type="text" id="nuevo-equipo-nombre" placeholder="Nombre del grupo (ej. Equipo Azul)" style="flex:1;min-width:150px;" />
+          <button class="btn btn-morado" style="width:auto;padding:8px 14px;" onclick="toggleModoCrearEquipo()" id="crear-equipo-toggle-btn">
+            <i class="ti ti-hand-finger"></i> Elegir dorsales a mano
+          </button>
+          <span class="barra-sep"></span>
+          <input type="number" id="grupo-azar-tam" value="4" min="2" max="50" style="width:64px;" title="Cuántos jugadores por grupo" />
+          <span style="font-size:10px;color:var(--texto2);">por grupo</span>
+          <button class="btn btn-morado" style="width:auto;padding:8px 14px;" onclick="sortearGrupoAleatorio()">
+            <i class="ti ti-dice"></i> Sortear grupo
+          </button>
+          <span class="barra-sep"></span>
+          <button class="btn btn-rojo" style="width:auto;padding:8px 14px;" onclick="disolverEquiposDeLaPrueba()">
+            <i class="ti ti-users-minus"></i> Disolver los de esta prueba
+          </button>
+        </div>
+        <!-- GRUPO ALEATORIO: lo forma la organización, no los jugadores. Sortea
+             entre los vivos que aún no están en otro grupo de esta prueba, lo
+             enseña, y hasta que no se confirma no existe. -->
+        <div id="grupo-azar-prev" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#f3eeff;border:1px solid var(--morado);">
+          <div style="font-size:11px;font-weight:700;color:var(--morado);margin-bottom:4px;" id="grupo-azar-nombre"></div>
+          <div style="font-size:12px;color:var(--texto);margin-bottom:8px;font-family:var(--mono);" id="grupo-azar-lista"></div>
+          <div style="display:flex;gap:6px;max-width:460px;">
+            <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarGrupoAleatorio()"><i class="ti ti-check"></i> Confirmar</button>
+            <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearGrupoAleatorio()"><i class="ti ti-refresh"></i> Otro</button>
+            <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="cancelarGrupoAleatorio()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAREJAS. Dos formas de formarlas, según la prueba:
+           · Tiro al Saco → las forma la organización: se sortean.
+           · Canicas → las eligen los propios jugadores: a mano, aquí o desde
+             la app de staff.
+           Un dorsal solo puede estar en UNA pareja por prueba, y cuando se
+           elimina a uno de los dos la pareja queda marcada como jugada: así el
+           que sobrevive no puede emparejarse otra vez para repetir. -->
+      <div id="barra-parejas" class="barra-vista" style="display:none;">
+        <div class="barra-fila">
+          <input type="number" id="parejas-azar-n" value="6" min="1" max="100" style="width:64px;" title="Cuántas parejas se sortean de una vez" />
+          <span style="font-size:10px;color:var(--texto2);">parejas</span>
+          <button class="btn btn-verde" style="width:auto;padding:8px 14px;" onclick="sortearParejasAleatorias()">
+            <i class="ti ti-dice"></i> Sortear
+          </button>
+          <span class="barra-sep"></span>
+          <button class="btn btn-morado" id="crear-pareja-toggle-btn" style="width:auto;padding:8px 14px;" onclick="toggleModoCrearPareja()">
+            <i class="ti ti-hand-finger"></i> Formar una a mano
+          </button>
+          <span class="barra-sep"></span>
+          <button class="btn btn-rojo" style="width:auto;padding:8px 14px;" onclick="disolverParejasDeLaPrueba()">
+            <i class="ti ti-users-minus"></i> Disolver las de esta prueba
+          </button>
+        </div>
+        <div id="pareja-azar-prev" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#e6f7ee;border:1px solid #0a8f4d;">
+          <div style="font-size:11px;font-weight:800;color:#0a8f4d;margin-bottom:6px;" id="pareja-azar-cab"></div>
+          <div style="font-size:13px;font-weight:800;color:var(--texto);margin-bottom:8px;font-family:var(--mono);line-height:1.7;" id="pareja-azar-lista"></div>
+          <div style="display:flex;gap:6px;max-width:460px;">
+            <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarParejasAleatorias()"><i class="ti ti-check"></i> Confirmar</button>
+            <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearParejasAleatorias()"><i class="ti ti-refresh"></i> Otras</button>
+            <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="cancelarParejaAleatoria()">Cancelar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estas dos se ven en CUALQUIER vista: al elegir dorsales a mano hay
+           que saltar al grid completo, y la barra tiene que seguir visible. -->
+      <div id="crear-equipo-bar" class="barra-vista" style="display:none;background:#f3eeff;border-color:var(--morado);">
+        <div class="barra-fila">
+          <span style="font-size:11px;font-weight:700;color:var(--morado);">
+            Pulsa los dorsales en el grid — <span id="crear-equipo-count">0</span> seleccionados
+          </span>
+          <button class="btn btn-morado" style="width:auto;padding:8px 14px;margin-left:auto;" onclick="confirmarCrearEquipo()"><i class="ti ti-check"></i> Crear grupo</button>
+          <button class="btn btn-ghost" style="width:auto;padding:8px 14px;" onclick="toggleModoCrearEquipo()">Cancelar</button>
+        </div>
+      </div>
+      <div id="crear-pareja-bar" class="barra-vista" style="display:none;background:#e6f7ee;border-color:#0a8f4d;">
+        <div class="barra-fila">
+          <span style="font-size:11px;font-weight:700;color:#0a8f4d;">
+            Pulsa los 2 dorsales en el grid — <span id="crear-pareja-count">0</span> de 2
+          </span>
+          <button class="btn btn-verde" style="width:auto;padding:8px 14px;margin-left:auto;" onclick="confirmarCrearPareja()"><i class="ti ti-check"></i> Crear pareja</button>
+          <button class="btn btn-ghost" style="width:auto;padding:8px 14px;" onclick="toggleModoCrearPareja()">Cancelar</button>
+        </div>
+      </div>
+
       <div class="grid-wrap">
         <div class="grid" id="grid"></div>
       </div>
@@ -515,104 +605,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users"></i> Staff conectado</div>
           <div id="staff-presencia-list"><div style="font-size:11px;color:var(--texto2);">Nadie conectado</div></div>
         </div>
-        <div>
-          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users-plus"></i> Crear equipo</div>
-          <input type="text" id="nuevo-equipo-nombre" placeholder="Nombre del equipo (ej. Equipo Azul)" style="margin-bottom:6px;" />
-          <button class="btn btn-morado" style="width:100%;" onclick="toggleModoCrearEquipo()" id="crear-equipo-toggle-btn">
-            <i class="ti ti-hand-finger"></i> Seleccionar dorsales en el grid
-          </button>
-          <div id="crear-equipo-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#f3eeff;border:1px solid var(--morado);">
-            <div style="font-size:11px;font-weight:700;color:var(--morado);margin-bottom:6px;">
-              Pulsa los dorsales en el grid — <span id="crear-equipo-count">0</span> seleccionados
-            </div>
-            <div style="display:flex;gap:6px;">
-              <button class="btn btn-morado" style="flex:1;" onclick="confirmarCrearEquipo()"><i class="ti ti-check"></i> Crear equipo</button>
-              <button class="btn btn-ghost" style="flex:1;" onclick="toggleModoCrearEquipo()">Cancelar</button>
-            </div>
-          </div>
-
-          <!-- GRUPO ALEATORIO: lo forma la organización, no los jugadores.
-               Sortea entre los vivos que aún no están en otro grupo de esta
-               prueba, lo enseña, y hasta que no se confirma no existe. -->
-          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
-            <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">O que lo sortee el panel:</div>
-            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-              <input type="number" id="grupo-azar-tam" value="4" min="2" max="50" style="width:64px;" title="Cuántos jugadores por grupo" />
-              <span style="font-size:10px;color:var(--texto2);">por grupo</span>
-              <button class="btn btn-morado" style="flex:1;padding:7px;font-size:10px;" onclick="sortearGrupoAleatorio()">
-                <i class="ti ti-dice"></i> Sortear grupo
-              </button>
-            </div>
-            <div id="grupo-azar-prev" style="display:none;padding:8px;border-radius:6px;background:#f3eeff;border:1px solid var(--morado);">
-              <div style="font-size:11px;font-weight:700;color:var(--morado);margin-bottom:4px;" id="grupo-azar-nombre"></div>
-              <div style="font-size:11px;color:var(--texto);margin-bottom:8px;font-family:var(--mono);" id="grupo-azar-lista"></div>
-              <div style="display:flex;gap:6px;">
-                <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarGrupoAleatorio()"><i class="ti ti-check"></i> Confirmar</button>
-                <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearGrupoAleatorio()"><i class="ti ti-refresh"></i> Otro</button>
-                <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="cancelarGrupoAleatorio()">Cancelar</button>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users-group"></i> Equipos creados</div>
-          <!-- Al acabar una prueba hay que dejar la lista limpia: si no, el
-               staff vuelve a ver equipos viejos al crear los de la siguiente. -->
-          <button class="btn btn-rojo" id="btn-disolver-prueba" style="width:100%;padding:7px;font-size:11px;margin-bottom:8px;"
-                  onclick="disolverEquiposDeLaPrueba()">
-            <i class="ti ti-users-minus"></i> Disolver todos los equipos de esta prueba
-          </button>
-          <div id="equipos-admin-list"><div style="font-size:11px;color:var(--texto2);">Sin equipos</div></div>
-        </div>
-
-        <!-- ===== PAREJAS =====
-             Dos formas de formarlas, según la prueba:
-             · Tiro al Saco → las forma la organización: botón de sorteo.
-             · Canicas → las eligen los propios jugadores: a mano, aquí o en
-               la app de staff.
-             Un dorsal solo puede estar en UNA pareja por prueba, y cuando se
-             elimina a uno de los dos la pareja queda marcada como jugada: así
-             el que sobrevive no puede emparejarse otra vez para repetir. -->
-        <div>
-          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users"></i> Parejas</div>
-
-          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-            <input type="number" id="parejas-azar-n" value="6" min="1" max="100" style="width:64px;" title="Cuántas parejas se sortean de una vez" />
-            <span style="font-size:10px;color:var(--texto2);">parejas</span>
-            <button class="btn btn-verde" style="flex:1;padding:7px;font-size:10px;" onclick="sortearParejasAleatorias()">
-              <i class="ti ti-dice"></i> Sortear
-            </button>
-          </div>
-          <div id="pareja-azar-prev" style="display:none;margin-bottom:8px;padding:8px;border-radius:6px;background:#e6f7ee;border:1px solid #0a8f4d;">
-            <div style="font-size:11px;font-weight:800;color:#0a8f4d;margin-bottom:6px;" id="pareja-azar-cab"></div>
-            <div style="font-size:12px;font-weight:800;color:var(--texto);margin-bottom:8px;font-family:var(--mono);line-height:1.7;" id="pareja-azar-lista"></div>
-            <div style="display:flex;gap:6px;">
-              <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarParejasAleatorias()"><i class="ti ti-check"></i> Confirmar</button>
-              <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearParejasAleatorias()"><i class="ti ti-refresh"></i> Otras</button>
-              <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="cancelarParejaAleatoria()">Cancelar</button>
-            </div>
-          </div>
-
-          <button class="btn btn-morado" id="crear-pareja-toggle-btn" style="width:100%;padding:7px;font-size:11px;" onclick="toggleModoCrearPareja()">
-            <i class="ti ti-hand-finger"></i> Formar pareja a mano (2 dorsales)
-          </button>
-          <div id="crear-pareja-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#e6f7ee;border:1px solid #0a8f4d;">
-            <div style="font-size:11px;font-weight:700;color:#0a8f4d;margin-bottom:6px;">
-              Pulsa los 2 dorsales en el grid — <span id="crear-pareja-count">0</span> de 2
-            </div>
-            <div style="display:flex;gap:6px;">
-              <button class="btn btn-verde" style="flex:1;" onclick="confirmarCrearPareja()"><i class="ti ti-check"></i> Crear pareja</button>
-              <button class="btn btn-ghost" style="flex:1;" onclick="toggleModoCrearPareja()">Cancelar</button>
-            </div>
-          </div>
-
-          <button class="btn btn-rojo" style="width:100%;padding:7px;font-size:11px;margin-top:8px;" onclick="disolverParejasDeLaPrueba()">
-            <i class="ti ti-users-minus"></i> Disolver todas las parejas de esta prueba
-          </button>
-          <div id="parejas-list" style="margin-top:8px;"><div style="font-size:11px;color:var(--texto2);">Sin parejas</div></div>
-        </div>
       </div>
-
       <!-- HISTORIAL -->
       <div id="panel-hist" class="hist-list"></div>
 
@@ -1558,6 +1551,9 @@ function setFiltro(f) {
   active.style.borderColor = 'var(--morado)';
   active.style.color = '#ffffff';
   active.style.fontWeight = '900';
+  // Cada vista enseña sus herramientas y esconde las de la otra.
+  document.getElementById('barra-equipos').style.display = f === 'equipos' ? 'block' : 'none';
+  document.getElementById('barra-parejas').style.display = f === 'parejas' ? 'block' : 'none';
   renderGrid();
 }
 
@@ -1613,7 +1609,11 @@ function renderVistaEquipos(grid) {
         '<span class="sub">' + (eq.prueba || 'sin prueba') + ' · ' + (eq.creado_por || '—') +
           (eq.origen === 'aleatorio-panel' ? ' · sorteado' : '') +
           (deOtraPrueba ? ' · NO es de la prueba en curso' : '') + '</span>' +
-        '<button class="btn btn-verde" style="margin-left:auto;width:auto;padding:5px 10px;font-size:9px;" onclick="anunciarEquipoFormado(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar</button>' +
+        '<span style="margin-left:auto;display:flex;gap:6px;">' +
+          '<button class="btn btn-verde" style="width:auto;padding:5px 10px;font-size:9px;" onclick="anunciarEquipoFormado(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar</button>' +
+          '<button class="btn btn-morado" style="width:auto;padding:5px 10px;font-size:9px;" onclick="editarEquipoStaff(\'' + id + '\')">Editar</button>' +
+          '<button class="btn btn-rojo" style="width:auto;padding:5px 10px;font-size:9px;" onclick="disolverEquipoStaff(\'' + id + '\')">Disolver</button>' +
+        '</span>' +
       '</div>' +
       '<div class="dorsales">' + ds.map(celdaDorsal).join('') + '</div>' +
     '</div>';
@@ -1651,7 +1651,13 @@ function renderVistaParejas(grid) {
         '<span class="sub">' + (pa.prueba || 'sin prueba') + ' · ' + quien +
           (pa.cerrada_por ? ' · cerrada al eliminar al #' + pa.cerrada_por : '') +
           (deOtraPrueba ? ' · NO es de la prueba en curso' : '') + '</span>' +
-        (pa.jugada ? '' : '<button class="btn btn-verde" style="margin-left:auto;width:auto;padding:5px 10px;font-size:9px;" onclick="anunciarPareja(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar</button>') +
+        '<span style="margin-left:auto;display:flex;gap:6px;">' +
+          (pa.jugada ? '' : '<button class="btn btn-verde" style="width:auto;padding:5px 10px;font-size:9px;" onclick="anunciarPareja(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar</button>') +
+          (pa.jugada
+            ? '<button class="btn btn-morado" style="width:auto;padding:5px 10px;font-size:9px;" onclick="reabrirPareja(\'' + id + '\')">Reabrir</button>'
+            : '<button class="btn btn-morado" style="width:auto;padding:5px 10px;font-size:9px;" onclick="marcarParejaJugada(\'' + id + '\')">Ya ha jugado</button>') +
+          '<button class="btn btn-rojo" style="width:auto;padding:5px 10px;font-size:9px;" onclick="disolverPareja(\'' + id + '\')">Disolver</button>' +
+        '</span>' +
       '</div>' +
       '<div class="dorsales">' + ds.map(celdaDorsal).join('') + '</div>' +
     '</div>';
@@ -1748,24 +1754,9 @@ function renderEquiposStaffOptions() {
 // Gestión de equipos desde el panel: a diferencia de la app staff (donde solo
 // quien creó un equipo puede borrarlo), aquí el operador puede editar o
 // disolver cualquier equipo, los haya creado quien los haya creado.
+/* Los grupos se ven en la vista Equipos. Aquí solo queda refrescarla. */
 function renderEquiposAdminList() {
-  const cont = document.getElementById("equipos-admin-list");
-  if (!cont) return;
-  const lista = Object.entries(equiposStaffCache).sort((a,b) => a[1].nombre.localeCompare(b[1].nombre));
-  if (!lista.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Sin equipos</div>'; return; }
-  cont.innerHTML = lista.map(([id, eq]) => {
-    const vivos = eq.dorsales.filter(d => participantes[d] && participantes[d].vivo).length;
-    return `<div style="background:#f3eeff;border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:6px;">
-      <div style="font-size:12px;font-weight:800;color:var(--morado);">👥 ${eq.nombre}</div>
-      <div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">${vivos} vivos de ${eq.dorsales.length} · #${eq.dorsales.join(', #')}</div>
-      <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Creado por ${eq.creado_por||'—'} · ${eq.prueba || 'sin prueba'}</div>
-      <button class="btn btn-verde" style="width:100%;padding:6px;font-size:10px;margin-bottom:6px;" onclick="anunciarEquipoFormado('${id}')"><i class="ti ti-volume"></i> Anunciar por megafonía</button>
-      <div style="display:flex;gap:6px;">
-        <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="editarEquipoStaff('${id}')">Editar</button>
-        <button class="btn btn-rojo" style="flex:1;padding:6px;font-size:10px;" onclick="disolverEquipoStaff('${id}')">Disolver</button>
-      </div>
-    </div>`;
-  }).join('');
+  if (filtro === "equipos") renderGrid();
 }
 
 // Crear un equipo desde el panel: mismo formato de documento que los que crea
@@ -1779,6 +1770,7 @@ function toggleModoCrearEquipo() {
   if (modoCrearEquipo && modoMultiSalvar) toggleModoMultiSalvar();
   if (modoCrearEquipo && modoCrearPareja) toggleModoCrearPareja();
   document.getElementById("crear-equipo-bar").style.display = modoCrearEquipo ? "block" : "none";
+  if (!modoCrearEquipo) document.getElementById("nuevo-equipo-nombre").value = "";
   document.getElementById("crear-equipo-toggle-btn").style.opacity = modoCrearEquipo ? "0.5" : "";
   document.getElementById("crear-equipo-count").textContent = 0;
   renderGrid();
@@ -2557,33 +2549,9 @@ async function disolverParejasDeLaPrueba() {
   } catch (e) { console.error(e); mostrarNotif("No se han podido disolver las parejas"); }
 }
 
+/* Las parejas se ven en la vista Parejas. */
 function renderParejasList() {
-  const cont = document.getElementById("parejas-list");
-  if (!cont) return;
-  const lista = Object.entries(parejasCache)
-    .sort((a, b) => (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0]);
-  if (!lista.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Sin parejas</div>'; return; }
-  cont.innerHTML = lista.map(([id, pa]) => {
-    const ds = pa.dorsales || [];
-    const vivos = ds.filter(d => participantes[d] && participantes[d].vivo).length;
-    const fondo = pa.jugada ? "#eef0ef" : "#e6f7ee";
-    const borde = pa.jugada ? "var(--border)" : "#0a8f4d";
-    const sello = pa.jugada
-      ? '<span style="background:#6b6b6b;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;">YA JUGADA</span>'
-      : '<span style="background:#0a8f4d;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;">PENDIENTE</span>';
-    return '<div style="background:' + fondo + ';border:1px solid ' + borde + ';border-radius:6px;padding:8px;margin-bottom:6px;">' +
-      '<div style="font-size:12px;font-weight:800;color:var(--texto);font-family:var(--mono);">#' + ds.join(' · #') + ' ' + sello + '</div>' +
-      '<div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">' + vivos + ' vivos de ' + ds.length +
-        ' · ' + (pa.prueba || 'sin prueba') + ' · ' + (pa.origen === 'manual-staff' ? 'la eligieron los jugadores' : (pa.origen && pa.origen.indexOf('aleatorio') === 0 ? 'sorteada' : 'a mano')) + '</div>' +
-      (pa.cerrada_por ? '<div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Cerrada al eliminar al #' + pa.cerrada_por + '</div>' : '') +
-      (pa.jugada ? '' : '<button class="btn btn-verde" style="width:100%;padding:6px;font-size:10px;margin-bottom:6px;" onclick="anunciarPareja(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar por megafonía</button>') +
-      '<div style="display:flex;gap:6px;">' +
-        (pa.jugada
-          ? '<button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="reabrirPareja(\'' + id + '\')">Reabrir</button>'
-          : '<button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="marcarParejaJugada(\'' + id + '\')">Ya ha jugado</button>') +
-        '<button class="btn btn-rojo" style="flex:1;padding:6px;font-size:10px;" onclick="disolverPareja(\'' + id + '\')">Disolver</button>' +
-      '</div></div>';
-  }).join('');
+  if (filtro === "parejas") renderGrid();
 }
 
 /* Cómo estaban agrupados cuando se cerró la prueba. Los grupos y las parejas
