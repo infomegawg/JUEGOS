@@ -497,6 +497,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div class="tab" id="tab-staff" onclick="setTab('staff')">Staff <span id="staff-badge" style="display:none;background:var(--rojo);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:2px;">0</span></div>
         <div class="tab active" id="tab-hist" onclick="setTab('hist')">Historial</div>
         <div class="tab" id="tab-part" onclick="setTab('part')">Jugadores</div>
+        <div class="tab" id="tab-actas" onclick="setTab('actas')">Actas</div>
         <div class="tab" id="tab-imp" onclick="setTab('imp')">Importar</div>
       </div>
 
@@ -638,6 +639,25 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       </div>
 
       <!-- IMPORTAR -->
+      <!-- ACTAS: el recorrido de cada prueba.
+           Se escribe sola al cambiar de prueba en el desplegable de arriba.
+           Nadie tiene que acordarse de nada el día del evento. -->
+      <div id="panel-actas" style="display:none;flex-direction:column;flex:1;overflow-y:auto;padding:10px;gap:12px;">
+        <div style="font-size:11px;color:var(--texto2);line-height:1.5;">
+          Cada vez que cambias de prueba arriba, se guarda el acta de la que acaba:
+          quién entró, quién jugó, quién cayó y quién clasificó.
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-morado" style="flex:1;padding:7px;font-size:10px;" onclick="rehacerActaActual()">
+            <i class="ti ti-refresh"></i> Rehacer acta de esta prueba
+          </button>
+          <button class="btn btn-ghost" style="flex:1;padding:7px;font-size:10px;" onclick="descargarActasCSV()">
+            <i class="ti ti-download"></i> Descargar CSV
+          </button>
+        </div>
+        <div id="actas-list"><div style="font-size:11px;color:var(--texto2);">Aún no hay ninguna prueba cerrada</div></div>
+      </div>
+
       <div id="panel-imp" style="display:none;padding:14px;flex-direction:column;gap:12px;">
         <div class="section-title"><i class="ti ti-ticket"></i> Entradas vendidas (Enterticket)</div>
         <div style="font-size:11px;color:var(--texto2);line-height:1.7;margin-bottom:8px;">
@@ -1210,6 +1230,7 @@ cambiarFiltroSalvacion();
   escucharLlamadas();
   escucharEquiposStaff();
   escucharParejas();
+  escucharActas();
   escucharPropuestasStaff();
   escucharAyudaStaff();
   escucharPresenciaStaff();
@@ -1276,6 +1297,15 @@ function escucharSesion() {
       // Solo sincronizar el desplegable Y el stat la primera vez que carga
       // Solo se acepta un valor que exista en el desplegable. Un valor raro
       // (de una version antigua o de otra app) dejaba el selector en blanco.
+      // Foto de inicio de la prueba en curso, por si el panel se ha
+      // reabierto a media prueba.
+      if (data.prueba_actual) {
+        pruebaAbierta = {
+          prueba: data.prueba_actual,
+          desde: data.prueba_desde || null,
+          vivos: data.prueba_vivos_inicio || []
+        };
+      }
       if (primeraVez && data.prueba_actual) {
         const sel = document.getElementById("prueba-select");
         const existe = [...sel.options].some(o => o.value === data.prueba_actual);
@@ -1907,6 +1937,211 @@ function nombreEquipoSeleccionado() {
     return eq ? eq.nombre : "";
   }
   return val;
+}
+
+/* ===== ACTAS DE PRUEBA =====
+   Hasta ahora quedaba registrado QUIÉN fue eliminado y en qué prueba, pero no
+   quién la jugó ni quién clasificó. Si alguien reclama al día siguiente, no
+   había nada que enseñar.
+
+   El acta se escribe sola al cambiar de prueba. Todo sale de una única foto
+   que se guarda al ABRIR la prueba (los vivos que había) comparada con el
+   estado al CERRARLA:
+     · entraron     = los vivos de esa foto
+     · clasificaron = los vivos al cerrar
+     · eliminados   = los que entraron y ya no están vivos
+     · recuperados  = los que están vivos al cerrar y no habían entrado
+                      (volvieron en un bingo durante esta prueba)
+     · jugaron      = los convocados en grupos o parejas de esa prueba; si la
+                      prueba no usó agrupaciones, jugaron todos los que entraron
+
+   La foto vive en sesion/actual, no en el navegador: si el panel se cierra a
+   media prueba y se vuelve a abrir, el acta sigue saliendo bien. */
+
+let pruebaAbierta = null;   // { prueba, desde, vivos:[...] }
+let actasCache = {};
+
+function slugPrueba(nombre) {
+  const n = numeroDePrueba(nombre);
+  const base = String(nombre || "sin-prueba").toUpperCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+  return (n ? String(n).padStart(2, "0") : "xx") + "-" + base;
+}
+
+/* Foto de los vivos al empezar la prueba. Se guarda en Firestore para que
+   sobreviva a un cierre del panel. */
+async function abrirPrueba(valor) {
+  const vivos = dorsalesVivos().filter(d => !estaFuera(participantes[d])).sort((a, b) => a - b);
+  pruebaAbierta = { prueba: valor, desde: Date.now(), vivos: vivos };
+  await db.collection("sesion").doc("actual").set({
+    prueba_desde: pruebaAbierta.desde,
+    prueba_vivos_inicio: vivos
+  }, { merge: true });
+}
+
+/* Dorsales convocados en grupos o parejas de esa prueba. Vacío = la prueba no
+   usó agrupaciones y la jugaron todos. */
+function convocadosDe(prueba) {
+  const set = new Set();
+  Object.values(equiposStaffCache).forEach(eq => {
+    if ((eq.prueba || "") === prueba) (eq.dorsales || []).forEach(d => set.add(Number(d)));
+  });
+  Object.values(parejasCache).forEach(pa => {
+    if ((pa.prueba || "") === prueba) (pa.dorsales || []).forEach(d => set.add(Number(d)));
+  });
+  return Array.from(set).sort((a, b) => a - b);
+}
+
+async function cerrarActa(abierta) {
+  const prueba = abierta.prueba;
+  const entraron = (abierta.vivos || []).map(Number);
+  const vivosAhora = dorsalesVivos().filter(d => !estaFuera(participantes[d])).map(Number);
+  const vivosSet = new Set(vivosAhora);
+  const entraronSet = new Set(entraron);
+
+  const eliminados = entraron.filter(d => !vivosSet.has(d)).sort((a, b) => a - b);
+  const recuperados = vivosAhora.filter(d => !entraronSet.has(d)).sort((a, b) => a - b);
+  const convocados = convocadosDe(prueba);
+  const jugaron = convocados.length ? convocados : entraron.slice();
+
+  // Quién marcó cada eliminación, mientras el dato siga existiendo. A los
+  // recuperados se les borra su documento de eliminación al salvarlos: por eso
+  // van aparte y no se pierden.
+  let detalle = [];
+  try {
+    const snap = await db.collection("eliminaciones").where("prueba", "==", prueba).get();
+    snap.forEach(d => {
+      const e = d.data();
+      detalle.push({
+        dorsal: Number(e.dorsal),
+        metodo: e.metodo || null,
+        juez: e.staff_origen || e.juez || null,
+        equipo: e.equipo || null
+      });
+    });
+    detalle.sort((a, b) => a.dorsal - b.dorsal);
+  } catch (e) { console.warn("detalle del acta:", e); }
+
+  const acta = {
+    prueba: prueba,
+    numero: numeroDePrueba(prueba),
+    abierta_en: abierta.desde || null,
+    cerrada_en: Date.now(),
+    entraron: entraron,
+    jugaron: jugaron,
+    eliminados: eliminados,
+    recuperados: recuperados,
+    clasificados: vivosAhora.slice().sort((a, b) => a - b),
+    por_agrupaciones: convocados.length > 0,
+    detalle_eliminaciones: detalle,
+    guardada_en: TS()
+  };
+  await db.collection("actas").doc(slugPrueba(prueba)).set(acta);
+  mostrarNotif("Acta de " + prueba + ": " + eliminados.length + " eliminados, " + acta.clasificados.length + " clasificados");
+}
+
+/* Para cuando hay que repetirla: una prueba que se saltó, un cambio de
+   desplegable sin querer, o un acta que se cerró antes de tiempo. */
+async function rehacerActaActual() {
+  const prueba = pruebaEnCurso();
+  if (!prueba) { mostrarNotif("No hay prueba seleccionada"); return; }
+  if (!pruebaAbierta || pruebaAbierta.prueba !== prueba) {
+    mostrarNotif("No hay foto de inicio de esta prueba: se usará la de ahora");
+  }
+  if (!confirm("¿Rehacer el acta de \"" + prueba + "\" con el estado de AHORA MISMO?\n\n" +
+               "Si ya había un acta de esta prueba, se sobrescribe.")) return;
+  try {
+    await cerrarActa(pruebaAbierta && pruebaAbierta.prueba === prueba
+      ? pruebaAbierta
+      : { prueba: prueba, desde: null, vivos: dorsalesVivos().filter(d => !estaFuera(participantes[d])) });
+  } catch (e) { console.error(e); mostrarNotif("Error al rehacer el acta"); }
+}
+
+function escucharActas() {
+  db.collection("actas").onSnapshot(snap => {
+    actasCache = {};
+    snap.forEach(d => { actasCache[d.id] = d.data(); });
+    renderActas();
+  }, e => console.warn("actas:", e));
+}
+
+/* Las horas del acta se guardan en milisegundos, no como Timestamp de
+   Firestore: así el acta se puede leer sin esperar al sello del servidor. */
+function fechaLegibleMs(ms) {
+  if (!ms) return "";
+  return new Date(ms).toLocaleString("es-ES");
+}
+
+function horaCorta(ms) {
+  if (!ms) return "—";
+  const d = new Date(ms);
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
+
+function renderActas() {
+  const cont = document.getElementById("actas-list");
+  if (!cont) return;
+  const lista = Object.entries(actasCache).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  if (!lista.length) {
+    cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Aún no hay ninguna prueba cerrada</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(([id, a]) => {
+    const bloque = (etq, arr, color) =>
+      '<div style="margin-top:6px;">' +
+        '<div style="font-size:10px;font-weight:800;color:' + color + ';">' + etq + ' · ' + (arr || []).length + '</div>' +
+        ((arr || []).length
+          ? '<div style="font-size:10px;color:var(--texto2);font-family:var(--mono);line-height:1.5;word-break:break-all;">#' + arr.join(' #') + '</div>'
+          : '<div style="font-size:10px;color:var(--texto2);">—</div>') +
+      '</div>';
+    return '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;">' +
+      '<div style="font-size:12px;font-weight:900;color:var(--morado);">' +
+        (a.numero ? 'Prueba ' + a.numero + ' · ' : '') + (a.prueba || '—') + '</div>' +
+      '<div style="font-size:10px;color:var(--texto2);margin:2px 0 4px;">' +
+        horaCorta(a.abierta_en) + ' → ' + horaCorta(a.cerrada_en) +
+        ' · ' + (a.por_agrupaciones ? 'por grupos o parejas' : 'la jugaron todos') + '</div>' +
+      '<div style="font-size:11px;font-weight:700;color:var(--texto);">' +
+        (a.entraron || []).length + ' entraron · ' + (a.jugaron || []).length + ' jugaron · ' +
+        (a.eliminados || []).length + ' eliminados · ' + (a.clasificados || []).length + ' clasificados</div>' +
+      bloque('ELIMINADOS', a.eliminados, 'var(--rojo)') +
+      bloque('RECUPERADOS EN BINGO', a.recuperados, 'var(--verde)') +
+      bloque('CLASIFICADOS', a.clasificados, 'var(--morado)') +
+    '</div>';
+  }).join('');
+}
+
+/* Una fila por dorsal y prueba: es el formato que sirve para reclamaciones
+   ("¿qué hizo el 137?") y el que se abre en Excel sin pelearse. */
+function descargarActasCSV() {
+  const lista = Object.entries(actasCache).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+  if (!lista.length) { mostrarNotif("No hay actas que descargar"); return; }
+  const filas = [["prueba_n", "prueba", "abierta", "cerrada", "dorsal", "entro", "jugo", "resultado", "metodo", "marcado_por"]];
+  lista.forEach(([, a]) => {
+    const jug = new Set((a.jugaron || []).map(Number));
+    const elim = new Set((a.eliminados || []).map(Number));
+    const rec = new Set((a.recuperados || []).map(Number));
+    const det = {};
+    (a.detalle_eliminaciones || []).forEach(d => { det[d.dorsal] = d; });
+    const todos = Array.from(new Set([].concat(a.entraron || [], a.clasificados || []))).map(Number).sort((x, y) => x - y);
+    todos.forEach(d => {
+      const resultado = elim.has(d) ? "eliminado" : (rec.has(d) ? "recuperado en bingo" : "clasificado");
+      filas.push([
+        a.numero || "", a.prueba || "", fechaLegibleMs(a.abierta_en), fechaLegibleMs(a.cerrada_en),
+        d, (a.entraron || []).includes(d) ? "si" : "no", jug.has(d) ? "si" : "no",
+        resultado, (det[d] || {}).metodo || "", (det[d] || {}).juez || ""
+      ]);
+    });
+  });
+  const csv = filas.map(f => f.map(csvEscape).join(";")).join("\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "actas-los-juegos-de-omega-" + new Date().toISOString().slice(0, 10) + ".csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  mostrarNotif("Actas descargadas");
 }
 
 /* ===== GRUPOS ALEATORIOS Y PAREJAS =====
@@ -2864,7 +3099,7 @@ function renderParticipantes() {
 /* ===== TABS ===== */
 function setTab(t) {
   tabActual = t;
-  ['staff','hist','part','imp'].forEach(id => {
+  ['staff','hist','part','actas','imp'].forEach(id => {
     document.getElementById('tab-'+id).classList.toggle('active', id===t);
     const panel = document.getElementById('panel-'+id);
     if (panel) panel.style.display = id===t ? (id==='hist'?'block':'flex') : 'none';
@@ -3019,9 +3254,8 @@ async function setLED(modo) {
 
 /* ===== PRUEBA ACTUAL ===== */
 async function guardarPrueba() {
-  const prueba = document.getElementById("prueba-select").value;
-  await db.collection("sesion").doc("actual").set({ prueba_actual: prueba }, { merge: true });
-  mostrarNotif(`Prueba: ${prueba}`);
+  // Mismo camino que el desplegable: así el acta se cierra se pulse donde se pulse.
+  await cambiarPruebaActual(document.getElementById("prueba-select").value);
 }
 
 /* ===== PRUEBA ACTUAL =====
@@ -3033,7 +3267,13 @@ async function cambiarPruebaActual(valor) {
   const etiqueta = document.getElementById("st-prueba");
   if (etiqueta) etiqueta.textContent = valor;
   try {
+    // Antes de nada, el acta de la que se cierra. Si falla, el cambio de
+    // prueba se hace igual: lo urgente es que los móviles se enteren.
+    if (pruebaAbierta && pruebaAbierta.prueba && pruebaAbierta.prueba !== valor) {
+      await cerrarActa(pruebaAbierta);
+    }
     await db.collection("sesion").doc("actual").set({ prueba_actual: valor }, { merge: true });
+    await abrirPrueba(valor);
     mostrarNotif("Prueba actual: " + valor);
   } catch (e) {
     console.error(e);
@@ -3507,7 +3747,8 @@ async function resetearTodo() {
 /* ===== RESPALDO AUTOMÁTICO (CSV cada 15 min, guardado en Firestore) ===== */
 function csvEscape(v) {
   const s = String(v ?? "");
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  // El separador de los CSV del panel es ";", así que también se entrecomilla.
+  return /[";,\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 function fechaLegible(ts) {

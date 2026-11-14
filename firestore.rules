@@ -86,6 +86,17 @@ service cloud.firestore {
     // dos; el staff solo puede deshacer una suya que aún no haya jugado.
     match /parejas/{id} { allow read, create, update: if identificado(); allow delete: if esMando(); }
 
+    // ---- Actas de prueba ----
+    // El recorrido de cada prueba: quien entro, quien jugo, quien cayo y quien
+    // clasifico. Las escribe el Panel Central al cambiar de prueba. El staff
+    // las puede leer, pero no tocarlas, y NADIE las borra desde las apps: un
+    // acta es la prueba documental si alguien reclama al dia siguiente.
+    match /actas/{id} {
+      allow read: if identificado();
+      allow create, update: if esMando();
+      allow delete: if false;
+    }
+
     // ---- Lo que el staff manda al Panel Central ----
     // Puede crear propuestas y avisos de ayuda, y ver los suyos. Aprobarlas,
     // descartarlas o marcar una ayuda como atendida es cosa del mando: así una
