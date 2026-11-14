@@ -10615,6 +10615,7 @@ let seleccion = new Set();
 let seleccionNuevoEquipo = new Set();
 let parejas = {};
 let seleccionNuevaPareja = new Set();
+let misPropuestas = [];   // lo que he mandado yo al panel, resuelto o no
 let staffNombre = null;
 let enviando = false; // protección contra doble-toque
 
@@ -11427,6 +11428,7 @@ function renderParejasList() {
     cont.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:12px;padding:20px;">Aún no hay parejas</div>';
     return;
   }
+  const pruebaAhora = document.getElementById("prueba-select-staff").value;
   cont.innerHTML = lista.map(([id, pa]) => {
     const ds = pa.dorsales || [];
     const esMio = pa.creado_por === staffNombre;
@@ -11434,15 +11436,74 @@ function renderParejasList() {
       ? '<span style="background:#6b6b6b;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;">YA JUGADA</span>'
       : '<span style="background:#0a8f4d;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;">PENDIENTE</span>';
     const quien = pa.origen === 'manual-staff' ? ('marcada por ' + (pa.creado_por || '—')) : 'sorteada por el panel';
+
+    // ¿Ya he mandado yo una propuesta por alguien de esta pareja?
+    const enMarcha = misPropuestas.find(pr =>
+      pr.estado === 'pendiente' && (pr.dorsales || []).some(d => ds.includes(Number(d))));
+
+    let acciones = '';
+    if (pa.jugada) {
+      acciones = '';
+    } else if (enMarcha) {
+      acciones = '<div style="background:#fff4e5;border:1px solid #f0b670;border-radius:8px;padding:8px;' +
+        'font-size:11px;font-weight:700;color:#8a4b00;">⏳ Propuesto el #' + (enMarcha.dorsales || []).join(', #') +
+        ' — esperando al Panel Central</div>';
+    } else if ((pa.prueba || '') !== pruebaAhora) {
+      acciones = '<div style="font-size:10px;color:var(--texto2);">No es de la prueba que tienes seleccionada arriba.</div>';
+    } else {
+      const fuera = ds.filter(d => participantes[d] && !participantes[d].vivo);
+      if (fuera.length) {
+        acciones = '<div style="font-size:10px;color:var(--texto2);">El #' + fuera.join(', #') +
+                   ' ya está eliminado: el panel cerrará la pareja.</div>';
+      } else {
+        acciones = '<div style="font-size:11px;font-weight:700;color:var(--texto2);margin-bottom:6px;">' +
+            '¿Quién ha perdido el duelo?</div>' +
+          '<div class="btns">' + ds.map(d =>
+            '<button class="btn btn-naranja" onclick="proponerPerdedorPareja(\'' + id + '\',' + d + ')">' +
+            'Elimina #' + d + '</button>').join('') + '</div>';
+      }
+    }
+
     return '<div class="pareja-card' + (pa.jugada ? ' jugada' : '') + '">' +
       '<div class="nombre">#' + ds.join(' · #') + ' ' + sello + '</div>' +
       '<div class="meta">' + (pa.prueba || 'sin prueba') + ' · ' + quien +
         (pa.cerrada_por ? ' · cerrada al eliminar al #' + pa.cerrada_por : '') + '</div>' +
-      (pa.jugada || !esMio ? '' :
-        '<button class="btn btn-ghost" style="width:100%;padding:8px;font-size:11px;" onclick="borrarPareja(\'' + id + '\')">' +
+      acciones +
+      (pa.jugada || !esMio || enMarcha ? '' :
+        '<button class="btn btn-ghost" style="width:100%;padding:8px;font-size:11px;margin-top:6px;" onclick="borrarPareja(\'' + id + '\')">' +
         '<i class="ti ti-trash"></i> Deshacer esta pareja</button>') +
       '</div>';
   }).join('');
+}
+
+/* El árbitro de un tablero marca al perdedor del duelo que acaba de ver. No
+   elimina: lo propone, como todo lo demás. El panel acepta y, al eliminarlo,
+   la pareja se cierra sola y el que gana queda marcado como que ya ha jugado
+   esta prueba. */
+async function proponerPerdedorPareja(id, dorsal) {
+  if (enviando) return;
+  const pa = parejas[id];
+  if (!pa) return;
+  const otro = (pa.dorsales || []).find(d => Number(d) !== Number(dorsal));
+  if (!confirm("¿El #" + dorsal + " ha PERDIDO el duelo contra el #" + otro + "?\n\n" +
+               "Se propone al Panel Central su eliminación.\n" +
+               "El #" + otro + " pasa, y la pareja queda cerrada.")) return;
+  enviando = true;
+  try {
+    await enviarConColaOffline("staff_propuestas", {
+      tipo: "pareja",
+      dorsales: [Number(dorsal)],
+      pareja_con: otro != null ? Number(otro) : null,
+      equipo_nombre: null,
+      staff_nombre: staffNombre,
+      prueba: pa.prueba || document.getElementById("prueba-select-staff").value,
+      estado: "pendiente",
+      creado_en: TS()
+    });
+    toast("Propuesto: elimina al #" + dorsal);
+  } finally {
+    setTimeout(() => { enviando = false; }, 600);
+  }
 }
 
 /* Solo quien la marcó puede deshacerla, y solo si aún no ha jugado: una
@@ -11516,7 +11577,10 @@ function escucharMisPropuestas() {
       const propuestas = [];
       snap.forEach(d => propuestas.push({ id: d.id, ...d.data() }));
       propuestas.sort((a,b) => (b.creado_en?.seconds||0) - (a.creado_en?.seconds||0));
+      misPropuestas = propuestas;
       renderMisPropuestas(propuestas);
+      // Una pareja con propuesta en marcha no vuelve a ofrecer los botones.
+      renderParejasList();
     });
 }
 
@@ -11535,6 +11599,8 @@ function renderMisPropuestas(propuestas) {
     const hora = p.creado_en ? new Date(p.creado_en.seconds*1000).toLocaleTimeString('es-ES') : '';
     const titulo = p.tipo === 'equipo'
       ? `Equipo ${p.equipo_nombre}`
+      : p.tipo === 'pareja'
+      ? `Duelo: pierde el #${p.dorsales[0]}${p.pareja_con != null ? ' contra el #' + p.pareja_con : ''}`
       : (p.dorsales.length === 1 ? `Dorsal #${p.dorsales[0]}` : `${p.dorsales.length} dorsales sueltos`);
     return `<div class="envio-card ${estado}">
       <div class="titulo">${titulo}</div>

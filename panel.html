@@ -2675,6 +2675,8 @@ function renderPropuestasStaff(propuestas) {
     const hora = p.creado_en ? new Date(p.creado_en.seconds*1000).toLocaleTimeString('es-ES') : '';
     const titulo = p.tipo === 'equipo'
       ? `Equipo ${p.equipo_nombre} (${p.dorsales.length} dorsales)`
+      : p.tipo === 'pareja'
+      ? `Duelo: pierde el #${p.dorsales[0]}${p.pareja_con != null ? ', pasa el #' + p.pareja_con : ''}`
       : (p.dorsales.length === 1 ? `Dorsal #${p.dorsales[0]}` : `${p.dorsales.length} dorsales sueltos`);
     // Estado real de cada dorsal AHORA, no cuando se propuso.
     const repetidos  = (p.dorsales || []).filter(d => vecesPropuesto[d] > 1);
