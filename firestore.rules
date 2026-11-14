@@ -9,9 +9,9 @@ rules_version = '2';
 //  QUÉ CAMBIA
 //  Hoy la base de datos está abierta: cualquiera con el enlace de una de las
 //  apps puede leerla entera y escribir en ella. Con estas reglas hay que haber
-//  entrado con usuario y contraseña, y además hay DOS niveles de permiso.
+//  entrado con usuario y contraseña, y además hay TRES niveles de permiso.
 //
-//  LOS DOS USUARIOS
+//  LOS TRES USUARIOS
 //  - staff@juegos.com  -> los 15 del staff, en sus propios móviles.
 //    Solo puede hacer lo que necesita la app de staff: ver los dorsales,
 //    montar equipos, proponer eliminaciones y pedir ayuda.
@@ -19,11 +19,22 @@ rules_version = '2';
 //    nadie de verdad, ni tocar la pantalla LED, ni borrar copias de seguridad.
 //    Su contraseña puede circular por el grupo del staff sin riesgo.
 //
-//  - Cualquier otro usuario (infomegawg@gmail.com, omega@juegos.com...) -> tú y
-//    quien lleve el Panel Central, la pantalla LED, la puerta y las pantallas
-//    de los capitanes. Permiso completo. Esas contraseñas NO se dan al staff.
+//  - puerta@juegos.com -> los cuatro puestos de acreditación y el panel de
+//    la mesa de la puerta. Puede ver las entradas vendidas y acreditar:
+//    entregar un dorsal, marcar entradas y salidas, corregir un dorsal mal
+//    dado. NADA MÁS. No elimina a nadie, no toca la pantalla LED, no gira
+//    bingos, no ve ni borra copias de seguridad.
+//    Hace falta porque las entradas llevan nombres y edades y la cuenta del
+//    staff no puede verlas; y porque dar una cuenta de mando a cuatro
+//    voluntarios de la puerta es darles el evento entero.
 //
-//  Cualquier usuario que no sea staff@juegos.com se considera "mando".
+//  - Cualquier otro usuario (infomegawg@gmail.com, omega@juegos.com...) -> tú y
+//    quien lleve el Panel Central, la pantalla LED y las pantallas de los
+//    capitanes. Permiso completo. Esas contraseñas NO se dan al staff ni a la
+//    puerta.
+//
+//  Cualquier usuario que no sea staff@juegos.com ni puerta@juegos.com se
+//  considera "mando".
 //  Por eso los usuarios del panel hay que crearlos tú en la consola: no se
 //  puede dar de alta nadie desde las apps.
 //
@@ -49,16 +60,24 @@ service cloud.firestore {
       return identificado() && request.auth.token.email == 'staff@juegos.com';
     }
 
-    // Panel Central, pantalla LED, puerta y capitanes: cualquier usuario
-    // identificado que no sea el del staff.
+    // Los puestos de acreditación y el panel de la mesa de la puerta.
+    function esPuerta() {
+      return identificado() && request.auth.token.email == 'puerta@juegos.com';
+    }
+
+    // Panel Central, pantalla LED y capitanes: cualquier usuario identificado
+    // que no sea el del staff ni el de la puerta.
     function esMando() {
-      return identificado() && !esStaff();
+      return identificado() && !esStaff() && !esPuerta();
     }
 
     // ---- Jugadores y resultados ----
     // El staff los ve en su app para poder marcar, pero no elimina ni salva:
     // eso lo ejecuta el Panel Central al aprobar la propuesta.
-    match /participantes/{dorsal}      { allow read: if identificado(); allow write: if esMando(); }
+    // La puerta solo ACTUALIZA: al acreditar a alguien le pone su entrada, su
+    // nombre y lo devuelve al juego. Ni crea dorsales ni los borra: los
+    // dorsales se crean desde el Panel Central.
+    match /participantes/{dorsal}      { allow read: if identificado(); allow write: if esMando(); allow update: if esPuerta(); }
     match /eliminaciones/{dorsal}      { allow read: if identificado(); allow write: if esMando(); }
     match /eliminaciones_multiples/{d} { allow read: if identificado(); allow write: if esMando(); }
     match /salvaciones/{id}            { allow read: if identificado(); allow write: if esMando(); }
@@ -119,8 +138,12 @@ service cloud.firestore {
     // nunca: se quedan en el Excel de Enterticket.
     // No se borran desde las apps: una entrada que ya no vale se marca como
     // anulada, no se elimina.
+    // La puerta lee y actualiza: acreditar, marcar dentro y fuera, corregir un
+    // dorsal mal dado. No crea entradas: esas entran con el XLSX de
+    // Enterticket desde el Panel Central.
     match /entradas/{codigo} {
       allow read, create, update: if esMando();
+      allow read, update: if esPuerta();
       allow delete: if false;
     }
 
