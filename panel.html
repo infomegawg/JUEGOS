@@ -1985,17 +1985,64 @@ async function abrirPrueba(valor) {
   }, { merge: true });
 }
 
-/* Dorsales convocados en grupos o parejas de esa prueba. Vacío = la prueba no
-   usó agrupaciones y la jugaron todos. */
-function convocadosDe(prueba) {
-  const set = new Set();
-  Object.values(equiposStaffCache).forEach(eq => {
-    if ((eq.prueba || "") === prueba) (eq.dorsales || []).forEach(d => set.add(Number(d)));
-  });
-  Object.values(parejasCache).forEach(pa => {
-    if ((pa.prueba || "") === prueba) (pa.dorsales || []).forEach(d => set.add(Number(d)));
-  });
-  return Array.from(set).sort((a, b) => a - b);
+/* Grupos y parejas de una prueba, leídos de Firestore. Devuelve también la
+   lista de convocados, que es lo que el acta llama "jugaron". */
+async function agrupacionesDe(prueba) {
+  const grupos = [], parejas = [], set = new Set();
+  try {
+    const sg = await db.collection("equipos").where("prueba", "==", prueba).get();
+    sg.forEach(d => {
+      const e = d.data();
+      const ds = (e.dorsales || []).map(Number).sort((a, b) => a - b);
+      ds.forEach(n => set.add(n));
+      grupos.push({
+        nombre: e.nombre || "",
+        dorsales: ds,
+        origen: e.origen || "manual",
+        creado_por: e.creado_por || null
+      });
+    });
+    const sp = await db.collection("parejas").where("prueba", "==", prueba).get();
+    sp.forEach(d => {
+      const p = d.data();
+      const ds = (p.dorsales || []).map(Number).sort((a, b) => a - b);
+      ds.forEach(n => set.add(n));
+      parejas.push({
+        dorsales: ds,
+        jugada: !!p.jugada,
+        cerrada_por: p.cerrada_por || null,
+        origen: p.origen || "manual",
+        creado_por: p.creado_por || null
+      });
+    });
+  } catch (e) {
+    // Si no se pueden leer, el acta sale sin ellos antes que no salir.
+    mostrarNotif("No se han podido leer los grupos de " + prueba + " — " + motivoFallo(e));
+  }
+  grupos.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre)));
+  parejas.sort((a, b) => (a.dorsales[0] || 0) - (b.dorsales[0] || 0));
+  return { grupos, parejas, convocados: Array.from(set).sort((a, b) => a - b) };
+}
+
+/* Deja la mesa limpia para la prueba siguiente. Se llama DESPUÉS de guardar el
+   acta, nunca antes: si esto falla, el acta ya está a salvo. Los documentos no
+   se borran, se marcan activo:false, igual que los botones de disolver. */
+async function disolverAgrupacionesDe(prueba) {
+  const grupos = Object.entries(equiposStaffCache).filter(([, e]) => (e.prueba || "") === prueba);
+  const pares  = Object.entries(parejasCache).filter(([, p]) => (p.prueba || "") === prueba);
+  if (!grupos.length && !pares.length) return;
+  try {
+    const todo = grupos.map(([id]) => ["equipos", id]).concat(pares.map(([id]) => ["parejas", id]));
+    for (let i = 0; i < todo.length; i += 400) {
+      const lote = db.batch();
+      todo.slice(i, i + 400).forEach(([col, id]) =>
+        lote.update(db.collection(col).doc(id), { activo: false }));
+      await lote.commit();
+    }
+    mostrarNotif("Disueltos " + grupos.length + " grupos y " + pares.length + " parejas de " + prueba);
+  } catch (e) {
+    mostrarNotif("No se han podido disolver los grupos de " + prueba + " — " + motivoFallo(e));
+  }
 }
 
 async function cerrarActa(abierta) {
@@ -2020,6 +2067,11 @@ async function cerrarActa(abierta) {
     detalle.sort((a, b) => a.dorsal - b.dorsal);
   } catch (e) { console.warn("detalle del acta:", e); }
 
+  // Grupos y parejas de esta prueba, tal como quedaron. Se leen de Firestore
+  // y sin filtrar por "activo": el acta tiene que salir completa aunque se
+  // rehaga cuando ya se han disuelto.
+  const agrup = await agrupacionesDe(prueba);
+
   // Red de seguridad: la foto de inicio empieza a guardarse con el primer
   // cambio de prueba, así que la primera acta puede no tenerla. En ese caso se
   // reconstruye con los vivos de ahora más los eliminados de esta prueba.
@@ -2033,7 +2085,7 @@ async function cerrarActa(abierta) {
   const entraronSet = new Set(entraron);
   const eliminados = entraron.filter(d => !vivosSet.has(d)).sort((a, b) => a - b);
   const recuperados = vivosAhora.filter(d => !entraronSet.has(d)).sort((a, b) => a - b);
-  const convocados = convocadosDe(prueba);
+  const convocados = agrup.convocados;
   const jugaron = convocados.length ? convocados : entraron.slice();
 
   const acta = {
@@ -2047,6 +2099,8 @@ async function cerrarActa(abierta) {
     recuperados: recuperados,
     clasificados: vivosAhora.slice().sort((a, b) => a - b),
     por_agrupaciones: convocados.length > 0,
+    grupos: agrup.grupos,
+    parejas: agrup.parejas,
     // true = esta acta se reconstruyó sin foto de inicio, así que "entraron"
     // es una estimación y los recuperados en bingo no se pueden distinguir.
     reconstruida: sinFoto,
@@ -2124,6 +2178,7 @@ function renderActas() {
       bloque('ELIMINADOS', a.eliminados, 'var(--rojo)') +
       bloque('RECUPERADOS EN BINGO', a.recuperados, 'var(--verde)') +
       bloque('CLASIFICADOS', a.clasificados, 'var(--morado)') +
+      agrupacionesHTML(a) +
     '</div>';
   }).join('');
 }
@@ -2133,20 +2188,28 @@ function renderActas() {
 function descargarActasCSV() {
   const lista = Object.entries(actasCache).sort((a, b) => String(a[0]).localeCompare(String(b[0])));
   if (!lista.length) { mostrarNotif("No hay actas que descargar"); return; }
-  const filas = [["prueba_n", "prueba", "abierta", "cerrada", "dorsal", "entro", "jugo", "resultado", "metodo", "marcado_por"]];
+  const filas = [["prueba_n", "prueba", "abierta", "cerrada", "dorsal", "entro", "jugo", "resultado", "metodo", "marcado_por", "grupo", "pareja_con"]];
   lista.forEach(([, a]) => {
     const jug = new Set((a.jugaron || []).map(Number));
     const elim = new Set((a.eliminados || []).map(Number));
     const rec = new Set((a.recuperados || []).map(Number));
     const det = {};
     (a.detalle_eliminaciones || []).forEach(d => { det[d.dorsal] = d; });
+    // En qué grupo y con quién estaba cada dorsal, para poder seguirle la
+    // pista sin abrir el acta entera.
+    const grupoDe = {}, parejaDe = {};
+    (a.grupos || []).forEach(g => (g.dorsales || []).forEach(d => { grupoDe[d] = g.nombre || "sin nombre"; }));
+    (a.parejas || []).forEach(p => (p.dorsales || []).forEach(d => {
+      parejaDe[d] = (p.dorsales || []).filter(x => x !== d).join(" ");
+    }));
     const todos = Array.from(new Set([].concat(a.entraron || [], a.clasificados || []))).map(Number).sort((x, y) => x - y);
     todos.forEach(d => {
       const resultado = elim.has(d) ? "eliminado" : (rec.has(d) ? "recuperado en bingo" : "clasificado");
       filas.push([
         a.numero || "", a.prueba || "", fechaLegibleMs(a.abierta_en), fechaLegibleMs(a.cerrada_en),
         d, (a.entraron || []).includes(d) ? "si" : "no", jug.has(d) ? "si" : "no",
-        resultado, (det[d] || {}).metodo || "", (det[d] || {}).juez || ""
+        resultado, (det[d] || {}).metodo || "", (det[d] || {}).juez || "",
+        grupoDe[d] || "", parejaDe[d] || ""
       ]);
     });
   });
@@ -2521,6 +2584,31 @@ function renderParejasList() {
         '<button class="btn btn-rojo" style="flex:1;padding:6px;font-size:10px;" onclick="disolverPareja(\'' + id + '\')">Disolver</button>' +
       '</div></div>';
   }).join('');
+}
+
+/* Cómo estaban agrupados cuando se cerró la prueba. Los grupos y las parejas
+   se disuelven al cambiar de prueba, así que esta es ya la única copia. */
+function agrupacionesHTML(a) {
+  const gs = a.grupos || [], ps = a.parejas || [];
+  if (!gs.length && !ps.length) return '';
+  let h = '<div style="margin-top:8px;border-top:1px dashed var(--border);padding-top:6px;">';
+  if (gs.length) {
+    h += '<div style="font-size:10px;font-weight:800;color:var(--morado);">GRUPOS · ' + gs.length + '</div>' +
+      gs.map(g => '<div style="font-size:10px;color:var(--texto2);line-height:1.5;word-break:break-all;">' +
+        '<b>' + (g.nombre || 'sin nombre') + '</b>' +
+        (g.origen && g.origen.indexOf('aleatorio') === 0 ? ' (sorteado)' : '') +
+        ': #' + (g.dorsales || []).join(' #') + '</div>').join('');
+  }
+  if (ps.length) {
+    const jugadas = ps.filter(p => p.jugada).length;
+    h += '<div style="font-size:10px;font-weight:800;color:#0a8f4d;margin-top:6px;">PAREJAS · ' + ps.length +
+         ' (' + jugadas + ' jugadas)</div>' +
+      ps.map(p => '<div style="font-size:10px;color:var(--texto2);line-height:1.5;font-family:var(--mono);">' +
+        '#' + (p.dorsales || []).join(' · #') +
+        (p.jugada ? (p.cerrada_por ? '  → cayó el #' + p.cerrada_por : '  → jugada') : '  → sin jugar') +
+        '</div>').join('');
+  }
+  return h + '</div>';
 }
 
 function anunciarPareja(id) {
@@ -3380,8 +3468,19 @@ async function cambiarPruebaActual(valor) {
     }
     aviso += "Se va a guardar el acta de " + anterior + ":\n" +
       (entraron ? "· " + entraron + " entraron\n· " + caidos + " eliminados\n" : "· sin foto de inicio: el acta saldrá reconstruida\n") +
-      "· " + vivos + " clasifican a " + valor + "\n\n" +
-      "Aceptar = cerrar el acta y cambiar de prueba\n" +
+      "· " + vivos + " clasifican a " + valor + "\n";
+
+    // Lo que se va a disolver, contado antes de preguntar.
+    const nG = Object.values(equiposStaffCache).filter(e => (e.prueba || "") === anterior).length;
+    const nP = Object.values(parejasCache).filter(p => (p.prueba || "") === anterior).length;
+    if (nG || nP) {
+      aviso += "\nY SE DISOLVERÁN, para dejar la mesa limpia:\n" +
+        (nG ? "· " + nG + (nG === 1 ? " grupo\n" : " grupos\n") : "") +
+        (nP ? "· " + nP + (nP === 1 ? " pareja\n" : " parejas\n") : "") +
+        "Quedan guardados dentro del acta: no se pierden.\n";
+    }
+
+    aviso += "\nAceptar = cerrar el acta, disolver y cambiar de prueba\n" +
       "Cancelar = seguir en " + anterior;
 
     if (!confirm(aviso)) {
@@ -3398,13 +3497,20 @@ async function cambiarPruebaActual(valor) {
     // Antes de nada, el acta de la que se cierra. Si falla, el cambio de
     // prueba se hace igual: lo urgente es que los móviles se enteren.
     if (pruebaAbierta && pruebaAbierta.prueba && pruebaAbierta.prueba !== valor) {
+      const cerrada = pruebaAbierta.prueba;
+      let actaOk = true;
       try {
         await cerrarActa(pruebaAbierta);
       } catch (e) {
+        actaOk = false;
         // El acta no puede bloquear el cambio de prueba: lo urgente es que los
         // móviles del staff se enteren. Se avisa y se sigue.
-        mostrarNotif("No se ha guardado el acta de " + pruebaAbierta.prueba + " — " + motivoFallo(e));
+        mostrarNotif("No se ha guardado el acta de " + cerrada + " — " + motivoFallo(e));
       }
+      // Solo se disuelve si el acta se ha guardado. Si no, los grupos se
+      // quedan donde están: son la única copia que queda de cómo se jugó.
+      if (actaOk) await disolverAgrupacionesDe(cerrada);
+      else mostrarNotif("No se disuelve nada: sin acta, los grupos son la única copia");
     }
     await db.collection("sesion").doc("actual").set({ prueba_actual: valor }, { merge: true });
     await abrirPrueba(valor);
