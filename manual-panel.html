@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual del Panel Central</title>
+<style>
+  :root{
+    --tinta:#14121a; --suave:#5d5870; --linea:#e2dfe9; --fondo:#fff;
+    --acento:#7a1030; --acento-flojo:#fbecf0;
+    --rojo:#c81e3c; --rojo-flojo:#fdeaee;
+    --verde:#0f7a4a; --verde-flojo:#e7f6ee;
+    --ambar:#8a5a00; --ambar-flojo:#fdf3e0;
+    --azul:#0a6ea8; --azul-flojo:#e9f3fa;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 20px 80px; background:var(--fondo); color:var(--tinta);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .hoja{max-width:760px;margin:0 auto}
+  header{border-bottom:3px solid var(--tinta);padding-bottom:18px;margin-bottom:28px}
+  .evento{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);font-weight:700}
+  h1{font-size:32px;line-height:1.12;margin:8px 0 6px;letter-spacing:-.025em}
+  .sub{color:var(--suave);font-size:15px;margin:0}
+  h2{font-size:22px;margin:44px 0 14px;padding-top:22px;border-top:2px solid var(--tinta);letter-spacing:-.015em}
+  h3{font-size:17px;margin:30px 0 8px;padding-bottom:5px;border-bottom:1px solid var(--linea)}
+  h4{font-size:15px;margin:22px 0 6px;color:var(--acento)}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 14px;padding-left:22px}
+  li{margin-bottom:7px}
+  code{background:#f4f2f8;padding:2px 6px;border-radius:4px;font-size:14px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .caja{border:1px solid var(--linea);border-left:4px solid var(--acento);background:var(--acento-flojo);
+        padding:14px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .caja.ojo{border-left-color:var(--rojo);background:var(--rojo-flojo)}
+  .caja.bien{border-left-color:var(--verde);background:var(--verde-flojo)}
+  .caja.aviso{border-left-color:var(--ambar);background:var(--ambar-flojo)}
+  .caja.nota{border-left-color:var(--azul);background:var(--azul-flojo)}
+  .caja p:last-child{margin-bottom:0}
+  .caja .titulo{font-weight:700;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:15px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--linea);vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--suave);border-bottom:2px solid var(--tinta)}
+  .pasos{counter-reset:paso;list-style:none;padding:0}
+  .pasos li{counter-increment:paso;position:relative;padding-left:40px;margin-bottom:14px}
+  .pasos li::before{
+    content:counter(paso);position:absolute;left:0;top:1px;width:26px;height:26px;border-radius:50%;
+    background:var(--acento);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  }
+  .btn{display:inline-block;background:var(--tinta);color:#fff;padding:2px 9px;border-radius:5px;
+       font-size:13px;font-weight:600;white-space:nowrap}
+  .indice{background:#faf9fc;border:1px solid var(--linea);border-radius:10px;padding:18px 22px;margin-bottom:10px}
+  .indice ol{margin:0;padding-left:20px;columns:2;column-gap:28px;font-size:14.5px}
+  .indice li{margin-bottom:4px;break-inside:avoid}
+  .indice a{color:var(--tinta);text-decoration:none;border-bottom:1px solid var(--linea)}
+  .pin{font-size:13px;color:var(--suave);font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--linea);color:var(--suave);font-size:13px}
+  @media print{
+    body{padding:0;font-size:11.5pt}
+    h2{page-break-before:always;page-break-after:avoid}
+    h2#arranque{page-break-before:avoid}
+    h3,h4{page-break-after:avoid}
+    .caja,table{page-break-inside:avoid}
+    a{color:inherit;text-decoration:none}
+    @page{margin:16mm}
+  }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+<header>
+  <div class="evento">Los Juegos de Omega · 21 de noviembre de 2026 · Documento interno</div>
+  <h1>Manual del Panel Central</h1>
+  <p class="sub">Todo lo que hace el panel, botón por botón, y cómo se conectan entre sí las seis apps del evento.
+  Para quien esté al mando de la mesa durante el juego.</p>
+</header>
+
+<div class="indice">
+  <div class="pin" style="margin-bottom:10px">Índice</div>
+  <ol>
+    <li><a href="#arranque">Qué es el panel y cómo se arranca</a></li>
+    <li><a href="#arquitectura">Cómo encajan las seis apps</a></li>
+    <li><a href="#listas">Las tres listas: entradas, dorsales, jugadores</a></li>
+    <li><a href="#sync">Cómo sincroniza todo</a></li>
+    <li><a href="#estado">Sección: Estado</a></li>
+    <li><a href="#led">Sección: Pantalla LED</a></li>
+    <li><a href="#apps">Sección: Apps digitales</a></li>
+    <li><a href="#mandos">Sección: Controles remotos de los bingos</a></li>
+    <li><a href="#llamar">Sección: Llamar jugador</a></li>
+    <li><a href="#manual">Sección: Eliminar y salvar a mano</a></li>
+    <li><a href="#staff">Sección: Staff, propuestas y SOS</a></li>
+    <li><a href="#equipos">Sección: Equipos y parejas</a></li>
+    <li><a href="#entradas">Sección: Entradas e importación</a></li>
+    <li><a href="#dorsales">Sección: Dorsales y cierre de acreditación</a></li>
+    <li><a href="#respaldo">Sección: Respaldo y botones peligrosos</a></li>
+    <li><a href="#pestanas">Las pestañas: Historial, Jugadores y Actas</a></li>
+    <li><a href="#guion">Guión del día, hora por hora</a></li>
+    <li><a href="#averias">Averías: qué hacer en cada caso</a></li>
+    <li><a href="#claves">Claves, accesos y permisos</a></li>
+  </ol>
+</div>
+
+<div class="caja ojo">
+  <div class="titulo">Las tres reglas de la mesa</div>
+  <p><strong>1.</strong> El panel es la única fuente de verdad. Lo que no está en el panel, no ha pasado.<br>
+  <strong>2.</strong> Antes de girar cualquier bingo, mira que la pantalla LED esté en el modo correcto.<br>
+  <strong>3.</strong> Los botones rojos del final del panel no se tocan con el juego en marcha. Nunca.</p>
+</div>
+
+<h2 id="arranque">1. Qué es el panel y cómo se arranca</h2>
+
+<p>El Panel Central es la mesa de control del evento. Desde aquí se decide qué se ve en la pantalla grande,
+quién queda eliminado, quién se salva, a quién se llama por megafonía y qué hace el staff.
+Es una página web: no hay que instalar nada.</p>
+
+<h3>Arranque</h3>
+
+<ol class="pasos">
+  <li>Abre <code>infomegawg.github.io/JUEGOS/panel.html</code> en el ordenador de la mesa. Usa Chrome.</li>
+  <li>Entra con el <strong>usuario de mando</strong> (no el de staff: el de staff tiene permisos recortados y no puede eliminar).</li>
+  <li>Comprueba arriba los números de <strong>Vivos</strong> y <strong>Eliminados</strong>. Si no cuadran con la realidad, para y revísalo antes de empezar.</li>
+  <li>Abre la <strong>pantalla LED</strong> en una segunda ventana y mándala al proyector o a la pantalla grande, a pantalla completa (F11).</li>
+  <li>Deja el panel en modo <strong>Grid</strong> y comprueba que en la pantalla grande se ve la cuadrícula de dorsales.</li>
+</ol>
+
+<div class="caja aviso">
+  <div class="titulo">Un ordenador, un panel</div>
+  <p>Puede haber varios paneles abiertos y todos funcionan, pero <strong>no es buena idea</strong>: dos personas pueden
+  girar la ruleta a la vez. Un solo panel, un solo responsable. Si necesitas una segunda pantalla para consultar,
+  usa la app de staff.</p>
+</div>
+
+<h3>El bloqueo de pantalla</h3>
+
+<p>El botón del <strong>candado</strong> bloquea el panel para que nadie toque nada si te levantas.
+Se desbloquea con el PIN. Úsalo siempre que dejes la mesa: un codazo en el botón equivocado
+elimina a cincuenta personas.</p>
+
+<h2 id="arquitectura">2. Cómo encajan las seis apps</h2>
+
+<p>Hay seis páginas y cada una tiene un papel. Todas miran a la misma base de datos, así que
+un cambio en cualquiera se ve en el resto en menos de un segundo.</p>
+
+<table>
+  <tr><th>App</th><th>Quién la usa</th><th>Qué hace</th></tr>
+  <tr><td><strong>Panel Central</strong><br><code>panel.html</code></td><td>El responsable, en la mesa</td><td>Manda. Decide qué se ve y qué pasa.</td></tr>
+  <tr><td><strong>Pantalla LED</strong><br><code>led.html</code></td><td>Nadie: se proyecta</td><td>Lo que ve el público. Obedece al panel, no decide nada.</td></tr>
+  <tr><td><strong>Bingo Eliminación</strong><br><code>bingo.html</code></td><td>Se proyecta</td><td>La ruleta que elimina. Se gira desde el panel.</td></tr>
+  <tr><td><strong>Bingo de Salvación</strong><br><code>bingo-salvacion.html</code></td><td>Se proyecta</td><td>La ruleta que devuelve al juego a un eliminado.</td></tr>
+  <tr><td><strong>App de Staff</strong><br><code>staff.html</code></td><td>Los 15 del staff, en su móvil</td><td>Proponen eliminaciones, montan equipos, piden ayuda.</td></tr>
+  <tr><td><strong>Acreditación</strong><br><code>acreditacion.html</code></td><td>Equipo de puerta</td><td>Valida entradas y reparte dorsales.</td></tr>
+</table>
+
+<h3>Quién puede mandar y quién solo pedir</h3>
+
+<p>Es importante tenerlo claro porque explica por qué el staff no puede estropear nada:</p>
+
+<ul>
+  <li><strong>Solo el panel elimina y salva.</strong> Ni la app de staff ni la pantalla LED pueden cambiar el estado de un jugador.</li>
+  <li><strong>El staff propone.</strong> Lo que marcan en el móvil llega al panel como propuesta pendiente, y tú la aceptas o la descartas.</li>
+  <li><strong>Acreditación sí mete jugadores</strong> al juego, porque es la puerta: al asignar un dorsal lo pone en juego.</li>
+  <li><strong>Las pantallas no deciden nada</strong>, solo pintan lo que el panel les dice.</li>
+</ul>
+
+<h2 id="listas">3. Las tres listas: entradas, dorsales, jugadores</h2>
+
+<p>Esto es lo que más confusión genera, así que va despacio. Hay <strong>tres listas distintas</strong>
+y no son lo mismo:</p>
+
+<table>
+  <tr><th>Lista</th><th>De dónde sale</th><th>Qué contiene</th></tr>
+  <tr><td><strong>Entradas</strong></td><td>El Excel de Enterticket, importado desde el panel</td><td>Las entradas vendidas, con nombre y correo. Personas que han pagado.</td></tr>
+  <tr><td><strong>Dorsales</strong></td><td>Se crean desde el panel (500)</td><td>Los números físicos que se reparten en puerta. Solo números, sin nombre.</td></tr>
+  <tr><td><strong>Jugadores en juego</strong></td><td>La acreditación, al unir una entrada con un dorsal</td><td>Los que están de verdad dentro jugando. Es lo que sale en la pantalla grande.</td></tr>
+</table>
+
+<div class="caja nota">
+  <div class="titulo">Cómo se unen</div>
+  <p>Un jugador llega con su entrada. En puerta se escanea la entrada (lista 1) y se le entrega un dorsal (lista 2).
+  Ese gesto <strong>vincula las dos</strong> y crea un jugador en juego (lista 3). Los espectadores pasan por puerta pero
+  no reciben dorsal, así que nunca entran en el juego.</p>
+</div>
+
+<h3>Por qué el grid no tiene siempre 500 casillas</h3>
+
+<p>Hay 500 dorsales creados, pero no van a venir 500 personas. Si vienen 413, la pantalla grande
+debe mostrar <strong>413 casillas</strong>, no 500 con 87 eliminados de mentira.</p>
+
+<p>Eso lo resuelve el botón <strong>Cerrar acreditación</strong>: cuando lo pulsas, todos los dorsales que
+nadie recogió se marcan como fuera de juego y desaparecen de la pantalla, de la app de staff y de las ruletas.
+Los bingos no pueden cantar un número que no está en el recinto.</p>
+
+<h2 id="sync">4. Cómo sincroniza todo</h2>
+
+<p>No hace falta entender esto para operar, pero te va a salvar de más de un susto saber por qué
+las cosas pasan como pasan.</p>
+
+<h3>La base de datos compartida</h3>
+
+<p>Todas las apps están conectadas a la misma base de datos en la nube (Firebase). No se «refresca»:
+cada app está <strong>escuchando</strong> los cambios y se actualiza sola. Cuando eliminas a un jugador en el panel:</p>
+
+<ol class="pasos">
+  <li>El panel escribe en la base de datos que ese dorsal ya no está vivo.</li>
+  <li>La pantalla LED lo oye y apaga la casilla, en menos de un segundo.</li>
+  <li>Los 15 móviles del staff lo oyen y lo tachan de su tablero.</li>
+  <li>Se guarda en el historial con la hora, el motivo y quién lo hizo.</li>
+</ol>
+
+<h3>Por qué el bingo necesita que la LED esté abierta</h3>
+
+<p>Esta es la parte importante y la que más problemas da si no se entiende.</p>
+
+<p>Cuando giras un bingo desde el panel, <strong>el panel elige a los ganadores</strong> y manda la orden con los
+números ya dentro. Así todas las pantallas animan exactamente los mismos números y es imposible que
+la voz diga una cosa y la pantalla muestre otra.</p>
+
+<p>Pero <strong>guardar el resultado y poner la voz le toca a una sola pantalla</strong>, o saldría todo por duplicado.
+La primera pantalla que «coge» la jugada se queda con ella: la pantalla grande lo intenta al instante y las demás
+esperan un segundo y medio, así que manda la grande si está encendida.</p>
+
+<div class="caja ojo">
+  <div class="titulo">Consecuencia práctica</div>
+  <p><strong>Si no hay ninguna ventana de bingo abierta, el giro no elimina a nadie.</strong> La orden se queda esperando
+  a que alguien la recoja. Antes de girar: pantalla LED encendida y en el modo del bingo que vas a usar.</p>
+</div>
+
+<h3>Si se cae internet</h3>
+
+<ul>
+  <li><strong>El panel</strong> sigue mostrando lo último que sabía, pero no manda nada. Al volver la conexión se pone al día solo.</li>
+  <li><strong>Los móviles del staff</strong> guardan lo que marquen y lo envían cuando hay red. No se pierde.</li>
+  <li><strong>La acreditación</strong> es la más delicada: sin red no se puede garantizar que no se repita un dorsal. Si se cae, se apunta en papel.</li>
+</ul>
+
+<h2 id="estado">5. Sección: Estado</h2>
+
+<p>La cabecera del panel. Tu cuadro de mandos de un vistazo:</p>
+
+<table>
+  <tr><th>Dato</th><th>Qué significa</th></tr>
+  <tr><td><strong>Vivos</strong></td><td>Jugadores en juego que siguen sin eliminar. Este es el número que gobierna el evento.</td></tr>
+  <tr><td><strong>Eliminados</strong></td><td>Los que han caído. Vivos + Eliminados = jugadores acreditados.</td></tr>
+  <tr><td><strong>En juego / fuera</strong></td><td>Cuántos dorsales están dentro del juego y cuántos quedaron fuera al cerrar la acreditación.</td></tr>
+  <tr><td><strong>Candado</strong></td><td>Bloquea el panel. Pide PIN para volver.</td></tr>
+</table>
+
+<div class="caja">
+  <div class="titulo">Mira este número antes de cada prueba</div>
+  <p>Saber cuántos vivos hay es lo que te permite decidir sobre la marcha: cuántos eliminar en la siguiente
+  prueba, si toca salvación, si hay que acelerar. Si los vivos no bajan al ritmo previsto, no llegas a la final.</p>
+</div>
+
+<h3>Cambiar de prueba</h3>
+
+<p>Arriba del todo, junto al reloj, está el desplegable de la <strong>prueba actual</strong>. Las once pruebas
+salen numeradas en el orden del guion, y al final, sin número, <strong>EXTRA · DESAFÍO EXPLOSIVO</strong>,
+que es la de reserva.</p>
+
+<p>Tocar ese desplegable ya no cambia la prueba de golpe. Sale un aviso que te dice, con números, qué va a pasar:</p>
+
+<ul>
+  <li>Te pregunta si está <strong>todo confirmado</strong> en la prueba que acaba. Lo que no esté marcado
+  cuando aceptes, no entra en su acta.</li>
+  <li>Si quedan <strong>propuestas del staff sin resolver</strong>, te lo dice y te dice cuántas. Resuélvelas antes.</li>
+  <li>Te enseña con qué números se va a cerrar el acta: cuántos entraron, cuántos cayeron y cuántos clasifican.</li>
+</ul>
+
+<div class="caja ojo">
+  <div class="titulo">Aceptar hace dos cosas, y las dos de verdad</div>
+  <p><strong>1.</strong> Guarda el <strong>acta</strong> de la prueba que acaba (pestaña Actas).<br>
+  <strong>2.</strong> <strong>Disuelve todos los equipos y todas las parejas</strong> de esa prueba, para que
+  la siguiente empiece con el tablero limpio.</p>
+  <p>Lo disuelto no vuelve. Pero no se pierde: el acta se queda con los equipos y las parejas tal como estaban,
+  y con quién cayó en cada uno. Si le das a <strong>Cancelar</strong>, el desplegable vuelve solo a la prueba
+  en la que estabas y no se toca nada.</p>
+</div>
+
+<h2 id="led">6. Sección: Pantalla LED</h2>
+
+<p>Son los botones que deciden <strong>qué ve el público</strong> en la pantalla grande. Pulsas uno y la pantalla
+cambia al instante. Solo uno puede estar activo, y se ve marcado.</p>
+
+<table>
+  <tr><th>Botón</th><th>Qué se proyecta</th><th>Cuándo se usa</th></tr>
+  <tr><td><strong>Grid</strong></td><td>La cuadrícula con todos los dorsales en juego; los eliminados se apagan</td><td>El modo por defecto. Durante casi todo el evento.</td></tr>
+  <tr><td><strong>Bingo Eliminación</strong> 💀</td><td>La ruleta que elimina</td><td>Solo mientras giras esa ruleta.</td></tr>
+  <tr><td><strong>Bingo Salvación</strong></td><td>La ruleta que devuelve a un eliminado al juego</td><td>El momento emocional del evento. Es el que más se usa.</td></tr>
+  <tr><td><strong>Batalla Naval</strong></td><td>El tablero de la prueba de batalla naval</td><td>Durante esa prueba.</td></tr>
+  <tr><td><strong>Animación</strong></td><td>La cortinilla / animación de marca</td><td>Entre pruebas, en pausas, mientras colocas gente.</td></tr>
+  <tr><td><strong>Apagado</strong></td><td>Negro</td><td>Para no mostrar nada: discursos, incidencias, autoridades hablando.</td></tr>
+</table>
+
+<div class="caja aviso">
+  <div class="titulo">La secuencia correcta de un bingo</div>
+  <p>Primero pones la pantalla en el modo del bingo. <strong>Después</strong> giras. Si giras antes, el público
+  no ve la ruleta y, peor, puede que nadie recoja la jugada.</p>
+</div>
+
+<h3>Reiniciar Batalla Naval</h3>
+<p>Limpia el tablero de la batalla naval para volver a jugarla desde cero. No toca jugadores ni eliminaciones:
+solo el tablero de esa prueba.</p>
+
+<h2 id="apps">7. Sección: Apps digitales</h2>
+
+<p>Seis botones que abren cada app en una ventana nueva. Son atajos: no hace falta recordar ninguna dirección.</p>
+
+<ul>
+  <li><strong>Pantalla LED</strong> — la abres al principio y la mandas a la pantalla grande. No la cierres en todo el evento.</li>
+  <li><strong>Bingo Eliminación</strong> y <strong>Bingo de Salvación</strong> — puedes abrirlos para tenerlos
+  controlados aparte, pero normalmente los verás a través de la pantalla LED.</li>
+  <li><strong>Acreditación</strong> y <strong>App de Staff</strong> — para comprobar que funcionan o para ayudar a alguien con un problema.</li>
+</ul>
+
+<h2 id="mandos">8. Sección: Controles remotos de los bingos</h2>
+
+<p>Aquí giras las ruletas sin levantarte. El de <strong>Salvación</strong> está arriba porque es el que se usa;
+el de <strong>Eliminación</strong> está debajo y a priori no se usa (las eliminaciones vienen de las pruebas).</p>
+
+<h3>Control remoto Bingo de Salvación</h3>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Girar (salvar a uno)</strong></td><td>Elige al azar un eliminado y lo devuelve al juego. Vuelve a encenderse su casilla en el grid.</td></tr>
+  <tr><td><strong>Girar múltiple</strong></td><td>Pide cuántos quieres salvar, te confirma el número y los salva de golpe.</td></tr>
+</table>
+
+<div class="caja nota">
+  <div class="titulo">Si no hay eliminados, no hay a quien salvar</div>
+  <p>La ruleta de salvación saca de entre los eliminados. Si aún no has eliminado a nadie, la pantalla te avisa
+  de que no hay a quien salvar. No está roto: es que el bombo está vacío.</p>
+</div>
+
+<h3>Control remoto Bingo Eliminación 💀</h3>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Girar (eliminar a uno)</strong></td><td>Elige al azar entre los vivos y lo elimina.</td></tr>
+  <tr><td><strong>Girar múltiple</strong></td><td>Pide cuántos eliminar. <strong>Te avisa antes</strong>: «se van a eliminar X de los Y que quedan vivos». Lee esa frase.</td></tr>
+</table>
+
+<div class="caja ojo">
+  <div class="titulo">Lee siempre la confirmación del múltiple</div>
+  <p>Es la última red antes de eliminar a mucha gente de golpe. Si dice un número que no esperabas, cancela.
+  Deshacer una eliminación masiva es posible pero lento, y con el público delante se nota.</p>
+</div>
+
+<h2 id="llamar">9. Sección: Llamar jugador</h2>
+
+<p>Escribes un dorsal y lo llamas. El número aparece en grande en la pantalla LED y suena por megafonía.</p>
+
+<p>Sirve para: traer a alguien a la mesa, avisar al ganador de una prueba, resolver una reclamación,
+reclamar a un jugador que se ha ido a la grada. Es la forma más rápida de localizar a una persona
+entre cuatrocientas.</p>
+
+<h2 id="manual">10. Sección: Eliminar y salvar a mano</h2>
+
+<p>Esto es lo que más vas a usar durante las pruebas. No todo se decide con una ruleta: las pruebas
+tienen ganadores y perdedores, y los metes aquí.</p>
+
+<h3>Uno a uno</h3>
+<p>Escribes el dorsal y pulsas <span class="btn">Eliminar</span> o <span class="btn">Salvar</span>. Inmediato, se ve en la pantalla y queda en el historial.</p>
+
+<h3>Modo múltiple</h3>
+<p>El botón de <strong>modo múltiple</strong> te deja ir marcando dorsales y confirmarlos todos de una vez.
+Es como lo haces cuando acaba una prueba y caen treinta personas.</p>
+
+<ol class="pasos">
+  <li>Activa el modo múltiple (eliminar o salvar, el que toque).</li>
+  <li>Toca o escribe los dorsales. Se van marcando y ves el contador.</li>
+  <li>Repásalo: <strong>cuenta los marcados</strong> y compáralo con lo que te ha dicho el staff.</li>
+  <li>Confirma.</li>
+</ol>
+
+<div class="caja">
+  <div class="titulo">Siempre usa el múltiple para tandas</div>
+  <p>Meter treinta eliminaciones de una en una tarda, y con prisa te saltas una o repites otra.
+  Con el múltiple lo revisas antes de confirmar y sale una sola vez en pantalla, que queda mucho mejor.</p>
+</div>
+
+<h2 id="staff">11. Sección: Staff, propuestas y SOS</h2>
+
+<p>Tu ventana a los 15 móviles que están por el recinto. Está en la pestaña <strong>Staff</strong>.</p>
+
+<h3>Propuestas pendientes</h3>
+
+<p>Cuando un staff marca eliminaciones en su móvil, aparecen aquí con <strong>su nombre</strong>, los dorsales y la hora.
+Tú decides:</p>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Aceptar</strong></td><td>Ejecuta la eliminación de verdad: se apagan las casillas y se guarda en el historial.</td></tr>
+  <tr><td><strong>Descartar</strong></td><td>La tira. No pasa nada en el juego. Úsalo si el staff se ha equivocado o si ya lo habías metido tú.</td></tr>
+</table>
+
+<div class="caja aviso">
+  <div class="titulo">Vigila esta lista</div>
+  <p>El staff da por hecho que lo que manda llega. Si se te acumulan propuestas sin aceptar, la pantalla grande
+  va con retraso respecto a lo que ha pasado en el campo y el público lo nota. Mírala entre prueba y prueba.</p>
+</div>
+
+<h3>Avisos de ayuda (SOS)</h3>
+
+<p>Cuando un staff pulsa el botón de ayuda, aquí salta un aviso <strong>parpadeando</strong> con su nombre y
+la prueba en la que está. Mandas a alguien y pulsas <span class="btn">Atender</span> para quitarlo de la lista.</p>
+
+<p>Es más fiable que el walkie: no depende de la batería de nadie ni de que se oiga con música.</p>
+
+<h3>Staff conectado</h3>
+
+<p>La lista de quién tiene la app abierta ahora mismo, con su nombre. Te sirve para saber quién está
+operativo y a quién se le ha caído el móvil o se ha quedado sin batería. El botón de <strong>borrar</strong>
+limpia una entrada antigua de alguien que ya no está.</p>
+
+<h2 id="equipos">12. Sección: Equipos y parejas</h2>
+
+<p>Los mandos ya no están en la columna de la derecha: <strong>cada vista lleva los suyos encima del listado</strong>.
+En la fila de filtros del tablero central, junto a Todos / Vivos / Eliminados, tienes ahora
+<strong>Equipos</strong> y <strong>Parejas</strong>. Entras en la vista y arriba te salen sus botones. En las
+otras vistas no estorban.</p>
+
+<p>La pestaña <strong>Staff</strong> de la derecha se queda solo para el staff: avisos SOS, propuestas
+pendientes y quién está conectado.</p>
+
+<h3>Equipos</h3>
+
+<p>Para las pruebas por grupos. Se crean desde el panel o desde los móviles del staff, y se ven en los dos sitios.</p>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Elegir dorsales a mano</strong></td><td>Modo de selección: escribes el nombre, marcas dorsales en el tablero y confirmas. Para los grupos que se juntan solos.</td></tr>
+  <tr><td><strong>Sortear grupo</strong></td><td>Dices cuántos quieres y el panel elige ese número de dorsales al azar entre los que siguen vivos y no han jugado todavía esta prueba. <strong>Te los enseña primero</strong>: puedes volver a sortear o cancelar. Solo al confirmar se crea el grupo, se canta por megafonía y sale en la pantalla grande.</td></tr>
+  <tr><td><strong>Anunciar</strong></td><td>Vuelve a sacar un equipo ya creado por megafonía y en la pantalla, con sus integrantes.</td></tr>
+  <tr><td><strong>Editar</strong></td><td>Cambiar el nombre o los miembros de un equipo ya creado.</td></tr>
+  <tr><td><strong>Disolver</strong></td><td>Deshace la agrupación. <strong>No elimina a nadie.</strong></td></tr>
+  <tr><td><strong>Disolver los de esta prueba</strong></td><td>Se lleva por delante todos los grupos de la prueba en curso, de una vez. Para empezar de cero si se ha liado la formación.</td></tr>
+</table>
+
+<p>Lo práctico: cuando los grupos los deciden los jugadores, que los monte el staff en el campo mientras tú
+haces otra cosa; cuando los forma la organización, los sorteas tú y los cantas.</p>
+
+<h3>Parejas</h3>
+
+<p>Para las pruebas que se juegan de dos en dos: Tiro al Saco, Las Canicas. Mismo criterio que con los grupos,
+según quién las forme:</p>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Sortear</strong> (con el número al lado)</td><td>Sortea de golpe <strong>todas las parejas que le pidas</strong> — seis para los seis tableros de Tiro al Saco, por ejemplo — sin que se repita ningún dorsal. Te las enseña antes; si no hay gente suficiente te lo dice («pedías 20, solo da para 6»). Al confirmar se crean todas juntas y se cantan.</td></tr>
+  <tr><td><strong>Formar una a mano</strong></td><td>Modo de selección: marcas dos dorsales y confirmas. Para arreglar un caso suelto.</td></tr>
+  <tr><td><strong>Ya ha jugado</strong> / <strong>Reabrir</strong></td><td>Cerrar o volver a abrir una pareja a mano, si el duelo se resolvió sin eliminación.</td></tr>
+  <tr><td><strong>Disolver</strong></td><td>Deshace esa pareja. No elimina a nadie.</td></tr>
+  <tr><td><strong>Disolver las de esta prueba</strong></td><td>Todas las parejas de la prueba en curso, de una vez.</td></tr>
+</table>
+
+<div class="caja ojo">
+  <div class="titulo">Lo que impide la trampa</div>
+  <p>Un dorsal solo puede estar en <strong>una pareja por prueba</strong>. Y cuando eliminas a uno de los dos
+  —da igual si lo escaneas, si lo tocas en el tablero o si aceptas la propuesta de un árbitro—, el panel
+  <strong>cierra la pareja solo</strong> y marca al otro como que <strong>ya ha jugado</strong> esta prueba.</p>
+  <p>Así nadie puede perder un duelo, buscarse otra pareja y volver a jugar la misma prueba. En el tablero,
+  el que ya ha jugado lleva una raya verde debajo del número.</p>
+</div>
+
+<p>En los móviles del staff, el árbitro de cada tablero ve su pareja y pulsa directamente quién ha perdido.
+Llega como una propuesta más, a la lista de propuestas pendientes, y la verás descrita como
+<em>«Duelo: pierde el #12, pasa el #87»</em>.</p>
+
+<h2 id="entradas">13. Sección: Entradas e importación</h2>
+
+<p>En la pestaña <strong>Importar</strong>.</p>
+
+<h3>Entradas vendidas (Enterticket)</h3>
+
+<p>Aquí se carga el Excel de ventas que da Enterticket. Esa lista es la que usa la app de acreditación
+para validar en puerta: <strong>si una entrada no está importada, en puerta no la pueden validar.</strong></p>
+
+<ol class="pasos">
+  <li>Descarga el Excel actualizado de Enterticket.</li>
+  <li>Cárgalo aquí y revisa el resumen que te muestra antes de confirmar.</li>
+  <li>Confirma. Las entradas que ya estaban no se duplican: solo se añaden las nuevas.</li>
+</ol>
+
+<div class="caja ojo">
+  <div class="titulo">Reimportar la mañana del evento</div>
+  <p>Se venden entradas hasta el último día. <strong>Importa el Excel otra vez la mañana del 21</strong>, antes
+  de abrir puertas. Si no, los que compraron en los últimos días se quedan en la puerta.</p>
+</div>
+
+<h3>Importar participantes</h3>
+
+<p>Carga directa de una lista de participantes. Es la vía alternativa a crear dorsales en blanco:
+se usa en pruebas o si en algún momento hay que meter un listado ya cerrado.</p>
+
+<h2 id="dorsales">14. Sección: Dorsales y cierre de acreditación</h2>
+
+<h3>Crear dorsales</h3>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Crear dorsales</strong></td><td>Crea la tanda de dorsales desde cero (los 500 del evento). Se hace una vez.</td></tr>
+  <tr><td><strong>Añadir dorsales</strong></td><td>Añade más al final sin tocar los existentes. Si hubiera que ampliar.</td></tr>
+  <tr><td><strong>Generar dorsales para imprimir</strong></td><td>Saca los dorsales con sus QR, listos para imprimir y plastificar.</td></tr>
+</table>
+
+<div class="caja aviso">
+  <div class="titulo">Los QR hay que imprimirlos antes</div>
+  <p>El escaneo del staff y de la puerta depende de que el dorsal lleve su QR. Imprímelos y plastifícalos
+  con tiempo: con un dorsal de papel mojado a las cuatro de la tarde no hay escaneo que funcione.</p>
+</div>
+
+<h3>Cerrar y reabrir la acreditación</h3>
+
+<p>Es el botón que ajusta el grid a la gente que ha venido de verdad.</p>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Cerrar acreditación</strong></td><td>Pide un PIN. Marca como fuera de juego todos los dorsales que nadie recogió. Desaparecen del grid, de la app de staff y de las ruletas.</td></tr>
+  <tr><td><strong>Reabrir acreditación</strong></td><td>Deshace el cierre: vuelven todos los dorsales al juego.</td></tr>
+</table>
+
+<ol class="pasos">
+  <li>Espera a que la cola de puerta esté vacía y el equipo de acreditación te confirme que no entra nadie más.</li>
+  <li>Mira el contador de jugadores acreditados. Ese es el número con el que vas a jugar.</li>
+  <li>Pulsa <strong>Cerrar acreditación</strong>, mete el PIN y confirma.</li>
+  <li>Comprueba en la pantalla grande que el grid tiene ahora el tamaño correcto.</li>
+</ol>
+
+<div class="caja bien">
+  <div class="titulo">Los que lleguen tarde entran solos</div>
+  <p>No hace falta reabrir nada para un rezagado: si el equipo de puerta le asigna un dorsal después del cierre,
+  ese dorsal vuelve a entrar en juego automáticamente y aparece en el grid.</p>
+</div>
+
+<h2 id="respaldo">15. Sección: Respaldo y botones peligrosos</h2>
+
+<h3>Descargar respaldo (CSV)</h3>
+
+<p>Baja un archivo con el estado completo: jugadores, eliminados, historial. Úsalo:</p>
+<ul>
+  <li>Antes de empezar el evento.</li>
+  <li>Después de cerrar la acreditación.</li>
+  <li>Al acabar, para el acta y las reclamaciones.</li>
+</ul>
+
+<p>Es gratis y tarda dos segundos. Hazlo más veces de las que creas necesarias.</p>
+
+<h3>Los dos botones rojos</h3>
+
+<div class="caja ojo">
+  <div class="titulo">Con el evento en marcha, ninguno de estos dos se toca</div>
+  <p>No hay «deshacer». Si alguien te pide pulsarlos durante el juego, la respuesta es no.</p>
+</div>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace exactamente</th><th>Cuándo</th></tr>
+  <tr><td><strong>Dejar a cero<br>(antes del evento)</strong></td><td>Guarda una copia de seguridad y luego borra eliminaciones, salvaciones, equipos, propuestas, avisos de ayuda y presencia del staff. Pone todos los dorsales vivos y desacredita las entradas. <strong>No borra entradas ni dorsales</strong>: la lista de ventas y los 500 dorsales se quedan.</td><td>Solo entre las pruebas y el evento, para limpiar los datos de prueba. Jamás con el público dentro.</td></tr>
+  <tr><td><strong>Resetear todo</strong></td><td>El borrado completo.</td><td>Nunca durante el evento. Es un botón de desarrollo.</td></tr>
+</table>
+
+<h2 id="pestanas">16. Las pestañas: Historial, Jugadores y Actas</h2>
+
+<h3>Historial</h3>
+
+<p>Todo lo que ha pasado, en orden, con la hora, el dorsal, qué pasó (eliminado, salvado) y el motivo
+(ruleta, prueba, propuesta de un staff con su nombre).</p>
+
+<p>Es tu defensa cuando alguien reclame. «A mí no me han eliminado» se resuelve mirando aquí: hora exacta,
+motivo y quién lo hizo.</p>
+
+<h3>Jugadores</h3>
+
+<p>El tablero completo con filtros: <strong>todos</strong>, <strong>vivos</strong>, <strong>eliminados</strong>.
+Tocando un dorsal se abre su ficha, con su estado, su equipo y su historia.</p>
+
+<p>Para localizar el dorsal de alguien, para comprobar si una persona concreta sigue viva o para
+resolver un lío de dorsales duplicados.</p>
+
+<h3>Actas</h3>
+
+<p>El Historial cuenta los hechos sueltos, uno detrás de otro. El acta cuenta <strong>una prueba entera</strong>:
+se guarda sola cada vez que cambias de prueba en el desplegable de arriba, y deja por escrito</p>
+
+<ul>
+  <li><strong>quién entró</strong> en esa prueba,</li>
+  <li><strong>quién la jugó</strong>, con los equipos y las parejas tal como estaban en ese momento,</li>
+  <li><strong>quién cayó</strong> y por qué,</li>
+  <li><strong>quién clasificó</strong> a la siguiente.</li>
+</ul>
+
+<table>
+  <tr><th>Botón</th><th>Qué hace</th></tr>
+  <tr><td><strong>Rehacer acta de esta prueba</strong></td><td>Vuelve a calcular el acta de la prueba en curso con lo que hay ahora mismo. Por si se aceptó una propuesta tarde.</td></tr>
+  <tr><td><strong>Descargar CSV</strong></td><td>Se lo lleva todo a una hoja de cálculo: una línea por dorsal y prueba, con su equipo, su pareja y qué le pasó.</td></tr>
+</table>
+
+<div class="caja aviso">
+  <div class="titulo">Un acta en naranja es un acta reconstruida</div>
+  <p>La primera prueba del día no tiene foto de inicio —el panel empieza a hacerla al primer cambio de prueba—,
+  así que el acta se reconstruye a partir de quién sigue vivo y de quién cayó en ella. Sale marcada en naranja.
+  Es correcta, pero conviene saber de dónde salen sus números si alguien reclama.</p>
+</div>
+
+<p>El acta es la respuesta a «¿quién jugó Tiro al Saco?» tres semanas después, cuando ya nadie se acuerda.
+Entre el Historial y las actas tienes el evento entero documentado sin haber escrito nada a mano.</p>
+
+<h2 id="guion">17. Guión del día, hora por hora</h2>
+
+<h4>Antes de abrir puertas</h4>
+<ul>
+  <li>Reimportar el Excel de Enterticket con las últimas ventas.</li>
+  <li>Comprobar que hay 500 dorsales creados y que los físicos están impresos con su QR.</li>
+  <li>Abrir el panel y la pantalla LED; LED en <strong>Animación</strong> o <strong>Grid</strong>.</li>
+  <li>Comprobar que los móviles del staff entran y ven el tablero.</li>
+  <li>Descargar un respaldo.</li>
+</ul>
+
+<h4>Durante la acreditación</h4>
+<ul>
+  <li>LED en <strong>Grid</strong> o <strong>Animación</strong>: el público ve cómo se llena.</li>
+  <li>Vigilar que el contador de jugadores sube al ritmo de la cola.</li>
+  <li>Atender los avisos de puerta: entradas repetidas, dudas de identidad.</li>
+</ul>
+
+<h4>Al cerrar puertas</h4>
+<ul>
+  <li>Confirmar con puerta que no entra nadie más.</li>
+  <li><strong>Cerrar acreditación</strong> y verificar el tamaño del grid.</li>
+  <li>Descargar respaldo.</li>
+</ul>
+
+<h4>Durante el juego, en cada prueba</h4>
+<ol class="pasos">
+  <li>LED en el modo que toque (Grid, Batalla Naval, Animación).</li>
+  <li>Esperar los resultados del staff: propuestas en la pestaña Staff.</li>
+  <li>Revisarlas y aceptarlas, o meter la tanda a mano con el modo múltiple.</li>
+  <li>Comprobar que los <strong>vivos</strong> bajan al ritmo previsto.</li>
+  <li>Atender los SOS pendientes.</li>
+</ol>
+
+<h4>Momento salvación</h4>
+<ol class="pasos">
+  <li>LED en <strong>Bingo Salvación</strong>. Verificar que se ve la ruleta en la pantalla grande.</li>
+  <li>Girar desde el panel (simple o múltiple).</li>
+  <li>Dejar que termine la animación y la voz.</li>
+  <li>Volver LED a <strong>Grid</strong> para que se vea la casilla reencendida.</li>
+  <li>Llamar al salvado con <strong>Llamar jugador</strong> si toca sacarlo al escenario.</li>
+</ol>
+
+<h4>Al acabar</h4>
+<ul>
+  <li>Descargar el respaldo final.</li>
+  <li>LED en <strong>Animación</strong> o <strong>Apagado</strong>.</li>
+  <li>Bloquear el panel con el candado antes de dejar la mesa.</li>
+</ul>
+
+<h2 id="averias">18. Averías: qué hacer en cada caso</h2>
+
+<table>
+  <tr><th>Síntoma</th><th>Causa probable</th><th>Qué haces</th></tr>
+  <tr><td>Giro el bingo y no elimina a nadie</td><td>No hay ninguna ventana de bingo abierta: nadie recoge la jugada</td><td>Pon la pantalla LED en el modo del bingo, comprueba que se ve la ruleta y vuelve a girar.</td></tr>
+  <tr><td>La pantalla grande no cambia de modo</td><td>La ventana de la LED se ha cerrado o ha perdido la conexión</td><td>Vuelve a abrir la pantalla LED desde Apps digitales y ponla a pantalla completa.</td></tr>
+  <tr><td>La ruleta canta un número que no está en el recinto</td><td>No se cerró la acreditación</td><td>Cierra la acreditación. Los dorsales no recogidos salen del bombo.</td></tr>
+  <tr><td>Un staff dice que marcó y no ha pasado nada</td><td>La propuesta está esperando en el panel</td><td>Pestaña Staff → Propuestas pendientes → aceptar.</td></tr>
+  <tr><td>He eliminado a quien no era</td><td>Error de dedo</td><td>Sálvalo a mano con su dorsal. Queda en el historial con el motivo; si hay reclamación, lo justificas.</td></tr>
+  <tr><td>Un jugador no aparece en el grid</td><td>No pasó por acreditación, o no se le asignó dorsal</td><td>Que pase por puerta a acreditarse. Entra en el grid solo.</td></tr>
+  <tr><td>El panel muestra números que no cuadran</td><td>Conexión intermitente</td><td>Recarga la página. No pulses nada hasta que los números se estabilicen.</td></tr>
+  <tr><td>El panel va lento o se queda colgado</td><td>Demasiadas pestañas o mucha memoria</td><td>Cierra todo lo que no sea el panel y la LED, y recarga.</td></tr>
+  <tr><td>Las apps dejan de responder todas a la vez</td><td>Problema de conexión del recinto</td><td>Comprueba el wifi. Mientras no haya red, anota en papel: nada se pierde, pero nada se sincroniza.</td></tr>
+  <tr><td>Un móvil del staff no entra</td><td>Contraseña mal escrita o permisos</td><td>Que use el usuario de staff que corresponde. Si sigue, que entre en otro móvil y use ese.</td></tr>
+</table>
+
+<div class="caja">
+  <div class="titulo">La regla general ante cualquier susto</div>
+  <p>Primero <strong>recargar la página</strong>. Segundo, comprobar que la ventana que hace falta (LED, bingo) está abierta.
+  Tercero, descargar un respaldo antes de tocar nada más. Lo que no se hace nunca es pulsar un botón rojo
+  para ver si se arregla.</p>
+</div>
+
+<h2 id="claves">19. Claves, accesos y permisos</h2>
+
+<p>Hay <strong>dos niveles</strong> de acceso, y es lo que impide que un móvil perdido pueda estropear el evento:</p>
+
+<table>
+  <tr><th>Nivel</th><th>Quién</th><th>Qué puede hacer</th></tr>
+  <tr><td><strong>Staff</strong></td><td>Los 15 móviles del staff</td><td>Ver el tablero, montar equipos, mandar propuestas, pedir ayuda. <strong>No puede eliminar, salvar ni cambiar la pantalla.</strong></td></tr>
+  <tr><td><strong>Mando</strong></td><td>El panel y la acreditación</td><td>Todo: eliminar, salvar, cambiar la pantalla, importar, respaldos.</td></tr>
+</table>
+
+<div class="caja ojo">
+  <div class="titulo">No des el usuario de mando al staff</div>
+  <p>Si un móvil con usuario de mando se pierde o pasa a manos equivocadas, puede eliminar a todo el mundo
+  desde la grada. El usuario de staff no puede hacer daño aunque alguien se haga con él.</p>
+</div>
+
+<p>Apunta en papel y lleva encima: el usuario y la contraseña de mando, el usuario y la contraseña de staff,
+y el PIN del candado y del cierre de acreditación. No los dejes en el ordenador de la mesa, que se queda solo.</p>
+
+<footer>
+  <strong>Los Juegos de Omega</strong> · Omega World Events SL<br>
+  Ciudad Deportiva Municipal de Paterna · 21 de noviembre de 2026<br>
+  Documento interno de operación. No repartir al público.
+</footer>
+
+</div>
+</body>
+</html>
