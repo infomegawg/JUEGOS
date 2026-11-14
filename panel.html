@@ -3857,6 +3857,8 @@ async function dejarACero() {
   const pin = prompt("DEJAR TODO A CERO\n\n" +
     "Borra eliminaciones, salvaciones, equipos y lo enviado por el staff, y\n" +
     "deshace las acreditaciones (todo el mundo fuera del recinto, sin dorsal).\n\n" +
+    "Se borran los equipos, las parejas y el historial del ensayo.\n" +
+    "Las actas firmadas NO se borran: son el registro de lo que pasó.\n" +
     "Las entradas vendidas y los dorsales NO se borran.\n\n" +
     "Esto es para dejar limpio después de un ensayo. NO lo uses con el evento\n" +
     "en marcha: perderías las acreditaciones de la puerta.\n\n" +
@@ -3879,7 +3881,8 @@ async function dejarACero() {
     // 2. Colecciones que se vacían enteras.
     let borrados = 0;
     for (const col of ["eliminaciones", "eliminaciones_multiples", "salvaciones",
-                       "equipos", "staff_propuestas", "staff_ayuda", "staff_presencia"]) {
+                       "equipos", "parejas", "llamadas",
+                       "staff_propuestas", "staff_ayuda", "staff_presencia"]) {
       aviso("Limpiando " + col + "…");
       borrados += await vaciarColeccion(col);
     }
