@@ -37,6 +37,11 @@ input, select, button { font-family: var(--mono); font-weight: 700; }
 .sinred { background: var(--naranja); color: #150a00; text-align: center; font-size: 12px;
   font-weight: 900; padding: 6px; display: none; }
 .sinred.ver { display: block; }
+.fallo { background: var(--rojo); color: #fff; padding: 10px 14px; display: none;
+  font-size: 12.5px; line-height: 1.5; font-weight: 700; }
+.fallo.ver { display: block; }
+.fallo > b { display: block; font-size: 13.5px; margin-bottom: 3px; }
+.fallo span { font-weight: 400; }
 
 /* ===== CONTADORES ===== */
 .cifras { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 10px 12px 6px; }
@@ -158,6 +163,7 @@ input[type=text], input[type=number], select {
      title="Manual de acreditación">📖</a>
 </div>
 <div class="sinred" id="sinred">SIN CONEXIÓN · se guarda y se envía al recuperarla</div>
+<div class="fallo" id="fallo-datos"></div>
 
 <div class="contenido">
   <div class="cifras">
@@ -11129,17 +11135,56 @@ function cerrarResultado() {
 }
 
 /* ===== DATOS EN VIVO ===== */
+
+/* Seis ceros y "Todavía ninguna" es lo que se ve cuando no ha llegado nadie, y
+   también lo que se veía cuando la cuenta no tenía permiso para leer. Hay que
+   poder distinguirlo de un vistazo. */
+function fallaronLosDatos(que, err) {
+  console.error(que, err);
+  const c = $("fallo-datos");
+  if (!c) return;
+  const codigo = (err && err.code) || "";
+  let titulo, texto;
+
+  if (codigo === "permission-denied") {
+    titulo = "ESTA CUENTA NO PUEDE VER LAS " + que.toUpperCase();
+    texto = "La acreditación no funciona con el usuario del staff: las entradas llevan " +
+            "nombres y edades y están reservadas al mando. <b>Pide al responsable el " +
+            "usuario de acreditación</b>, cierra sesión y entra con ese.";
+  } else if (codigo === "unauthenticated") {
+    titulo = "SE HA CERRADO LA SESIÓN";
+    texto = "Vuelve a entrar con el usuario y la contraseña de acreditación.";
+  } else if (codigo === "unavailable") {
+    titulo = "SIN CONEXIÓN CON LA BASE DE DATOS";
+    texto = "No pares la cola: apunta en papel a quien pase y mételo en cuanto vuelva. " +
+            "Avisa al responsable.";
+  } else {
+    titulo = "NO SE ESTÁN CARGANDO LAS " + que.toUpperCase();
+    texto = "Recarga la página. Si sigue igual, avisa al responsable. " +
+            ((err && err.message) || codigo || "");
+  }
+
+  c.innerHTML = "<b>⚠ " + titulo + "</b><span>" + texto + "</span>";
+  c.classList.add("ver");
+}
+
+function datosOk() {
+  const c = $("fallo-datos");
+  if (c) c.classList.remove("ver");
+}
+
 function escuchar() {
   db.collection("entradas").onSnapshot((snap) => {
     entradas = {};
     snap.forEach((d) => (entradas[d.id] = d.data()));
+    datosOk();
     pintarCifras();
-  }, (e) => console.error(e));
+  }, (e) => fallaronLosDatos("entradas", e));
 
   db.collection("participantes").onSnapshot((snap) => {
     participantes = {};
     snap.forEach((d) => (participantes[d.id] = d.data()));
-  }, (e) => console.error(e));
+  }, (e) => fallaronLosDatos("participantes", e));
 }
 
 function pintarCifras() {
