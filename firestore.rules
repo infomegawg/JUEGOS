@@ -79,6 +79,13 @@ service cloud.firestore {
     // puede retirar quien lo creó; el panel puede editar o disolver cualquiera.
     match /equipos/{id} { allow read, create, update: if identificado(); allow delete: if esMando(); }
 
+    // ---- Parejas ----
+    // Mismo trato que los equipos: el staff marca las que forman los propios
+    // jugadores y el panel sortea las que forma la organización. Cerrar una
+    // pareja (marcarla como jugada) lo hace el panel al eliminar a uno de los
+    // dos; el staff solo puede deshacer una suya que aún no haya jugado.
+    match /parejas/{id} { allow read, create, update: if identificado(); allow delete: if esMando(); }
+
     // ---- Lo que el staff manda al Panel Central ----
     // Puede crear propuestas y avisos de ayuda, y ver los suyos. Aprobarlas,
     // descartarlas o marcar una ayuda como atendida es cosa del mando: así una

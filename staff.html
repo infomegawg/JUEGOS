@@ -96,6 +96,17 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 .cell.ya-en-equipo.sel { box-shadow: inset 0 0 0 2px rgba(224,74,74,.5); }
 .cell.sel { background: #fff3d6; border-color: var(--naranja); color: var(--naranja); box-shadow: inset 0 0 0 2px var(--naranja); }
 
+/* ===== PAREJAS =====
+   Rojo tachado: ese dorsal ya está en una pareja de esta prueba y no se puede
+   volver a emparejar. Verde: seleccionado para la pareja que se está creando. */
+.cell.ya-en-pareja { background: #fce8eb; border-color: rgba(212,18,48,.45); color: rgba(212,18,48,.55); }
+.cell.sel-pareja { background: #e6f7ee; border-color: #0a8f4d; color: #0a8f4d; box-shadow: inset 0 0 0 2px #0a8f4d; }
+.pareja-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.pareja-card .nombre { font-size: 15px; font-weight: 900; color: #0a8f4d; }
+.pareja-card.jugada { background: #f4f4f4; }
+.pareja-card.jugada .nombre { color: #6b6b6b; }
+.pareja-card .meta { font-size: 11px; color: var(--texto2); margin: 4px 0 8px; }
+
 /* ===== EQUIPOS ===== */
 .equipo-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
 .equipo-card .nombre { font-size: 14px; font-weight: 900; color: var(--morado); }
@@ -10347,6 +10358,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
 <div class="tabs">
   <div class="tab active" id="tab-grid" onclick="setPantalla('grid')">Participantes</div>
   <div class="tab" id="tab-equipos" onclick="setPantalla('equipos')">Equipos</div>
+  <div class="tab" id="tab-parejas" onclick="setPantalla('parejas')">Parejas</div>
   <div class="tab" id="tab-mios" onclick="setPantalla('mios')">Mis envíos <span id="mios-badge" style="display:none;background:var(--naranja);color:#fff;border-radius:10px;padding:1px 6px;font-size:9px;margin-left:2px;">0</span></div>
 </div>
 
@@ -10388,6 +10400,39 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     </div>
   </div>
   <div id="equipos-list"></div>
+</div>
+
+<!-- PANTALLA PAREJAS
+     Para las pruebas en las que son los propios jugadores los que eligen con
+     quién van (Canicas). Las que forma la organización (Tiro al Saco) las
+     sortea el Panel Central y aquí solo se ven.
+     Un dorsal solo puede estar en UNA pareja por prueba: si ya está en otra,
+     la app no deja seleccionarlo. Así nadie repite la prueba emparejándose
+     con otro. -->
+<div class="screen" id="pantalla-parejas">
+  <div style="font-size:11px;color:var(--texto2);margin-bottom:10px;line-height:1.5;">
+    Marca aquí las parejas que han hecho los propios jugadores. Cuando el panel
+    elimine a uno de los dos, la pareja queda cerrada y el otro ya no podrá
+    volver a emparejarse en esta prueba.
+  </div>
+  <button class="btn btn-verde" style="width:100%;margin-bottom:12px;" onclick="abrirCrearPareja()">
+    <i class="ti ti-users-plus"></i> Marcar nueva pareja
+  </button>
+  <div id="crear-pareja-form" style="display:none;background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:12px;">
+    <div style="font-size:11px;color:var(--texto2);margin-bottom:6px;">
+      Selecciona los 2 dorsales de la pareja (<span id="nueva-pareja-count">0</span> de 2)
+    </div>
+    <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">
+      En rojo, los que ya están en otra pareja de esta prueba: esos no se pueden elegir.
+    </div>
+    <input type="text" id="nueva-pareja-search" placeholder="Buscar dorsal..." oninput="renderGridNuevaPareja()" style="margin-bottom:8px;"/>
+    <div class="grid" id="grid-nueva-pareja" style="max-height:260px;overflow-y:auto;"></div>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button class="btn btn-verde" style="flex:1;" onclick="guardarNuevaPareja()">Guardar pareja</button>
+      <button class="btn btn-ghost" style="flex:1;" onclick="cerrarCrearPareja()">Cancelar</button>
+    </div>
+  </div>
+  <div id="parejas-list"></div>
 </div>
 
 <!-- PANTALLA MIS ENVÍOS: qué he propuesto y si el panel lo aceptó o descartó -->
@@ -10568,6 +10613,8 @@ let participantes = {};
 let equipos = {};
 let seleccion = new Set();
 let seleccionNuevoEquipo = new Set();
+let parejas = {};
+let seleccionNuevaPareja = new Set();
 let staffNombre = null;
 let enviando = false; // protección contra doble-toque
 
@@ -10697,7 +10744,7 @@ function escucharPruebaActual() {
 
 /* ===== TABS ===== */
 function setPantalla(p) {
-  ['grid','equipos','mios'].forEach(id => {
+  ['grid','equipos','parejas','mios'].forEach(id => {
     document.getElementById('tab-'+id).classList.toggle('active', id===p);
     document.getElementById('pantalla-'+id).classList.toggle('active', id===p);
   });
@@ -11277,6 +11324,152 @@ function actualizarBannerOffline() {
 window.addEventListener("online", procesarColaOffline);
 window.addEventListener("offline", actualizarBannerOffline);
 
+/* ===== PAREJAS ===== */
+
+/* Dorsales que ya están en una pareja activa DE ESTA MISMA PRUEBA. A
+   diferencia de los equipos, aquí es un bloqueo duro: emparejar dos veces al
+   mismo dorsal es justo la trampa que queremos evitar. */
+function dorsalesYaEnPareja() {
+  const prueba = document.getElementById("prueba-select-staff").value;
+  const mapa = {};
+  Object.values(parejas).forEach(pa => {
+    if (pa.activo === false) return;
+    if ((pa.prueba || "") !== prueba) return;
+    (pa.dorsales || []).forEach(d => {
+      if (!mapa[d]) mapa[d] = { con: (pa.dorsales || []).find(x => Number(x) !== Number(d)), jugada: !!pa.jugada };
+    });
+  });
+  return mapa;
+}
+
+function abrirCrearPareja() {
+  seleccionNuevaPareja.clear();
+  document.getElementById("nueva-pareja-search").value = "";
+  document.getElementById("crear-pareja-form").style.display = "block";
+  renderGridNuevaPareja();
+}
+
+function cerrarCrearPareja() {
+  document.getElementById("crear-pareja-form").style.display = "none";
+}
+
+function renderGridNuevaPareja() {
+  const grid = document.getElementById("grid-nueva-pareja");
+  if (!grid) return;
+  const q = document.getElementById("nueva-pareja-search").value.trim().toLowerCase();
+  const ocupados = dorsalesYaEnPareja();
+  let lista = Object.values(participantes).sort((a, b) => a.dorsal - b.dorsal);
+  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q));
+  grid.innerHTML = lista.map(p => {
+    const ya = ocupados[p.dorsal];
+    let cls = seleccionNuevaPareja.has(p.dorsal) ? 'cell sel-pareja' : 'cell';
+    if (!p.vivo) cls += ' elim';
+    if (ya) cls += ' ya-en-pareja';
+    const tit = ya
+      ? ' title="Ya está con el #' + ya.con + (ya.jugada ? ' y esa pareja ya ha jugado' : '') + '"'
+      : '';
+    return '<div class="' + cls + '"' + tit + ' onclick="toggleSeleccionNuevaPareja(' + p.dorsal + ')">' + p.dorsal + '</div>';
+  }).join('');
+  document.getElementById("nueva-pareja-count").textContent = seleccionNuevaPareja.size;
+}
+
+function toggleSeleccionNuevaPareja(dorsal) {
+  if (seleccionNuevaPareja.has(dorsal)) {
+    seleccionNuevaPareja.delete(dorsal);
+    renderGridNuevaPareja();
+    return;
+  }
+  const ya = dorsalesYaEnPareja()[dorsal];
+  if (ya) {
+    toast("El #" + dorsal + " ya está con el #" + ya.con +
+          (ya.jugada ? ": esa pareja ya ha jugado" : ""));
+    return;
+  }
+  if (seleccionNuevaPareja.size >= 2) { toast("Una pareja son 2 dorsales: quita uno antes"); return; }
+  seleccionNuevaPareja.add(dorsal);
+  renderGridNuevaPareja();
+}
+
+async function guardarNuevaPareja() {
+  if (enviando) return;
+  const dorsales = Array.from(seleccionNuevaPareja).sort((a, b) => a - b);
+  if (dorsales.length !== 2) { toast("Selecciona exactamente 2 dorsales"); return; }
+  const ocupados = dorsalesYaEnPareja();
+  const choque = dorsales.find(d => ocupados[d]);
+  if (choque) { toast("El #" + choque + " ya está emparejado en esta prueba"); return; }
+  enviando = true;
+  try {
+    await enviarConColaOffline("parejas", {
+      dorsales: dorsales,
+      prueba: document.getElementById("prueba-select-staff").value,
+      origen: "manual-staff",
+      creado_por: staffNombre,
+      creado_en: TS(),
+      activo: true,
+      jugada: false,
+      jugada_en: null,
+      cerrada_por: null
+    });
+    toast("Pareja #" + dorsales[0] + " · #" + dorsales[1] + " marcada");
+    cerrarCrearPareja();
+  } finally {
+    setTimeout(() => { enviando = false; }, 600);
+  }
+}
+
+function renderParejasList() {
+  const cont = document.getElementById("parejas-list");
+  if (!cont) return;
+  const lista = Object.entries(parejas)
+    .filter(([, pa]) => pa.activo !== false)
+    .sort((a, b) => (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0]);
+  if (!lista.length) {
+    cont.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:12px;padding:20px;">Aún no hay parejas</div>';
+    return;
+  }
+  cont.innerHTML = lista.map(([id, pa]) => {
+    const ds = pa.dorsales || [];
+    const esMio = pa.creado_por === staffNombre;
+    const sello = pa.jugada
+      ? '<span style="background:#6b6b6b;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;">YA JUGADA</span>'
+      : '<span style="background:#0a8f4d;color:#fff;border-radius:3px;padding:1px 6px;font-size:9px;">PENDIENTE</span>';
+    const quien = pa.origen === 'manual-staff' ? ('marcada por ' + (pa.creado_por || '—')) : 'sorteada por el panel';
+    return '<div class="pareja-card' + (pa.jugada ? ' jugada' : '') + '">' +
+      '<div class="nombre">#' + ds.join(' · #') + ' ' + sello + '</div>' +
+      '<div class="meta">' + (pa.prueba || 'sin prueba') + ' · ' + quien +
+        (pa.cerrada_por ? ' · cerrada al eliminar al #' + pa.cerrada_por : '') + '</div>' +
+      (pa.jugada || !esMio ? '' :
+        '<button class="btn btn-ghost" style="width:100%;padding:8px;font-size:11px;" onclick="borrarPareja(\'' + id + '\')">' +
+        '<i class="ti ti-trash"></i> Deshacer esta pareja</button>') +
+      '</div>';
+  }).join('');
+}
+
+/* Solo quien la marcó puede deshacerla, y solo si aún no ha jugado: una
+   pareja ya jugada es un registro, no una lista de la compra. Si hay que
+   tocarla, lo hace el Panel Central. */
+async function borrarPareja(id) {
+  const pa = parejas[id];
+  if (!pa) return;
+  if (pa.jugada) { toast("Esa pareja ya ha jugado: avisa al Panel Central"); return; }
+  if (pa.creado_por !== staffNombre) { toast("Solo " + (pa.creado_por || 'quien la marcó') + " puede deshacerla"); return; }
+  if (!confirm("¿Deshacer la pareja #" + pa.dorsales.join(" · #") + "?")) return;
+  try {
+    await db.collection("parejas").doc(id).update({ activo: false });
+    toast("Pareja deshecha");
+  } catch (e) { console.error(e); toast("No se ha podido deshacer"); }
+}
+
+function escucharParejasStaff() {
+  db.collection("parejas").onSnapshot(snap => {
+    parejas = {};
+    snap.forEach(d => { parejas[d.id] = d.data(); });
+    renderParejasList();
+    const form = document.getElementById("crear-pareja-form");
+    if (form && form.style.display === "block") renderGridNuevaPareja();
+  }, e => console.warn("parejas:", e));
+}
+
 /* ===== FIRESTORE LISTENERS ===== */
 function escucharParticipantesStaff() {
 // Un dorsal que no se ha acreditado y ha quedado fuera de juego no se pinta
@@ -11296,6 +11489,7 @@ function fueraDeJuego(d) {
     updateStatsStaff();
     renderGridStaff();
     renderEquiposList();
+    renderParejasList();
     if (document.getElementById("crear-equipo-form").style.display === "block") renderGridNuevoEquipo();
   });
 }
@@ -11360,6 +11554,7 @@ function iniciarApp() {
   escucharPruebaActual();
   escucharParticipantesStaff();
   escucharEquiposStaffApp();
+  escucharParejasStaff();
   escucharMisPropuestas();
   enviarPresencia();
   setInterval(enviarPresencia, 25000);

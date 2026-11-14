@@ -131,6 +131,18 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .center-top { padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: var(--bg2); }
 .grid-wrap { flex: 1; overflow-y: auto; padding: 10px; }
 .grid { display: grid; grid-template-columns: repeat(35, 1fr); gap: 3px; }
+/* Vistas "Equipos" y "Parejas": el mismo contenedor del grid, pero en vez de
+   los 500 dorsales sueltos se pintan las agrupaciones, cada una con los suyos. */
+.grid.agrupado { display: block; }
+.agrup { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.agrup .cab { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.agrup .tit { font-size: 13px; font-weight: 900; color: var(--morado); }
+.agrup .tit.pareja { font-family: var(--mono); color: #0a8f4d; }
+.agrup .sub { font-size: 10px; color: var(--texto2); }
+.agrup .sello { border-radius: 3px; padding: 1px 6px; font-size: 9px; font-weight: 800; color: #fff; }
+.agrup .dorsales { display: grid; grid-template-columns: repeat(auto-fill, minmax(38px, 1fr)); gap: 4px; }
+.agrup.cerrada { opacity: .62; }
+.agrup-vacio { font-size: 12px; color: var(--texto2); padding: 24px; text-align: center; }
 .cell { aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; font-family: var(--mono); background: #ede8f8; border: 1px solid rgba(130,36,227,0.35); color: var(--morado); cursor: pointer; transition: all .15s; }
 .cell:hover { background: rgba(130,36,227,0.2); border-color: var(--morado2); }
 .cell.elim { background: #fce8eb; border-color: rgba(212,18,48,0.4); color: rgba(255,31,61,0.4); text-decoration: line-through; }
@@ -138,6 +150,11 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .part-item.fuera { opacity: .5; background: rgba(0,0,0,0.06); }
 .cell.selmulti { background: #fff3d6; border-color: var(--naranja); color: var(--naranja); box-shadow: inset 0 0 0 2px var(--naranja); }
 .cell.called { background: rgba(255,116,33,0.2); border-color: var(--naranja); color: var(--naranja); animation: pulse-cell 1s ease-in-out infinite; }
+/* Dorsal cuya pareja de ESTA prueba ya jugó: no puede volver a emparejarse.
+   Se marca con una barra inferior para verlo de un vistazo en el grid. */
+.cell.yajugo { box-shadow: inset 0 -4px 0 0 #0a8f4d; }
+.cell.enpareja { box-shadow: inset 0 -4px 0 0 var(--morado2); }
+.cell.selpareja { background: #e6f7ee; border-color: #0a8f4d; color: #0a8f4d; box-shadow: inset 0 0 0 2px #0a8f4d; }
 @keyframes pulse-cell { 0%,100%{opacity:1} 50%{opacity:.5} }
 @keyframes parpadeo-sos { 0%,100% { opacity:1; box-shadow: 0 0 0 rgba(212,18,48,0); } 50% { opacity:0.55; box-shadow: 0 0 14px rgba(212,18,48,0.6); } }
 .sos-parpadeo { animation: parpadeo-sos 0.9s ease-in-out infinite; }
@@ -465,6 +482,8 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:9px;background:var(--morado);border-color:var(--morado);color:#fff;font-weight:900;" onclick="setFiltro('todos')" id="f-todos">Todos</button>
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:9px;" onclick="setFiltro('vivos')" id="f-vivos">Vivos</button>
           <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:9px;" onclick="setFiltro('eliminados')" id="f-elim">Eliminados</button>
+          <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:9px;" onclick="setFiltro('equipos')" id="f-equipos">Equipos</button>
+          <button class="btn btn-ghost" style="width:auto;padding:6px 12px;font-size:9px;" onclick="setFiltro('parejas')" id="f-parejas">Parejas</button>
         </div>
       </div>
       <div class="grid-wrap">
@@ -510,6 +529,29 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
               <button class="btn btn-ghost" style="flex:1;" onclick="toggleModoCrearEquipo()">Cancelar</button>
             </div>
           </div>
+
+          <!-- GRUPO ALEATORIO: lo forma la organización, no los jugadores.
+               Sortea entre los vivos que aún no están en otro grupo de esta
+               prueba, lo enseña, y hasta que no se confirma no existe. -->
+          <div style="margin-top:10px;padding-top:10px;border-top:1px dashed var(--border);">
+            <div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">O que lo sortee el panel:</div>
+            <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+              <input type="number" id="grupo-azar-tam" value="4" min="2" max="50" style="width:64px;" title="Cuántos jugadores por grupo" />
+              <span style="font-size:10px;color:var(--texto2);">por grupo</span>
+              <button class="btn btn-morado" style="flex:1;padding:7px;font-size:10px;" onclick="sortearGrupoAleatorio()">
+                <i class="ti ti-dice"></i> Sortear grupo
+              </button>
+            </div>
+            <div id="grupo-azar-prev" style="display:none;padding:8px;border-radius:6px;background:#f3eeff;border:1px solid var(--morado);">
+              <div style="font-size:11px;font-weight:700;color:var(--morado);margin-bottom:4px;" id="grupo-azar-nombre"></div>
+              <div style="font-size:11px;color:var(--texto);margin-bottom:8px;font-family:var(--mono);" id="grupo-azar-lista"></div>
+              <div style="display:flex;gap:6px;">
+                <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarGrupoAleatorio()"><i class="ti ti-check"></i> Confirmar</button>
+                <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearGrupoAleatorio()"><i class="ti ti-refresh"></i> Otro</button>
+                <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="cancelarGrupoAleatorio()">Cancelar</button>
+              </div>
+            </div>
+          </div>
         </div>
         <div>
           <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users-group"></i> Equipos creados</div>
@@ -520,6 +562,48 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
             <i class="ti ti-users-minus"></i> Disolver todos los equipos de esta prueba
           </button>
           <div id="equipos-admin-list"><div style="font-size:11px;color:var(--texto2);">Sin equipos</div></div>
+        </div>
+
+        <!-- ===== PAREJAS =====
+             Dos formas de formarlas, según la prueba:
+             · Tiro al Saco → las forma la organización: botón de sorteo.
+             · Canicas → las eligen los propios jugadores: a mano, aquí o en
+               la app de staff.
+             Un dorsal solo puede estar en UNA pareja por prueba, y cuando se
+             elimina a uno de los dos la pareja queda marcada como jugada: así
+             el que sobrevive no puede emparejarse otra vez para repetir. -->
+        <div>
+          <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users"></i> Parejas</div>
+
+          <button class="btn btn-verde" style="width:100%;padding:7px;font-size:11px;margin-bottom:6px;" onclick="sortearParejaAleatoria()">
+            <i class="ti ti-dice"></i> Sortear pareja aleatoria
+          </button>
+          <div id="pareja-azar-prev" style="display:none;margin-bottom:8px;padding:8px;border-radius:6px;background:#e6f7ee;border:1px solid #0a8f4d;">
+            <div style="font-size:12px;font-weight:800;color:#0a8f4d;margin-bottom:8px;font-family:var(--mono);" id="pareja-azar-lista"></div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarParejaAleatoria()"><i class="ti ti-check"></i> Confirmar</button>
+              <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearParejaAleatoria()"><i class="ti ti-refresh"></i> Otra</button>
+              <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="cancelarParejaAleatoria()">Cancelar</button>
+            </div>
+          </div>
+
+          <button class="btn btn-morado" id="crear-pareja-toggle-btn" style="width:100%;padding:7px;font-size:11px;" onclick="toggleModoCrearPareja()">
+            <i class="ti ti-hand-finger"></i> Formar pareja a mano (2 dorsales)
+          </button>
+          <div id="crear-pareja-bar" style="display:none;margin-top:8px;padding:8px;border-radius:6px;background:#e6f7ee;border:1px solid #0a8f4d;">
+            <div style="font-size:11px;font-weight:700;color:#0a8f4d;margin-bottom:6px;">
+              Pulsa los 2 dorsales en el grid — <span id="crear-pareja-count">0</span> de 2
+            </div>
+            <div style="display:flex;gap:6px;">
+              <button class="btn btn-verde" style="flex:1;" onclick="confirmarCrearPareja()"><i class="ti ti-check"></i> Crear pareja</button>
+              <button class="btn btn-ghost" style="flex:1;" onclick="toggleModoCrearPareja()">Cancelar</button>
+            </div>
+          </div>
+
+          <button class="btn btn-rojo" style="width:100%;padding:7px;font-size:11px;margin-top:8px;" onclick="disolverParejasDeLaPrueba()">
+            <i class="ti ti-users-minus"></i> Disolver todas las parejas de esta prueba
+          </button>
+          <div id="parejas-list" style="margin-top:8px;"><div style="font-size:11px;color:var(--texto2);">Sin parejas</div></div>
         </div>
       </div>
 
@@ -1125,6 +1209,7 @@ cambiarFiltroSalvacion();
   escucharSesion();
   escucharLlamadas();
   escucharEquiposStaff();
+  escucharParejas();
   escucharPropuestasStaff();
   escucharAyudaStaff();
   escucharPresenciaStaff();
@@ -1388,6 +1473,11 @@ function renderFueraRecinto() {
 function renderGrid() {
   renderContadorSalvacion();
   const grid = document.getElementById("grid");
+  // Las vistas de equipos y parejas usan el mismo hueco, pero no pintan
+  // dorsales sueltos: pintan las agrupaciones con los suyos dentro.
+  grid.classList.toggle("agrupado", filtro === "equipos" || filtro === "parejas");
+  if (filtro === "equipos") { renderVistaEquipos(grid); return; }
+  if (filtro === "parejas") { renderVistaParejas(grid); return; }
   const q = document.getElementById("grid-search").value.trim().toLowerCase();
   const parts = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
   let lista = parts.filter(p => {
@@ -1405,13 +1495,22 @@ function renderGrid() {
     } else {
       cls = 'cell elim' + ((modoMultiSalvar || modoCrearEquipo) && seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
     }
-    return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${estaFuera(p) ? etiquetaFuera(p) + ' — ' + (p.estado_motivo||'') + ' · ' : ''}${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
+    // Barra verde abajo = su pareja de esta prueba ya jugó (no puede repetir).
+    // Barra morada  = emparejado y pendiente de jugar.
+    const pareja = parejaDelDorsal(p.dorsal);
+    if (pareja) cls += pareja.jugada ? ' yajugo' : ' enpareja';
+    if (modoCrearPareja && seleccionMulti.has(p.dorsal)) cls += ' selpareja';
+    const notaPareja = pareja
+      ? (pareja.jugada ? 'YA JUGÓ con el #' : 'Emparejado con el #') + pareja.dorsales.find(d => d !== p.dorsal) + ' · '
+      : '';
+    return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${estaFuera(p) ? etiquetaFuera(p) + ' — ' + (p.estado_motivo||'') + ' · ' : ''}${notaPareja}${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
   }).join('');
 }
 
 function setFiltro(f) {
   filtro = f;
-  const map = { todos: 'f-todos', vivos: 'f-vivos', eliminados: 'f-elim' };
+  const map = { todos: 'f-todos', vivos: 'f-vivos', eliminados: 'f-elim',
+                equipos: 'f-equipos', parejas: 'f-parejas' };
   Object.values(map).forEach(id => {
     const el = document.getElementById(id);
     el.style.background = '#f3eeff';
@@ -1427,9 +1526,122 @@ function setFiltro(f) {
   renderGrid();
 }
 
+/* Celda pequeña de dorsal dentro de una agrupación. Se puede pulsar igual que
+   en el grid normal: así se elimina a alguien desde su propio equipo sin tener
+   que buscarlo entre los 500. */
+function celdaDorsal(dorsal) {
+  const p = participantes[dorsal];
+  if (!p) return '<div class="cell fuera" title="Dorsal que ya no está en juego">' + dorsal + '</div>';
+  let cls = 'cell';
+  if (estaFuera(p)) cls = 'cell fuera';
+  else if (!p.vivo) cls = 'cell elim';
+  const nombre = ((p.nombre || '') + ' ' + (p.apellidos || '')).trim();
+  return '<div class="' + cls + '" onclick="clickCell(' + dorsal + ')" title="' + nombre + '">' + dorsal + '</div>';
+}
+
+/* El buscador de arriba también filtra aquí: escribe un dorsal y se queda
+   solo la agrupación en la que está. */
+function filtroAgrupacion() {
+  return document.getElementById("grid-search").value.trim().toLowerCase();
+}
+function agrupacionCoincide(dorsales, nombre) {
+  const q = filtroAgrupacion();
+  if (!q) return true;
+  if ((nombre || '').toLowerCase().includes(q)) return true;
+  return dorsales.some(d => String(d).startsWith(q));
+}
+
+function renderVistaEquipos(grid) {
+  const prueba = pruebaEnCurso();
+  const lista = Object.entries(equiposStaffCache)
+    .filter(([, eq]) => eq.activo !== false)
+    .filter(([, eq]) => agrupacionCoincide(eq.dorsales || [], eq.nombre))
+    .sort((a, b) => {
+      // Primero los de la prueba en curso; dentro de cada grupo, por nombre.
+      const pa = (a[1].prueba || '') === prueba ? 0 : 1;
+      const pb = (b[1].prueba || '') === prueba ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return String(a[1].nombre).localeCompare(String(b[1].nombre));
+    });
+  if (!lista.length) {
+    grid.innerHTML = '<div class="agrup-vacio">No hay equipos creados.<br>Se forman desde la pestaña Staff, a mano o sorteados.</div>';
+    return;
+  }
+  grid.innerHTML = lista.map(([id, eq]) => {
+    const ds = (eq.dorsales || []).slice().sort((a, b) => a - b);
+    const vivos = ds.filter(d => participantes[d] && participantes[d].vivo).length;
+    const deOtraPrueba = (eq.prueba || '') !== prueba;
+    return '<div class="agrup' + (deOtraPrueba ? ' cerrada' : '') + '">' +
+      '<div class="cab">' +
+        '<span class="tit">👥 ' + eq.nombre + '</span>' +
+        '<span class="sello" style="background:' + (vivos ? 'var(--verde)' : '#6b6b6b') + ';">' + vivos + ' VIVOS DE ' + ds.length + '</span>' +
+        '<span class="sub">' + (eq.prueba || 'sin prueba') + ' · ' + (eq.creado_por || '—') +
+          (eq.origen === 'aleatorio-panel' ? ' · sorteado' : '') +
+          (deOtraPrueba ? ' · NO es de la prueba en curso' : '') + '</span>' +
+        '<button class="btn btn-verde" style="margin-left:auto;width:auto;padding:5px 10px;font-size:9px;" onclick="anunciarEquipoFormado(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar</button>' +
+      '</div>' +
+      '<div class="dorsales">' + ds.map(celdaDorsal).join('') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderVistaParejas(grid) {
+  const prueba = pruebaEnCurso();
+  const lista = Object.entries(parejasCache)
+    .filter(([, pa]) => pa.activo !== false)
+    .filter(([, pa]) => agrupacionCoincide(pa.dorsales || [], ''))
+    .sort((a, b) => {
+      const pa = (a[1].prueba || '') === prueba ? 0 : 1;
+      const pb = (b[1].prueba || '') === prueba ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      // Las pendientes arriba: son las que quedan por jugar.
+      const ja = a[1].jugada ? 1 : 0, jb = b[1].jugada ? 1 : 0;
+      if (ja !== jb) return ja - jb;
+      return (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0];
+    });
+  if (!lista.length) {
+    grid.innerHTML = '<div class="agrup-vacio">No hay parejas.<br>Se forman desde la pestaña Staff, a mano o sorteadas, o desde el móvil del staff.</div>';
+    return;
+  }
+  grid.innerHTML = lista.map(([id, pa]) => {
+    const ds = (pa.dorsales || []).slice().sort((a, b) => a - b);
+    const deOtraPrueba = (pa.prueba || '') !== prueba;
+    // Una pareja no lleva nombre: la pareja ES los dos dorsales.
+    const quien = pa.origen === 'manual-staff' ? ('marcada por ' + (pa.creado_por || '—'))
+                : (pa.origen && pa.origen.indexOf('aleatorio') === 0 ? 'sorteada' : 'a mano');
+    return '<div class="agrup' + (pa.jugada || deOtraPrueba ? ' cerrada' : '') + '">' +
+      '<div class="cab">' +
+        '<span class="tit pareja">#' + ds.join(' · #') + '</span>' +
+        '<span class="sello" style="background:' + (pa.jugada ? '#6b6b6b' : '#0a8f4d') + ';">' + (pa.jugada ? 'YA JUGADA' : 'PENDIENTE') + '</span>' +
+        '<span class="sub">' + (pa.prueba || 'sin prueba') + ' · ' + quien +
+          (pa.cerrada_por ? ' · cerrada al eliminar al #' + pa.cerrada_por : '') +
+          (deOtraPrueba ? ' · NO es de la prueba en curso' : '') + '</span>' +
+        (pa.jugada ? '' : '<button class="btn btn-verde" style="margin-left:auto;width:auto;padding:5px 10px;font-size:9px;" onclick="anunciarPareja(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar</button>') +
+      '</div>' +
+      '<div class="dorsales">' + ds.map(celdaDorsal).join('') + '</div>' +
+    '</div>';
+  }).join('');
+}
+
 function clickCell(dorsal) {
   const p = participantes[dorsal];
   if (!p) return;
+  if (modoCrearPareja) {
+    if (seleccionMulti.has(dorsal)) {
+      seleccionMulti.delete(dorsal);
+    } else {
+      if (seleccionMulti.size >= 2) { mostrarNotif("Una pareja son 2 dorsales: quita uno antes"); return; }
+      const pa = parejaDelDorsal(dorsal);
+      if (pa && pa.jugada) {
+        if (!confirm("El #" + dorsal + " ya jugó esta prueba con el #" + pa.dorsales.find(d => d !== dorsal) +
+                     ".\n\nEmparejarlo otra vez le deja repetir la prueba.\n\n¿Seguro?")) return;
+      }
+      seleccionMulti.add(dorsal);
+    }
+    document.getElementById("crear-pareja-count").textContent = seleccionMulti.size;
+    renderGrid();
+    return;
+  }
   if (modoCrearEquipo) {
     // Al formar un equipo vale cualquier dorsal, esté vivo o eliminado
     if (seleccionMulti.has(dorsal)) seleccionMulti.delete(dorsal);
@@ -1467,6 +1679,7 @@ let seleccionMulti = new Set();
 function toggleModoMulti() {
   modoMulti = !modoMulti;
   seleccionMulti.clear();
+  if (modoMulti && (filtro === "equipos" || filtro === "parejas")) setFiltro("todos");
   document.getElementById("multi-bar").style.display = modoMulti ? "block" : "none";
   document.getElementById("multi-toggle-btn").style.opacity = modoMulti ? "0.5" : "";
   document.getElementById("equipo-select").value = "";
@@ -1494,6 +1707,7 @@ function renderEquiposStaffOptions() {
   // Si la opción elegida sigue existiendo tras refrescar, se mantiene seleccionada
   if (valorActual) document.getElementById("equipo-select").value = valorActual;
   renderEquiposAdminList();
+  if (filtro === "equipos") renderGrid();
 }
 
 // Gestión de equipos desde el panel: a diferencia de la app staff (donde solo
@@ -1524,9 +1738,11 @@ function renderEquiposAdminList() {
 function toggleModoCrearEquipo() {
   modoCrearEquipo = !modoCrearEquipo;
   seleccionMulti.clear();
+  if (modoCrearEquipo && (filtro === "equipos" || filtro === "parejas")) setFiltro("todos");
   // Los modos de selección del grid son excluyentes entre sí
   if (modoCrearEquipo && modoMulti) toggleModoMulti();
   if (modoCrearEquipo && modoMultiSalvar) toggleModoMultiSalvar();
+  if (modoCrearEquipo && modoCrearPareja) toggleModoCrearPareja();
   document.getElementById("crear-equipo-bar").style.display = modoCrearEquipo ? "block" : "none";
   document.getElementById("crear-equipo-toggle-btn").style.opacity = modoCrearEquipo ? "0.5" : "";
   document.getElementById("crear-equipo-count").textContent = 0;
@@ -1559,33 +1775,21 @@ async function confirmarCrearEquipo() {
 function anunciarEquipoFormado(id) {
   const eq = equiposStaffCache[id];
   if (!eq) return;
+  anunciarEquipoPorDatos(eq.nombre, eq.dorsales || []);
+}
+
+/* Lee una lista de frases sueltas, una a una, para que la voz haga pausa
+   entre ellas. Chrome corta la voz a los ~15 s en colas largas si no se le da
+   un toque cada pocos segundos: de ahí el keepAlive. */
+function hablarPorFrases(frases) {
   if (!window.speechSynthesis) { mostrarNotif("Este navegador no reproduce voz"); return; }
   window.speechSynthesis.cancel();
-
-  const crear = (texto) => {
+  const utterances = frases.map(texto => {
     const msg = new SpeechSynthesisUtterance(texto);
     msg.lang = "es-ES"; msg.rate = 0.85; msg.pitch = 0.9; msg.volume = 1;
     if (vozSeleccionada) msg.voice = vozSeleccionada;
     return msg;
-  };
-
-  const dorsales = eq.dorsales || [];
-  // Si el nombre ya empieza por "Equipo" no se repite la palabra
-  // ("El equipo Equipo Azul..." sonaba fatal).
-  const nombreDicho = /^equipo\b/i.test(eq.nombre) ? eq.nombre : ("equipo " + eq.nombre);
-  // Cada trozo es una frase suelta para que la voz haga pausa entre ellas:
-  // "El equipo Azul" / "está formado por" / 12 / 45 / ... / "y" / 88 /
-  // "por favor acudir a la zona de juego".
-  const frases = ["El " + nombreDicho, "está formado por"];
-  dorsales.forEach((n, i) => {
-    if (i === dorsales.length - 1 && dorsales.length > 1) frases.push("y");
-    frases.push(String(n));
   });
-  frases.push("por favor", "acudir a la zona de juego");
-
-  const utterances = frases.map(crear);
-  // Mismo apaño que en las eliminaciones múltiples: Chrome corta la voz a los
-  // ~15s en colas largas si no se le da un toque cada pocos segundos.
   const keepAlive = setInterval(() => {
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.pause();
@@ -1599,7 +1803,22 @@ function anunciarEquipoFormado(id) {
   ultima.onerror = finalizar;
   setTimeout(finalizar, frases.length * 2500 + 5000);
   utterances.forEach(u => window.speechSynthesis.speak(u));
-  mostrarNotif("Anunciando al equipo " + eq.nombre);
+}
+
+function anunciarEquipoPorDatos(nombre, dorsalesEq) {
+  const eq = { nombre: nombre, dorsales: dorsalesEq };
+  const dorsales = eq.dorsales || [];
+  // Si el nombre ya empieza por "Equipo" no se repite la palabra
+  // ("El equipo Equipo Azul..." sonaba fatal).
+  const nombreDicho = /^equipo\b|^grupo\b/i.test(eq.nombre) ? eq.nombre : ("equipo " + eq.nombre);
+  const frases = ["El " + nombreDicho, "está formado por"];
+  dorsales.forEach((n, i) => {
+    if (i === dorsales.length - 1 && dorsales.length > 1) frases.push("y");
+    frases.push(String(n));
+  });
+  frases.push("por favor", "acudir a la zona de juego");
+  hablarPorFrases(frases);
+  mostrarNotif("Anunciando a " + eq.nombre);
 }
 
 async function editarEquipoStaff(id) {
@@ -1688,6 +1907,310 @@ function nombreEquipoSeleccionado() {
     return eq ? eq.nombre : "";
   }
   return val;
+}
+
+/* ===== GRUPOS ALEATORIOS Y PAREJAS =====
+   Las agrupaciones que forman los propios jugadores se marcan a mano (aquí o
+   desde la app de staff). Las que forma la organización las sortea el panel:
+   enseña el resultado y no escribe nada en Firebase hasta que se confirma,
+   para poder volver a tirar si sale algo raro. */
+
+let parejasCache = {};            // colección "parejas", solo las activas
+let grupoAzarPropuesto = null;    // { nombre, dorsales } pendiente de confirmar
+let parejaAzarPropuesta = null;   // [a, b] pendiente de confirmar
+let modoCrearPareja = false;
+
+function pruebaEnCurso() {
+  return document.getElementById("prueba-select").value;
+}
+
+/* Candidatos a entrar en un sorteo: vivos, dentro del recinto y que no estén
+   ya en otro grupo activo de esta misma prueba. */
+function dorsalesSorteables() {
+  const prueba = pruebaEnCurso();
+  const ocupados = new Set();
+  Object.values(equiposStaffCache).forEach(eq => {
+    if (eq.activo === false) return;
+    if ((eq.prueba || "") !== prueba) return;
+    (eq.dorsales || []).forEach(d => ocupados.add(Number(d)));
+  });
+  return dorsalesVivos().filter(d => !estaFuera(participantes[d]) && !ocupados.has(d));
+}
+
+/* Nombre automático: "Grupo 1", "Grupo 2"... contando los que ya hay en esta
+   prueba. Si el operador ha escrito un nombre arriba, manda el suyo. */
+function nombreAutomaticoGrupo() {
+  const escrito = document.getElementById("nuevo-equipo-nombre").value.trim();
+  if (escrito) return escrito;
+  const prueba = pruebaEnCurso();
+  const n = Object.values(equiposStaffCache)
+    .filter(eq => eq.activo !== false && (eq.prueba || "") === prueba).length;
+  return "Grupo " + (n + 1);
+}
+
+function sortearGrupoAleatorio() {
+  const tam = parseInt(document.getElementById("grupo-azar-tam").value, 10) || 4;
+  const pool = dorsalesSorteables();
+  if (pool.length < tam) {
+    mostrarNotif("Solo quedan " + pool.length + " jugadores sin grupo en esta prueba");
+    if (!pool.length) return;
+  }
+  const dorsales = elegirAlAzar(pool, tam).sort((a, b) => a - b);
+  grupoAzarPropuesto = { nombre: nombreAutomaticoGrupo(), dorsales: dorsales };
+  document.getElementById("grupo-azar-nombre").textContent = grupoAzarPropuesto.nombre;
+  document.getElementById("grupo-azar-lista").textContent = "#" + dorsales.join("  #");
+  document.getElementById("grupo-azar-prev").style.display = "block";
+}
+
+function cancelarGrupoAleatorio() {
+  grupoAzarPropuesto = null;
+  document.getElementById("grupo-azar-prev").style.display = "none";
+}
+
+async function confirmarGrupoAleatorio() {
+  if (!grupoAzarPropuesto) return;
+  const { nombre, dorsales } = grupoAzarPropuesto;
+  try {
+    await db.collection("equipos").add({
+      nombre: nombre,
+      dorsales: dorsales,
+      creado_por: "Panel-Central",
+      prueba: pruebaEnCurso(),
+      origen: "aleatorio-panel",
+      creado_en: TS(),
+      activo: true
+    });
+    // Mismo final que al formarlo a mano y darle a "Anunciar": voz por
+    // megafonía con el nombre del grupo y sus dorsales.
+    anunciarEquipoPorDatos(nombre, dorsales);
+    document.getElementById("nuevo-equipo-nombre").value = "";
+    cancelarGrupoAleatorio();
+    mostrarNotif(nombre + " creado y anunciado (" + dorsales.length + " jugadores)");
+  } catch (e) { console.error(e); mostrarNotif("Error al crear el grupo"); }
+}
+
+/* ---------- PAREJAS ---------- */
+
+function escucharParejas() {
+  db.collection("parejas").where("activo", "==", true).onSnapshot(snap => {
+    parejasCache = {};
+    snap.forEach(d => { parejasCache[d.id] = d.data(); });
+    renderParejasList();
+    renderGrid();
+  }, e => console.warn("parejas:", e));
+}
+
+/* Mapa dorsal -> pareja, solo de la prueba en curso. Lo usan el grid, el
+   bloqueo anti-repetición y la lista. */
+function parejasDeLaPrueba() {
+  const prueba = pruebaEnCurso();
+  return Object.entries(parejasCache).filter(([, pa]) =>
+    pa.activo !== false && (pa.prueba || "") === prueba);
+}
+
+function parejaDelDorsal(dorsal) {
+  const enc = parejasDeLaPrueba().find(([, pa]) => (pa.dorsales || []).includes(Number(dorsal)));
+  return enc ? { id: enc[0], ...enc[1] } : null;
+}
+
+function dorsalYaJugoEstaPrueba(dorsal) {
+  const pa = parejaDelDorsal(dorsal);
+  return !!(pa && pa.jugada);
+}
+
+function companeroDe(dorsal) {
+  const pa = parejaDelDorsal(dorsal);
+  if (!pa) return null;
+  return (pa.dorsales || []).find(d => Number(d) !== Number(dorsal)) || null;
+}
+
+function sortearParejaAleatoria() {
+  const prueba = pruebaEnCurso();
+  const yaEmparejados = new Set();
+  parejasDeLaPrueba().forEach(([, pa]) => (pa.dorsales || []).forEach(d => yaEmparejados.add(Number(d))));
+  const pool = dorsalesVivos().filter(d => !estaFuera(participantes[d]) && !yaEmparejados.has(d));
+  if (pool.length < 2) {
+    mostrarNotif("No quedan 2 jugadores sin pareja en " + (prueba || "esta prueba"));
+    return;
+  }
+  parejaAzarPropuesta = elegirAlAzar(pool, 2).sort((a, b) => a - b);
+  document.getElementById("pareja-azar-lista").textContent = "#" + parejaAzarPropuesta[0] + "   vs   #" + parejaAzarPropuesta[1];
+  document.getElementById("pareja-azar-prev").style.display = "block";
+}
+
+function cancelarParejaAleatoria() {
+  parejaAzarPropuesta = null;
+  document.getElementById("pareja-azar-prev").style.display = "none";
+}
+
+async function confirmarParejaAleatoria() {
+  if (!parejaAzarPropuesta) return;
+  const dorsales = parejaAzarPropuesta;
+  if (await crearPareja(dorsales, "aleatorio-panel")) {
+    anunciarParejaPorDatos(dorsales);
+    cancelarParejaAleatoria();
+  }
+}
+
+/* Alta de una pareja. Devuelve true si se ha creado.
+   Desde el panel el choque se puede forzar (a veces hay que arreglar un error
+   en directo); desde la app de staff no, allí es un bloqueo duro. */
+async function crearPareja(dorsales, origen) {
+  const prueba = pruebaEnCurso();
+  if (!prueba) {
+    if (!confirm("No hay prueba seleccionada arriba.\n\nLa pareja quedará sin prueba y no bloqueará repeticiones.\n\n¿Crearla igual?")) return false;
+  }
+  const choques = [];
+  dorsales.forEach(d => {
+    const pa = parejaDelDorsal(d);
+    if (pa) choques.push("· El #" + d + " ya está con el #" + (pa.dorsales.find(x => x !== d)) +
+                         (pa.jugada ? " y esa pareja YA HA JUGADO" : ""));
+  });
+  if (choques.length) {
+    if (!confirm("En " + (prueba || "esta prueba") + ":\n\n" + choques.join("\n") +
+                 "\n\nSi lo que quieres es corregir un error, disuelve antes la pareja anterior.\n\n¿Crear la pareja de todas formas?")) return false;
+  }
+  try {
+    await db.collection("parejas").add({
+      dorsales: dorsales.map(Number).sort((a, b) => a - b),
+      prueba: prueba,
+      origen: origen,
+      creado_por: "Panel-Central",
+      creado_en: TS(),
+      activo: true,
+      jugada: false,
+      jugada_en: null,
+      cerrada_por: null
+    });
+    mostrarNotif("Pareja #" + dorsales[0] + " · #" + dorsales[1] + " creada");
+    return true;
+  } catch (e) { console.error(e); mostrarNotif("Error al crear la pareja"); return false; }
+}
+
+function toggleModoCrearPareja() {
+  modoCrearPareja = !modoCrearPareja;
+  seleccionMulti.clear();
+  if (modoCrearPareja && (filtro === "equipos" || filtro === "parejas")) setFiltro("todos");
+  if (modoCrearPareja && modoMulti) toggleModoMulti();
+  if (modoCrearPareja && modoMultiSalvar) toggleModoMultiSalvar();
+  if (modoCrearPareja && modoCrearEquipo) toggleModoCrearEquipo();
+  document.getElementById("crear-pareja-bar").style.display = modoCrearPareja ? "block" : "none";
+  document.getElementById("crear-pareja-toggle-btn").style.opacity = modoCrearPareja ? "0.5" : "";
+  document.getElementById("crear-pareja-count").textContent = 0;
+  renderGrid();
+}
+
+async function confirmarCrearPareja() {
+  const dorsales = Array.from(seleccionMulti).sort((a, b) => a - b);
+  if (dorsales.length !== 2) { mostrarNotif("Una pareja son exactamente 2 dorsales"); return; }
+  if (await crearPareja(dorsales, "manual-panel")) toggleModoCrearPareja();
+}
+
+/* Cuando se elimina a alguien, su pareja de esa prueba queda cerrada: el que
+   sobrevive ya ha hecho la prueba y no puede volver a emparejarse. */
+async function cerrarParejasPorEliminacion(dorsales, prueba) {
+  try {
+    const afectadas = Object.entries(parejasCache).filter(([, pa]) =>
+      pa.activo !== false && !pa.jugada && (pa.prueba || "") === (prueba || "") &&
+      (pa.dorsales || []).some(d => dorsales.includes(Number(d))));
+    if (!afectadas.length) return;
+    const lote = db.batch();
+    const avisos = [];
+    afectadas.forEach(([id, pa]) => {
+      const caido = (pa.dorsales || []).find(d => dorsales.includes(Number(d)));
+      const otro = (pa.dorsales || []).find(d => Number(d) !== Number(caido));
+      lote.update(db.collection("parejas").doc(id), {
+        jugada: true, jugada_en: TS(), cerrada_por: caido
+      });
+      if (otro != null) avisos.push("#" + otro);
+    });
+    await lote.commit();
+    if (avisos.length) mostrarNotif("Ya han jugado esta prueba: " + avisos.join(", "));
+  } catch (e) { console.error("cerrar parejas:", e); }
+}
+
+async function marcarParejaJugada(id) {
+  const pa = parejasCache[id];
+  if (!pa) return;
+  try {
+    await db.collection("parejas").doc(id).update({ jugada: true, jugada_en: TS(), cerrada_por: null });
+    mostrarNotif("Pareja marcada como jugada");
+  } catch (e) { console.error(e); mostrarNotif("Error al marcar la pareja"); }
+}
+
+async function reabrirPareja(id) {
+  try {
+    await db.collection("parejas").doc(id).update({ jugada: false, jugada_en: null, cerrada_por: null });
+    mostrarNotif("Pareja reabierta");
+  } catch (e) { console.error(e); mostrarNotif("Error al reabrir la pareja"); }
+}
+
+async function disolverPareja(id) {
+  const pa = parejasCache[id];
+  if (!pa) return;
+  if (!confirm("¿Disolver la pareja #" + pa.dorsales.join(" · #") + "?\n\nNo afecta a los jugadores: solo desaparece el emparejamiento.")) return;
+  try {
+    await db.collection("parejas").doc(id).update({ activo: false });
+    mostrarNotif("Pareja disuelta");
+  } catch (e) { console.error(e); mostrarNotif("Error al disolver la pareja"); }
+}
+
+async function disolverParejasDeLaPrueba() {
+  const prueba = pruebaEnCurso();
+  const lista = parejasDeLaPrueba();
+  if (!lista.length) { mostrarNotif("No hay parejas de " + (prueba || "esta prueba")); return; }
+  if (!confirm("¿Disolver las " + lista.length + " parejas de \"" + prueba + "\"?\n\n" +
+               "No afecta a los jugadores. Después de esto, cualquiera podrá volver a emparejarse en esta prueba.")) return;
+  try {
+    for (let i = 0; i < lista.length; i += 400) {
+      const lote = db.batch();
+      lista.slice(i, i + 400).forEach(([id]) => lote.update(db.collection("parejas").doc(id), { activo: false }));
+      await lote.commit();
+    }
+    mostrarNotif(lista.length + " parejas disueltas");
+  } catch (e) { console.error(e); mostrarNotif("No se han podido disolver las parejas"); }
+}
+
+function renderParejasList() {
+  const cont = document.getElementById("parejas-list");
+  if (!cont) return;
+  const lista = Object.entries(parejasCache)
+    .sort((a, b) => (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0]);
+  if (!lista.length) { cont.innerHTML = '<div style="font-size:11px;color:var(--texto2);">Sin parejas</div>'; return; }
+  cont.innerHTML = lista.map(([id, pa]) => {
+    const ds = pa.dorsales || [];
+    const vivos = ds.filter(d => participantes[d] && participantes[d].vivo).length;
+    const fondo = pa.jugada ? "#eef0ef" : "#e6f7ee";
+    const borde = pa.jugada ? "var(--border)" : "#0a8f4d";
+    const sello = pa.jugada
+      ? '<span style="background:#6b6b6b;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;">YA JUGADA</span>'
+      : '<span style="background:#0a8f4d;color:#fff;border-radius:3px;padding:1px 5px;font-size:9px;">PENDIENTE</span>';
+    return '<div style="background:' + fondo + ';border:1px solid ' + borde + ';border-radius:6px;padding:8px;margin-bottom:6px;">' +
+      '<div style="font-size:12px;font-weight:800;color:var(--texto);font-family:var(--mono);">#' + ds.join(' · #') + ' ' + sello + '</div>' +
+      '<div style="font-size:10px;color:var(--texto2);margin:2px 0 6px;">' + vivos + ' vivos de ' + ds.length +
+        ' · ' + (pa.prueba || 'sin prueba') + ' · ' + (pa.origen === 'manual-staff' ? 'la eligieron los jugadores' : (pa.origen && pa.origen.indexOf('aleatorio') === 0 ? 'sorteada' : 'a mano')) + '</div>' +
+      (pa.cerrada_por ? '<div style="font-size:10px;color:var(--texto2);margin-bottom:6px;">Cerrada al eliminar al #' + pa.cerrada_por + '</div>' : '') +
+      (pa.jugada ? '' : '<button class="btn btn-verde" style="width:100%;padding:6px;font-size:10px;margin-bottom:6px;" onclick="anunciarPareja(\'' + id + '\')"><i class="ti ti-volume"></i> Anunciar por megafonía</button>') +
+      '<div style="display:flex;gap:6px;">' +
+        (pa.jugada
+          ? '<button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="reabrirPareja(\'' + id + '\')">Reabrir</button>'
+          : '<button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="marcarParejaJugada(\'' + id + '\')">Ya ha jugado</button>') +
+        '<button class="btn btn-rojo" style="flex:1;padding:6px;font-size:10px;" onclick="disolverPareja(\'' + id + '\')">Disolver</button>' +
+      '</div></div>';
+  }).join('');
+}
+
+function anunciarPareja(id) {
+  const pa = parejasCache[id];
+  if (!pa) return;
+  anunciarParejaPorDatos(pa.dorsales || []);
+}
+
+function anunciarParejaPorDatos(dorsales) {
+  if (!dorsales || dorsales.length !== 2) return;
+  hablarPorFrases(["Pareja", String(dorsales[0]), "y", String(dorsales[1]),
+                   "por favor", "acudir a la zona de juego"]);
+  mostrarNotif("Anunciando la pareja #" + dorsales[0] + " · #" + dorsales[1]);
 }
 
 function actualizarContadorMulti() {
@@ -1938,6 +2461,7 @@ async function ejecutarEliminacionMultiple(dorsales, equipo, segundos, extra = {
     });
   });
   await batch.commit();
+  await cerrarParejasPorEliminacion(dorsales.map(Number), prueba);
 
   if (equipo) {
     // Modo equipo: la voz dice "Equipo Azul, eliminado" y en pantalla
@@ -1991,6 +2515,7 @@ let modoMultiSalvar = false;
 function toggleModoMultiSalvar() {
   modoMultiSalvar = !modoMultiSalvar;
   seleccionMulti.clear();
+  if (modoMultiSalvar && (filtro === "equipos" || filtro === "parejas")) setFiltro("todos");
   // Los dos modos de selección múltiple (eliminar / salvar) son excluyentes:
   // activar uno cierra el otro para que el grid no quede en un estado ambiguo.
   if (modoMultiSalvar && modoMulti) toggleModoMulti();
@@ -2438,6 +2963,8 @@ async function eliminarDorsal(dorsal, metodo, extra = {}) {
     });
     mostrarNotif(`#${dorsal} eliminado`);
     hablarPanel(`Jugador ${dorsal}, eliminado`);
+    // Si estaba emparejado, su pareja queda cerrada: el otro ya ha jugado.
+    await cerrarParejasPorEliminacion([Number(dorsal)], prueba);
   } catch(e) { console.error(e); mostrarNotif("Error al eliminar"); }
 }
 
