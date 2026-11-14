@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual de Acreditación</title>
+<style>
+  :root{
+    --tinta:#14121a; --suave:#5d5870; --linea:#e2dfe9; --fondo:#fff;
+    --acento:#0a6ea8; --acento-flojo:#e9f3fa;
+    --rojo:#c81e3c; --rojo-flojo:#fdeaee;
+    --verde:#0f7a4a; --verde-flojo:#e7f6ee;
+    --ambar:#8a5a00; --ambar-flojo:#fdf3e0;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:32px 20px 80px; background:var(--fondo); color:var(--tinta);
+    font:16px/1.65 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  .hoja{max-width:720px;margin:0 auto}
+  header{border-bottom:3px solid var(--tinta);padding-bottom:18px;margin-bottom:32px}
+  .evento{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--suave);font-weight:700}
+  h1{font-size:30px;line-height:1.15;margin:8px 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--suave);font-size:15px;margin:0}
+  h2{font-size:21px;margin:40px 0 14px;padding-top:20px;border-top:1px solid var(--linea);letter-spacing:-.01em}
+  h2:first-of-type{border-top:0;padding-top:0}
+  h3{font-size:16px;margin:26px 0 8px}
+  p{margin:0 0 14px}
+  ul,ol{margin:0 0 14px;padding-left:22px}
+  li{margin-bottom:7px}
+  code{background:#f4f2f8;padding:2px 6px;border-radius:4px;font-size:14px;font-family:ui-monospace,Menlo,Consolas,monospace}
+  .caja{border:1px solid var(--linea);border-left:4px solid var(--acento);background:var(--acento-flojo);
+        padding:14px 18px;border-radius:0 8px 8px 0;margin:18px 0}
+  .caja.ojo{border-left-color:var(--rojo);background:var(--rojo-flojo)}
+  .caja.bien{border-left-color:var(--verde);background:var(--verde-flojo)}
+  .caja.aviso{border-left-color:var(--ambar);background:var(--ambar-flojo)}
+  .caja p:last-child{margin-bottom:0}
+  .caja .titulo{font-weight:700;margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin:18px 0;font-size:15px}
+  th,td{text-align:left;padding:9px 10px;border-bottom:1px solid var(--linea);vertical-align:top}
+  th{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--suave);border-bottom:2px solid var(--tinta)}
+  .pasos{counter-reset:paso;list-style:none;padding:0}
+  .pasos li{counter-increment:paso;position:relative;padding-left:40px;margin-bottom:14px}
+  .pasos li::before{
+    content:counter(paso);position:absolute;left:0;top:1px;width:26px;height:26px;border-radius:50%;
+    background:var(--acento);color:#fff;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;
+  }
+  .btn{display:inline-block;background:var(--tinta);color:#fff;padding:2px 9px;border-radius:5px;
+       font-size:13px;font-weight:600;white-space:nowrap}
+  footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--linea);color:var(--suave);font-size:13px}
+  @media print{
+    body{padding:0;font-size:12pt}
+    h2{page-break-after:avoid}
+    .caja,table{page-break-inside:avoid}
+    @page{margin:18mm}
+  }
+</style>
+</head>
+<body>
+<div class="hoja">
+
+<header>
+  <div class="evento">Los Juegos de Omega · 21 de noviembre de 2026</div>
+  <h1>Manual de Acreditación</h1>
+  <p class="sub">Para el equipo de puerta. Cómo dar entrada, asignar dorsales y controlar las salidas.</p>
+</header>
+
+<h2>Qué estás haciendo en la puerta</h2>
+
+<p>Tu trabajo es convertir <strong>una entrada comprada</strong> en <strong>un jugador con dorsal dentro del recinto</strong>. Eso son dos cosas en un mismo gesto:</p>
+
+<ul>
+  <li><strong>Validar la entrada</strong>: comprobar que es buena y que no se ha usado ya.</li>
+  <li><strong>Asignar el dorsal</strong>: entregar un dorsal físico y vincularlo a esa entrada en la app.</li>
+</ul>
+
+<div class="caja ojo">
+  <div class="titulo">Lo más importante de todo el manual</div>
+  <p><strong>Si un jugador no pasa por aquí, no existe para el juego.</strong> No sale en la pantalla grande, el staff no lo ve y no puede ser eliminado ni salvado. Ninguna excepción, ningún «luego lo apunto».</p>
+</div>
+
+<h2>Antes de abrir puertas</h2>
+
+<ol class="pasos">
+  <li>Abre la app en el móvil o la tablet: <code>infomegawg.github.io/JUEGOS/acreditacion.html</code></li>
+  <li>Entra con el usuario y la contraseña que te dé el responsable.</li>
+  <li>Acepta el permiso de <strong>cámara</strong> cuando lo pida. Sin cámara no hay escáner.</li>
+  <li>Comprueba que arriba ves los contadores y que el responsable te confirma que la lista de entradas está cargada.</li>
+  <li>Ten a mano los dorsales físicos ordenados. Es lo que de verdad marca la velocidad de la cola.</li>
+</ol>
+
+<div class="caja aviso">
+  <div class="titulo">Varias puertas a la vez</div>
+  <p>Podéis trabajar varios dispositivos en paralelo sin problema: todos ven lo mismo al instante. Lo que no podéis es repartir los mismos dorsales físicos entre dos puestos.</p>
+</div>
+
+<h2>Las pantallas de la app</h2>
+
+<table>
+  <tr><th>Sección</th><th>Para qué es</th></tr>
+  <tr><td><strong>Acreditar</strong></td><td>Lo que usas el 95% del tiempo: escanear entrada y dar dorsal.</td></tr>
+  <tr><td><strong>Buscar</strong></td><td>Buscar una entrada a mano por nombre, correo o código, cuando el QR no se puede leer.</td></tr>
+  <tr><td><strong>Ajustes</strong></td><td>Cambiar entre modo entrada y modo salida, y ver el estado de la app.</td></tr>
+</table>
+
+<h3>Los contadores de arriba</h3>
+
+<table>
+  <tr><th>Contador</th><th>Qué cuenta</th></tr>
+  <tr><td><strong>Dentro</strong></td><td>Personas que están ahora mismo en el recinto. Sube con cada entrada y baja con cada salida.</td></tr>
+  <tr><td><strong>Jugadores</strong></td><td>Acreditados con dorsal. Este es el número que importa para el juego.</td></tr>
+  <tr><td><strong>Espectadores</strong></td><td>Acreditados sin dorsal: acompañantes y público.</td></tr>
+  <tr><td><strong>Pendientes</strong></td><td>Entradas vendidas que todavía no han llegado.</td></tr>
+  <tr><td><strong>Salidas</strong></td><td>Gente que ha salido del recinto.</td></tr>
+  <tr><td><strong>Menores</strong></td><td>Menores acreditados, para el control de aforo y responsabilidad.</td></tr>
+</table>
+
+<h2>Acreditar a un jugador (el caso normal)</h2>
+
+<ol class="pasos">
+  <li>Comprueba que estás en <strong>modo entrada</strong> (lo ves en Ajustes).</li>
+  <li>Pulsa el botón de <strong>escanear entrada</strong> y lee el QR de la entrada del jugador.</li>
+  <li>La app te dice al instante si la entrada es válida y te muestra el nombre. <strong>Mira la pantalla antes de dejar pasar.</strong></li>
+  <li>Coge un dorsal físico y escanea su QR con el botón de <strong>escanear dorsal</strong>.</li>
+  <li>Le das el dorsal, le dices su número en voz alta y pasa.</li>
+</ol>
+
+<p>En cuanto haces esto, ese dorsal aparece solo en la pantalla grande y en los móviles del staff. No hay que avisar a nadie.</p>
+
+<div class="caja">
+  <div class="titulo">Decir el número en voz alta</div>
+  <p>Que el jugador sepa su número es media hora de problemas menos luego. Dile: «eres el 237, recuérdalo».</p>
+</div>
+
+<h2>Acreditar a un espectador</h2>
+
+<p>Acompañantes, familia, público que no juega. Pulsa <span class="btn">Acreditar espectador</span>. No lleva dorsal y no entra en el juego, pero sí cuenta para el aforo.</p>
+
+<h2>Cuando el QR no se lee</h2>
+
+<p>Pasa: pantallas rotas, brillo bajo, entradas impresas arrugadas. Vas a <strong>Buscar</strong>:</p>
+
+<ol class="pasos">
+  <li>Escribe <strong>el código de la entrada o el nombre</strong> de la persona en el campo de buscar.</li>
+  <li>Si solo hay una coincidencia, se abre sola. Si hay varias, te salen en una lista con el código y el estado de cada una: tocas la correcta mirando a quien tienes delante.</li>
+  <li>Acredítala desde ahí y asígnale el dorsal <strong>a mano</strong> escribiendo el número.</li>
+</ol>
+
+<div class="caja">
+  <div class="titulo">Buscar por nombre: cómo escribirlo</div>
+  <p>No hace falta poner tildes ni mayúsculas, y da igual el orden: escribiendo <code>ibañez jose</code>
+  encuentra a «José Ibáñez Soler». Cuantas menos palabras pongas, más resultados salen; si te sale
+  una lista muy larga, añade el apellido.</p>
+  <p>En la lista verás marcado en naranja quien <strong>ya está acreditado</strong> (con su dorsal) y en rojo
+  las entradas anuladas o devueltas. Eso te evita dar un segundo dorsal a quien ya pasó.</p>
+</div>
+
+<div class="caja aviso">
+  <div class="titulo">Si asignas el dorsal a mano</div>
+  <p>Asegúrate de que el número que escribes es exactamente el del dorsal que le estás dando. Un número mal escrito aquí significa que luego se elimina a otra persona.</p>
+</div>
+
+<h2>Salidas y reentradas</h2>
+
+<p>La gente sale a fumar, al coche, a comer. Para que el contador de aforo sea de fiar:</p>
+
+<ol class="pasos">
+  <li>En <strong>Ajustes</strong>, pon la app en <strong>modo salida</strong>.</li>
+  <li>Escanea la entrada de quien sale. El contador de dentro baja.</li>
+  <li>Cuando vuelva, pon otra vez <strong>modo entrada</strong> y escanea de nuevo.</li>
+</ol>
+
+<div class="caja bien">
+  <div class="titulo">Volver a entrar no quita el dorsal</div>
+  <p>El dorsal sigue siendo suyo y sigue en juego. La salida solo afecta al aforo, nunca al juego.</p>
+</div>
+
+<div class="caja ojo">
+  <div class="titulo">Cuidado con el modo</div>
+  <p>El error más fácil del día es quedarse en modo salida y seguir escaneando gente que entra. Mira el modo cada vez que cambies de tarea, y si hay dos dispositivos, deja uno fijo en entrada y otro en salida.</p>
+</div>
+
+<h2>Menores</h2>
+
+<p>Cuando la entrada corresponde a un menor, la app lo marca y lo cuenta aparte. Pide la autorización firmada del adulto responsable antes de acreditar, según las bases del evento. Si no la traen, no acredites: avisa al responsable.</p>
+
+<h2>Cuando se cierra la acreditación</h2>
+
+<p>A la hora que marque el responsable, él cierra la acreditación desde el Panel Central. A partir de ese momento <strong>los dorsales que nadie recogió salen del juego</strong>: la pantalla grande deja de mostrar 500 casillas y muestra solo los que están de verdad en el recinto.</p>
+
+<p>Si llega alguien tarde después del cierre, acredítalo con normalidad: al asignarle el dorsal vuelve a entrar en juego automáticamente. No hace falta tocar nada más.</p>
+
+<h2>Problemas y qué hacer</h2>
+
+<table>
+  <tr><th>Qué pasa</th><th>Qué haces</th></tr>
+  <tr><td>«Esta entrada ya se ha usado»</td><td>O ya pasó esa persona, o alguien le ha reenviado la entrada. Mira el nombre que sale en pantalla y pregunta. Si hay discusión, al responsable: no improvises.</td></tr>
+  <tr><td>La entrada no aparece</td><td>Busca solo por el apellido antes de darla por mala: puede estar escrita con otra grafía o con los apellidos al revés. Si de verdad no está, puede ser una compra posterior a la última importación → responsable.</td></tr>
+  <tr><td>Le he dado un dorsal equivocado</td><td>Avisa al responsable para que lo corrija desde el panel. No le des un segundo dorsal: tendría dos.</td></tr>
+  <tr><td>La cámara no se abre</td><td>Permiso de cámara denegado: actívalo en los ajustes del navegador. Mientras tanto, acredita por Buscar.</td></tr>
+  <tr><td>Se ha caído el wifi</td><td>Para y avisa. La acreditación necesita conexión para no dar dos veces el mismo dorsal. Apunta en papel los que pasen y mételos en cuanto vuelva.</td></tr>
+  <tr><td>La app va lenta con la cola encima</td><td>Recarga la página. Si hay mucha gente, abre un segundo dispositivo y reparte la cola.</td></tr>
+</table>
+
+<h2>Resumen para pegar en la mesa</h2>
+
+<ul>
+  <li>Modo <strong>entrada</strong> para entrar, modo <strong>salida</strong> para salir. Míralo siempre.</li>
+  <li>Jugador = escanear entrada + escanear dorsal. Las dos cosas.</li>
+  <li>Dile el número en voz alta.</li>
+  <li>Espectador = sin dorsal.</li>
+  <li>Si el QR falla → Buscar.</li>
+  <li>Cualquier duda de identidad o entrada repetida → responsable.</li>
+  <li>Nadie entra sin pasar por aquí.</li>
+</ul>
+
+<footer>
+  <strong>Los Juegos de Omega</strong> · Omega World Events SL<br>
+  Ciudad Deportiva Municipal de Paterna · 21 de noviembre de 2026
+</footer>
+
+</div>
+</body>
+</html>

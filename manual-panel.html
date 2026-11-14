@@ -55,7 +55,45 @@
   .indice a{color:var(--tinta);text-decoration:none;border-bottom:1px solid var(--linea)}
   .pin{font-size:13px;color:var(--suave);font-weight:700;text-transform:uppercase;letter-spacing:.07em}
   footer{margin-top:52px;padding-top:18px;border-top:1px solid var(--linea);color:var(--suave);font-size:13px}
+  /* --- buscador --- */
+  .buscador{
+    position:sticky; top:0; z-index:20; background:var(--fondo);
+    padding:12px 0 10px; margin-bottom:6px; border-bottom:1px solid var(--linea);
+  }
+  .buscador .fila{display:flex;gap:8px;align-items:center}
+  .buscador input{
+    flex:1; min-width:0; padding:11px 14px; font-size:15px; font-family:inherit;
+    border:1px solid var(--linea); border-radius:9px; background:#fff; color:var(--tinta);
+    outline:none;
+  }
+  .buscador input:focus{border-color:var(--acento);box-shadow:0 0 0 3px var(--acento-flojo)}
+  .buscador button{
+    padding:10px 13px; font-size:14px; font-family:inherit; font-weight:700; cursor:pointer;
+    border:1px solid var(--linea); border-radius:9px; background:#fff; color:var(--tinta);
+  }
+  .buscador button:hover{background:var(--acento-flojo);border-color:var(--acento)}
+  .buscador .nav{display:none;gap:6px;align-items:center;flex-shrink:0}
+  .buscador .estado{
+    font-size:13px; color:var(--suave); margin-top:8px; min-height:18px;
+  }
+  .buscador .estado b{color:var(--acento)}
+  .buscador .pista{font-size:12.5px;color:var(--suave);margin-top:8px}
+  .buscador .pista kbd{
+    background:#f4f2f8;border:1px solid var(--linea);border-bottom-width:2px;border-radius:4px;
+    padding:1px 5px;font-size:11.5px;font-family:ui-monospace,Menlo,Consolas,monospace;
+  }
+  mark.marca{background:#ffe9a8;color:inherit;border-radius:3px;padding:0 1px}
+  mark.marca.activa{background:var(--acento);color:#fff}
+  .oculto{display:none}
+  .nada{
+    border:1px solid var(--linea);border-left:4px solid var(--ambar);background:var(--ambar-flojo);
+    padding:14px 18px;border-radius:0 8px 8px 0;margin:18px 0;
+  }
+
   @media print{
+    .buscador{display:none}
+    .oculto{display:block !important}
+    mark.marca{background:none;font-weight:700}
     body{padding:0;font-size:11.5pt}
     h2{page-break-before:always;page-break-after:avoid}
     h2#arranque{page-break-before:avoid}
@@ -75,6 +113,24 @@
   <p class="sub">Todo lo que hace el panel, botón por botón, y cómo se conectan entre sí las seis apps del evento.
   Para quien esté al mando de la mesa durante el juego.</p>
 </header>
+
+<div class="buscador">
+  <div class="fila">
+    <input type="search" id="q" placeholder="Buscar en el manual: bingo, acta, pareja, no carga…"
+           autocomplete="off" spellcheck="false" aria-label="Buscar en el manual">
+    <div class="nav" id="nav">
+      <button type="button" id="ant" title="Anterior (Mayús+Intro)">‹</button>
+      <button type="button" id="sig" title="Siguiente (Intro)">›</button>
+    </div>
+    <button type="button" id="limpiar" title="Limpiar (Esc)">Limpiar</button>
+  </div>
+  <div class="estado" id="estado"></div>
+  <div class="pista">
+    Se queda solo con las secciones que tienen <b>todas</b> las palabras. Da igual
+    acentos y mayúsculas. <kbd>Intro</kbd> salta a la siguiente, <kbd>Esc</kbd> limpia,
+    <kbd>/</kbd> vuelve al buscador.
+  </div>
+</div>
 
 <div class="indice">
   <div class="pin" style="margin-bottom:10px">Índice</div>
@@ -704,5 +760,178 @@ y el PIN del candado y del cierre de acreditación. No los dejes en el ordenador
 </footer>
 
 </div>
+
+<script>
+(function () {
+  const hoja    = document.querySelector(".hoja");
+  const caja    = document.getElementById("q");
+  const estado  = document.getElementById("estado");
+  const nav     = document.getElementById("nav");
+
+  /* El manual es una lista plana de h2 y párrafos. Para poder enseñar u
+     ocultar "la sección 12 entera" hay que agrupar cada h2 con todo lo que
+     viene detrás hasta el h2 siguiente. */
+  const hijos = Array.prototype.slice.call(hoja.children);
+  const secciones = [];
+  const preludio  = [];   // el índice y la caja de las tres reglas
+  let actual = null;
+  hijos.forEach(function (el) {
+    if (el.tagName === "HEADER" || el.tagName === "FOOTER" ||
+        el.className === "buscador" || el.tagName === "SCRIPT") return;
+    if (el.tagName === "H2") {
+      actual = document.createElement("div");
+      actual.className = "seccion";
+      hoja.insertBefore(actual, el);
+      actual.appendChild(el);
+      secciones.push(actual);
+    } else if (actual) {
+      actual.appendChild(el);
+    } else {
+      preludio.push(el);
+    }
+  });
+
+  const originales = secciones.map(function (s) { return s.innerHTML; });
+
+  /* Normaliza letra a letra para que el texto normalizado tenga EXACTAMENTE
+     la misma longitud que el original: así las posiciones que encuentra el
+     buscador valen para recortar el texto de verdad y resaltarlo. */
+  function norm(s) {
+    let o = "";
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      const d = c.normalize("NFD");
+      const base = d.length ? d[0] : c;
+      const baja = base.toLowerCase();
+      o += (baja.length === 1 ? baja : base);
+    }
+    return o;
+  }
+
+  function resaltar(sec, terminos) {
+    const walker = document.createTreeWalker(sec, NodeFilter.SHOW_TEXT, null, false);
+    const nodos = [];
+    let n;
+    while ((n = walker.nextNode())) nodos.push(n);
+
+    nodos.forEach(function (nodo) {
+      const txt  = nodo.nodeValue;
+      const bajo = norm(txt);
+      let rangos = [];
+      terminos.forEach(function (t) {
+        let i = bajo.indexOf(t);
+        while (i !== -1) { rangos.push([i, i + t.length]); i = bajo.indexOf(t, i + t.length); }
+      });
+      if (!rangos.length) return;
+      rangos.sort(function (a, b) { return a[0] - b[0]; });
+      const unidos = [];
+      rangos.forEach(function (r) {
+        const u = unidos[unidos.length - 1];
+        if (u && r[0] <= u[1]) u[1] = Math.max(u[1], r[1]);
+        else unidos.push([r[0], r[1]]);
+      });
+
+      const frag = document.createDocumentFragment();
+      let pos = 0;
+      unidos.forEach(function (par) {
+        if (par[0] > pos) frag.appendChild(document.createTextNode(txt.slice(pos, par[0])));
+        const m = document.createElement("mark");
+        m.className = "marca";
+        m.textContent = txt.slice(par[0], par[1]);
+        frag.appendChild(m);
+        pos = par[1];
+      });
+      if (pos < txt.length) frag.appendChild(document.createTextNode(txt.slice(pos)));
+      nodo.parentNode.replaceChild(frag, nodo);
+    });
+  }
+
+  let hits = [], idx = -1;
+
+  function marcarActiva(nueva) {
+    if (!hits.length) return;
+    if (hits[idx]) hits[idx].classList.remove("activa");
+    idx = (nueva + hits.length) % hits.length;
+    hits[idx].classList.add("activa");
+    hits[idx].scrollIntoView({ block: "center", behavior: "smooth" });
+    pintarEstado();
+  }
+
+  let nSec = 0;
+  function pintarEstado() {
+    if (!hits.length) return;
+    estado.innerHTML = "<b>" + hits.length + "</b> " +
+      (hits.length === 1 ? "coincidencia" : "coincidencias") + " en " +
+      nSec + (nSec === 1 ? " sección" : " secciones") +
+      (idx >= 0 ? " · viendo la " + (idx + 1) : "");
+  }
+
+  function buscar() {
+    const q = caja.value.trim();
+
+    secciones.forEach(function (s, i) { s.innerHTML = originales[i]; s.classList.remove("oculto"); });
+    const avisoViejo = document.getElementById("nada");
+    if (avisoViejo) avisoViejo.remove();
+    hits = []; idx = -1; nSec = 0;
+
+    preludio.forEach(function (el) { el.classList.toggle("oculto", !!q); });
+
+    if (!q) { estado.textContent = ""; nav.style.display = "none"; return; }
+
+    const terminos = norm(q).split(/\s+/).filter(Boolean);
+    // "se", "de", "la" valen para acotar la sección, pero resaltarlas deja
+    // la página amarilla y no ayuda a nadie. Solo se pintan de tres letras
+    // en adelante; si no hay ninguna larga, se pinta lo que haya.
+    const largos  = terminos.filter(function (t) { return t.length >= 3; });
+    const aPintar = largos.length ? largos : terminos;
+
+    secciones.forEach(function (s) {
+      const texto = norm(s.textContent);
+      const vale = terminos.every(function (t) { return texto.indexOf(t) !== -1; });
+      if (vale) { resaltar(s, aPintar); nSec++; }
+      else s.classList.add("oculto");
+    });
+
+    hits = Array.prototype.slice.call(hoja.querySelectorAll("mark.marca"));
+
+    if (!hits.length) {
+      nav.style.display = "none";
+      estado.textContent = "";
+      const aviso = document.createElement("div");
+      aviso.className = "nada";
+      aviso.id = "nada";
+      aviso.innerHTML = "<strong>Nada con «" + q.replace(/</g, "&lt;") + "».</strong> " +
+        "Prueba con una sola palabra, o con otra: el buscador exige que estén todas.";
+      hoja.insertBefore(aviso, secciones[0]);
+      return;
+    }
+
+    nav.style.display = "flex";
+    marcarActiva(0);
+  }
+
+  let t = null;
+  caja.addEventListener("input", function () { clearTimeout(t); t = setTimeout(buscar, 120); });
+
+  caja.addEventListener("keydown", function (e) {
+    if (e.key === "Enter")  { e.preventDefault(); clearTimeout(t); if (!hits.length) buscar(); else marcarActiva(idx + (e.shiftKey ? -1 : 1)); }
+    if (e.key === "Escape") { caja.value = ""; buscar(); }
+  });
+
+  document.getElementById("sig").onclick     = function () { marcarActiva(idx + 1); };
+  document.getElementById("ant").onclick     = function () { marcarActiva(idx - 1); };
+  document.getElementById("limpiar").onclick = function () { caja.value = ""; buscar(); caja.focus(); };
+
+  /* "/" devuelve el foco al buscador sin tener que ir con el ratón. */
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "/" && document.activeElement !== caja) { e.preventDefault(); caja.focus(); caja.select(); }
+  });
+
+  /* En pantalla grande (la mesa) el cursor ya está dentro. En el móvil no, que
+     saltaría el teclado encima del texto nada más abrirlo. */
+  if (window.innerWidth > 800) caja.focus();
+})();
+</script>
+
 </body>
 </html>
