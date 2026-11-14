@@ -1027,8 +1027,10 @@ function candidatosSalvacion() {
       ? todos.filter(d => !!state.pruebaDe[d])
       : todos;
   }
+  // Mismo orden que el panel (capítulo 18). Desafío Explosivo está fuera del
+  // programa y no tiene número: sus eliminaciones cuentan como "sin prueba".
   const ORDEN = ["LUZ ROJA LUZ VERDE","SELECCIÓN FATAL","CAMPO DE BATALLA","PISTOLA A CIEGAS",
-    "DESAFÍO EXPLOSIVO","LA RULETA","TIRO AL SACO","BATALLA NAVAL",
+    "TIRO AL SACO","LA RULETA","BATALLA NAVAL",
     "LAS CANICAS","OMEGA TRIVIAL","EQUILIBRIO FATAL","LA GRAN FINAL"];
   return todos.filter(d => {
     const p = state.pruebaDe[d];

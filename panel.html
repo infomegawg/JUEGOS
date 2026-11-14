@@ -235,14 +235,14 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <option value="SELECCIÓN FATAL">2. SELECCIÓN FATAL</option>
         <option value="CAMPO DE BATALLA">3. CAMPO DE BATALLA</option>
         <option value="PISTOLA A CIEGAS">4. PISTOLA A CIEGAS</option>
-        <option value="DESAFÍO EXPLOSIVO">5. DESAFÍO EXPLOSIVO</option>
+        <option value="TIRO AL SACO">5. TIRO AL SACO</option>
         <option value="LA RULETA">6. LA RULETA</option>
-        <option value="TIRO AL SACO">7. TIRO AL SACO</option>
-        <option value="BATALLA NAVAL">8. BATALLA NAVAL</option>
-        <option value="LAS CANICAS">9. LAS CANICAS</option>
-        <option value="OMEGA TRIVIAL">10. OMEGA TRIVIAL</option>
-        <option value="EQUILIBRIO FATAL">11. EQUILIBRIO FATAL</option>
-        <option value="LA GRAN FINAL">12. LA GRAN FINAL</option>
+        <option value="BATALLA NAVAL">7. BATALLA NAVAL</option>
+        <option value="LAS CANICAS">8. LAS CANICAS</option>
+        <option value="OMEGA TRIVIAL">9. OMEGA TRIVIAL</option>
+        <option value="EQUILIBRIO FATAL">10. EQUILIBRIO FATAL</option>
+        <option value="LA GRAN FINAL">11. LA GRAN FINAL</option>
+        <option value="DESAFÍO EXPLOSIVO">EXTRA · DESAFÍO EXPLOSIVO (reserva)</option>
       </select>
 
     </div>
@@ -317,7 +317,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <select id="filtro-salvacion" onchange="cambiarFiltroSalvacion()" style="width:100%;font-size:11px;font-weight:700;margin-bottom:6px;">
             <option value="1-2">Bingo 1 — eliminados en las pruebas 1 y 2</option>
             <option value="1-4">Bingo 2 — eliminados en las pruebas 1 a 4</option>
-            <option value="5-7">Bingo 3 — eliminados en las pruebas 5 a 7</option>
+            <option value="5-6">Bingo 3 — eliminados en las pruebas 5 y 6 (Tiro al Saco y La Ruleta)</option>
             <option value="todos">Todos los eliminados (sin filtro)</option>
           </select>
           <label style="display:flex;align-items:center;gap:6px;font-size:10px;color:var(--texto2);cursor:pointer;">
@@ -576,14 +576,19 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
         <div>
           <div class="section-title" style="margin-bottom:6px;"><i class="ti ti-users"></i> Parejas</div>
 
-          <button class="btn btn-verde" style="width:100%;padding:7px;font-size:11px;margin-bottom:6px;" onclick="sortearParejaAleatoria()">
-            <i class="ti ti-dice"></i> Sortear pareja aleatoria
-          </button>
+          <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+            <input type="number" id="parejas-azar-n" value="6" min="1" max="100" style="width:64px;" title="Cuántas parejas se sortean de una vez" />
+            <span style="font-size:10px;color:var(--texto2);">parejas</span>
+            <button class="btn btn-verde" style="flex:1;padding:7px;font-size:10px;" onclick="sortearParejasAleatorias()">
+              <i class="ti ti-dice"></i> Sortear
+            </button>
+          </div>
           <div id="pareja-azar-prev" style="display:none;margin-bottom:8px;padding:8px;border-radius:6px;background:#e6f7ee;border:1px solid #0a8f4d;">
-            <div style="font-size:12px;font-weight:800;color:#0a8f4d;margin-bottom:8px;font-family:var(--mono);" id="pareja-azar-lista"></div>
+            <div style="font-size:11px;font-weight:800;color:#0a8f4d;margin-bottom:6px;" id="pareja-azar-cab"></div>
+            <div style="font-size:12px;font-weight:800;color:var(--texto);margin-bottom:8px;font-family:var(--mono);line-height:1.7;" id="pareja-azar-lista"></div>
             <div style="display:flex;gap:6px;">
-              <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarParejaAleatoria()"><i class="ti ti-check"></i> Confirmar</button>
-              <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearParejaAleatoria()"><i class="ti ti-refresh"></i> Otra</button>
+              <button class="btn btn-verde" style="flex:1;padding:6px;font-size:10px;" onclick="confirmarParejasAleatorias()"><i class="ti ti-check"></i> Confirmar</button>
+              <button class="btn btn-morado" style="flex:1;padding:6px;font-size:10px;" onclick="sortearParejasAleatorias()"><i class="ti ti-refresh"></i> Otras</button>
               <button class="btn btn-ghost" style="flex:1;padding:6px;font-size:10px;" onclick="cancelarParejaAleatoria()">Cancelar</button>
             </div>
           </div>
@@ -2164,7 +2169,7 @@ function descargarActasCSV() {
 
 let parejasCache = {};            // colección "parejas", solo las activas
 let grupoAzarPropuesto = null;    // { nombre, dorsales } pendiente de confirmar
-let parejaAzarPropuesta = null;   // [a, b] pendiente de confirmar
+let parejasAzarPropuestas = [];   // parejas sorteadas, pendientes de confirmar
 let modoCrearPareja = false;
 
 /* Traduce el fallo de Firestore a algo que se pueda leer de un vistazo en
@@ -2285,8 +2290,12 @@ function companeroDe(dorsal) {
   return (pa.dorsales || []).find(d => Number(d) !== Number(dorsal)) || null;
 }
 
-function sortearParejaAleatoria() {
+/* Sortea VARIAS parejas de una vez: en Tiro al Saco hacen falta seis tandas
+   seguidas y hacerlas de una en una es perder el día. Nada se escribe hasta
+   que se confirma: si el reparto no gusta, se vuelve a tirar. */
+function sortearParejasAleatorias() {
   const prueba = pruebaEnCurso();
+  const cuantas = Math.max(1, parseInt(document.getElementById("parejas-azar-n").value, 10) || 1);
   const yaEmparejados = new Set();
   parejasDeLaPrueba().forEach(([, pa]) => (pa.dorsales || []).forEach(d => yaEmparejados.add(Number(d))));
   const pool = dorsalesVivos().filter(d => !estaFuera(participantes[d]) && !yaEmparejados.has(d));
@@ -2294,23 +2303,76 @@ function sortearParejaAleatoria() {
     mostrarNotif("No quedan 2 jugadores sin pareja en " + (prueba || "esta prueba"));
     return;
   }
-  parejaAzarPropuesta = elegirAlAzar(pool, 2).sort((a, b) => a - b);
-  document.getElementById("pareja-azar-lista").textContent = "#" + parejaAzarPropuesta[0] + "   vs   #" + parejaAzarPropuesta[1];
+
+  const posibles = Math.floor(pool.length / 2);
+  const n = Math.min(cuantas, posibles);
+  // Un solo barajado para todas: así nadie puede salir en dos parejas.
+  const barajado = elegirAlAzar(pool, n * 2);
+  parejasAzarPropuestas = [];
+  for (let i = 0; i < barajado.length; i += 2) {
+    parejasAzarPropuestas.push([barajado[i], barajado[i + 1]].sort((a, b) => a - b));
+  }
+
+  const sobran = pool.length - n * 2;
+  const cab = n + (n === 1 ? " pareja" : " parejas") +
+    (n < cuantas ? " (pedías " + cuantas + ", solo da para " + n + ")" : "") +
+    (sobran ? " · quedan " + sobran + " sin emparejar" : "");
+  document.getElementById("pareja-azar-cab").textContent = cab;
+  document.getElementById("pareja-azar-lista").innerHTML =
+    parejasAzarPropuestas.map((p, i) => (i + 1) + ".  #" + p[0] + "  vs  #" + p[1]).join("<br>");
   document.getElementById("pareja-azar-prev").style.display = "block";
 }
 
 function cancelarParejaAleatoria() {
-  parejaAzarPropuesta = null;
+  parejasAzarPropuestas = [];
   document.getElementById("pareja-azar-prev").style.display = "none";
 }
 
-async function confirmarParejaAleatoria() {
-  if (!parejaAzarPropuesta) return;
-  const dorsales = parejaAzarPropuesta;
-  if (await crearPareja(dorsales, "aleatorio-panel")) {
-    anunciarParejaPorDatos(dorsales);
-    cancelarParejaAleatoria();
+/* Todas en un solo lote: o entran las seis o no entra ninguna. Media tanda
+   creada sería peor que ninguna. */
+async function confirmarParejasAleatorias() {
+  if (!parejasAzarPropuestas.length) return;
+  const prueba = pruebaEnCurso();
+  if (!prueba) {
+    if (!confirm("No hay prueba seleccionada arriba.\n\nLas parejas quedarán sin prueba y no bloquearán repeticiones.\n\n¿Crearlas igual?")) return;
   }
+  // Red de seguridad: entre el sorteo y el confirmar, otro puesto puede haber
+  // emparejado a alguien. Se mira otra vez justo antes de escribir.
+  const choques = [];
+  parejasAzarPropuestas.forEach(p => p.forEach(d => {
+    const pa = parejaDelDorsal(d);
+    if (pa) choques.push("#" + d);
+  }));
+  if (choques.length) {
+    mostrarNotif("Mientras sorteabas se emparejó a " + choques.join(", ") + ": vuelve a sortear");
+    return;
+  }
+  try {
+    const lote = db.batch();
+    parejasAzarPropuestas.forEach(dorsales => {
+      lote.set(db.collection("parejas").doc(), {
+        dorsales: dorsales.map(Number),
+        prueba: prueba,
+        origen: "aleatorio-panel",
+        creado_por: "Panel-Central",
+        creado_en: TS(),
+        activo: true,
+        jugada: false,
+        jugada_en: null,
+        cerrada_por: null
+      });
+    });
+    await lote.commit();
+    const n = parejasAzarPropuestas.length;
+    // Con una sola, se anuncia sola, como antes. Con varias no: seis
+    // locuciones seguidas por megafonía no se entienden. Se anuncian desde
+    // la lista, cuando toque llamar a cada una.
+    if (n === 1) anunciarParejaPorDatos(parejasAzarPropuestas[0]);
+    cancelarParejaAleatoria();
+    mostrarNotif(n === 1
+      ? "Pareja creada y anunciada"
+      : n + " parejas creadas · anúncialas una a una desde la lista");
+  } catch (e) { mostrarNotif("No se han creado las parejas — " + motivoFallo(e)); }
 }
 
 /* Alta de una pareja. Devuelve true si se ha creado.
@@ -2499,6 +2561,7 @@ function escucharPropuestasStaff() {
     const propuestas = [];
     snap.forEach(d => propuestas.push({ id: d.id, ...d.data() }));
     propuestas.sort((a,b) => (a.creado_en?.seconds||0) - (b.creado_en?.seconds||0));
+    propuestasPendientes = propuestas.length;
     renderPropuestasStaff(propuestas);
   });
 }
@@ -2848,7 +2911,7 @@ async function enviarComandoBingo(coleccion, accion, ganadores, textoOk) {
 
 /* ===== FILTRO DE LOS BINGOS DE RECUPERACIÓN =====
    El manual no sortea entre todos los eliminados: cada bingo repesca de un
-   tramo de pruebas. Si a alguien lo recuperaron y volvió a caer en la 5-7,
+   tramo de pruebas. Si a alguien lo recuperaron y volvió a caer en la 5-6,
    vuelve a entrar en el tercero, y eso sale solo porque la prueba del
    participante se reescribe en cada eliminación y se borra al salvarlo.
 
@@ -2858,8 +2921,11 @@ async function enviarComandoBingo(coleccion, accion, ganadores, textoOk) {
 
 const PRUEBAS_ORDEN = [
   "LUZ ROJA LUZ VERDE", "SELECCIÓN FATAL", "CAMPO DE BATALLA", "PISTOLA A CIEGAS",
-  "DESAFÍO EXPLOSIVO", "LA RULETA", "TIRO AL SACO", "BATALLA NAVAL",
+  "TIRO AL SACO", "LA RULETA", "BATALLA NAVAL",
   "LAS CANICAS", "OMEGA TRIVIAL", "EQUILIBRIO FATAL", "LA GRAN FINAL"
+  // Desafío Explosivo NO está aquí a propósito: está fuera del programa y no
+  // tiene número. Si algún día se juega como reserva, sus eliminaciones
+  // quedan como "sin prueba" y entran en los bingos marcando esa casilla.
 ];
 
 function numeroDePrueba(nombre) {
@@ -3289,7 +3355,43 @@ async function guardarPrueba() {
    en sesion/actual y todos los moviles del staff la adoptan solos, para que
    las eliminaciones queden etiquetadas con la prueba correcta (de eso depende
    el filtro de los bingos de recuperacion). */
+// Propuestas del staff que siguen sin resolver. Si se cambia de prueba con
+// alguna pendiente, esa eliminación no entra en el acta de la prueba que
+// acaba: es justo lo que hay que avisar antes de cambiar.
+let propuestasPendientes = 0;
+
 async function cambiarPruebaActual(valor) {
+  const anterior = pruebaAbierta && pruebaAbierta.prueba;
+
+  // Cambiar de prueba cierra el acta de la anterior. No es reversible solo,
+  // así que se pregunta antes y se enseña con qué números se va a cerrar.
+  if (anterior && anterior !== valor) {
+    const vivos = dorsalesVivos().filter(d => !estaFuera(participantes[d])).length;
+    const entraron = (pruebaAbierta.vivos || []).length;
+    const caidos = entraron ? Math.max(0, entraron - vivos) : null;
+
+    let aviso = "VAS A CERRAR \"" + anterior + "\" Y PASAR A \"" + valor + "\".\n\n" +
+      "¿Está TODO confirmado en " + anterior + "?\n" +
+      "Lo que no esté marcado ahora no entrará en su acta.\n\n";
+    if (propuestasPendientes) {
+      aviso += "⚠️ HAY " + propuestasPendientes +
+        (propuestasPendientes === 1 ? " PROPUESTA DEL STAFF SIN RESOLVER.\n" : " PROPUESTAS DEL STAFF SIN RESOLVER.\n") +
+        "Resuélvelas antes o se quedarán fuera del acta.\n\n";
+    }
+    aviso += "Se va a guardar el acta de " + anterior + ":\n" +
+      (entraron ? "· " + entraron + " entraron\n· " + caidos + " eliminados\n" : "· sin foto de inicio: el acta saldrá reconstruida\n") +
+      "· " + vivos + " clasifican a " + valor + "\n\n" +
+      "Aceptar = cerrar el acta y cambiar de prueba\n" +
+      "Cancelar = seguir en " + anterior;
+
+    if (!confirm(aviso)) {
+      // El desplegable ya se ha movido solo al pulsarlo: se devuelve.
+      document.getElementById("prueba-select").value = anterior;
+      mostrarNotif("Se sigue en " + anterior);
+      return;
+    }
+  }
+
   const etiqueta = document.getElementById("st-prueba");
   if (etiqueta) etiqueta.textContent = valor;
   try {
