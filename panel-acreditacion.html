@@ -34,6 +34,8 @@ button, input, select { font-family: var(--mono); font-weight: 700; }
 .btn-peq { background: rgba(255,255,255,.1); border: 1px solid var(--border); color: var(--texto);
   padding: 8px 14px; border-radius: 8px; font-size: 12px; cursor: pointer; }
 .btn-peq:hover { background: rgba(255,255,255,.2); }
+.btn-peq.salir { background: rgba(255,59,78,.18); border-color: rgba(255,59,78,.5); }
+.btn-peq.salir:hover { background: rgba(255,59,78,.35); }
 
 .wrap { max-width: 1400px; margin: 0 auto; padding: 18px 20px 60px; }
 
@@ -129,6 +131,8 @@ button, input, select { font-family: var(--mono); font-weight: 700; }
     <div class="reloj" id="reloj">--:--:--</div>
     <a class="btn-peq" href="manual-acreditacion.html" target="_blank" rel="noopener"
        style="text-decoration:none;white-space:nowrap;">📖 Manual</a>
+    <button class="btn-peq salir" onclick="cerrarSesionOmega()"
+            title="Cerrar sesión en este ordenador">Salir</button>
     <button class="btn-peq" onclick="exportarCSV()">Descargar CSV</button>
   </div>
 </div>
@@ -315,7 +319,10 @@ auth.onAuthStateChanged((usuario) => {
 
 // Cerrar sesión en este dispositivo (por ejemplo, si se pierde un móvil)
 function cerrarSesionOmega() {
-  if (confirm("¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir usuario y contraseña.")) {
+  if (confirm(
+      "¿CERRAR LA SESIÓN EN ESTE ORDENADOR?\n\n" +
+      "Habrá que volver a escribir usuario y contraseña para volver a ver la mesa.\n\n" +
+      "Si te llevas el equipo, descarga antes el CSV.")) {
     auth.signOut().then(() => location.reload());
   }
 }

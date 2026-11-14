@@ -56,6 +56,7 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 .header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
 .header-top .quien { font-size: 13px; font-weight: 900; flex: 1; }
 .header-top .cambiar { background: rgba(255,255,255,0.15); color: #fff; padding: 6px 10px; font-size: 10px; border-radius: 6px; flex-shrink: 0; }
+.header-top .salir { background: rgba(255,59,78,0.22); border: 1px solid rgba(255,59,78,0.5); }
 .prueba-actual-heading { text-align: center; font-size: 11px; font-weight: 900; letter-spacing: 2px; opacity: 0.8; margin-bottom: 4px; }
 .header select { font-size: 12px; }
 
@@ -10326,6 +10327,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     <button class="cambiar" onclick="cambiarNombre()">Cambiar</button>
     <a class="cambiar" href="manual-staff.html" target="_blank" rel="noopener"
        style="text-decoration:none;" title="Manual de instrucciones">📖 Manual</a>
+    <button class="cambiar salir" onclick="cerrarSesionOmega()"
+            title="Cerrar sesión en este móvil">Salir</button>
   </div>
   <div class="prueba-actual-heading">PRUEBA ACTUAL</div>
   <select id="prueba-select-staff" onchange="guardarPruebaLocal()">
@@ -10601,7 +10604,16 @@ auth.onAuthStateChanged((usuario) => {
 
 // Cerrar sesión en este dispositivo (por ejemplo, si se pierde un móvil)
 function cerrarSesionOmega() {
-  if (confirm("¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir usuario y contraseña.")) {
+  let pendientes = 0;
+  try { pendientes = leerCola().length; } catch (e) {}
+  const aviso = "¿CERRAR LA SESIÓN EN ESTE MÓVIL?\n\n" +
+    "Habrá que volver a escribir usuario y contraseña para seguir trabajando.\n" +
+    (pendientes
+      ? "\n⚠ TIENES " + pendientes + " ENVÍO" + (pendientes === 1 ? "" : "S") +
+        " SIN MANDAR, esperando a que vuelva la conexión. Si sales ahora se pierden.\n"
+      : "") +
+    "\nHazlo solo si acabas tu turno o si el móvil cambia de manos.";
+  if (confirm(aviso)) {
     auth.signOut().then(() => location.reload());
   }
 }

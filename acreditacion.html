@@ -28,14 +28,20 @@ input, select, button { font-family: var(--mono); font-weight: 700; }
 .cab { background: #000; border-bottom: 1px solid var(--border); padding: 10px 14px;
   display: flex; align-items: center; gap: 10px; }
 .cab img { height: 30px; filter: brightness(0) invert(1); }
-.cab .puesto { margin-left: auto; font-size: 11px; color: var(--texto2); text-align: right; line-height: 1.4; }
-.cab .puesto b { color: #fff; display: block; font-size: 13px; }
+.cab .puesto { margin-left: auto; min-width: 0; font-size: 11px; color: var(--texto2); text-align: right; line-height: 1.4;
+  overflow: hidden; }
+.cab .puesto b { color: #fff; display: block; font-size: 13px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cab .puesto .quien { color: var(--morado2); font-weight: 700; }
 .cab .puesto .sinquien { color: var(--naranja); font-weight: 700; }
 .cab .manual { margin-left: 10px; flex-shrink: 0; background: rgba(255,255,255,.1);
   border: 1px solid var(--border); color: #fff; padding: 7px 10px; border-radius: 8px;
   font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
 .cab .manual:active { background: rgba(255,255,255,.25); }
+.cab .salir { margin-left: 6px; flex-shrink: 0; background: rgba(255,59,78,.18);
+  border: 1px solid rgba(255,59,78,.5); color: #fff; padding: 7px 10px; border-radius: 8px;
+  font-size: 11px; font-weight: 700; font-family: inherit; cursor: pointer; white-space: nowrap; }
+.cab .salir:active { background: rgba(255,59,78,.4); }
 .sinred { background: var(--naranja); color: #150a00; text-align: center; font-size: 12px;
   font-weight: 900; padding: 6px; display: none; }
 .sinred.ver { display: block; }
@@ -163,6 +169,7 @@ input[type=text], input[type=number], select {
   <div class="puesto" id="cab-puesto"><b>—</b>acreditación</div>
   <a class="manual" href="manual-acreditacion.html" target="_blank" rel="noopener"
      title="Manual de acreditación">📖</a>
+  <button class="salir" onclick="cerrarSesionOmega()" title="Cerrar sesión en este dispositivo">Salir</button>
 </div>
 <div class="sinred" id="sinred">SIN CONEXIÓN · se guarda y se envía al recuperarla</div>
 <div class="fallo" id="fallo-datos"></div>
@@ -10526,7 +10533,11 @@ auth.onAuthStateChanged((usuario) => {
 
 // Cerrar sesión en este dispositivo (por ejemplo, si se pierde un móvil)
 function cerrarSesionOmega() {
-  if (confirm("¿Cerrar la sesión en este dispositivo? Habrá que volver a escribir usuario y contraseña.")) {
+  if (confirm(
+      "¿CERRAR LA SESIÓN EN ESTE DISPOSITIVO?\n\n" +
+      "Habrá que volver a escribir usuario y contraseña para poder acreditar.\n\n" +
+      "Antes de salir, guarda el LISTADO DE RESPALDO si todavía no lo has hecho.\n\n" +
+      "Hazlo al acabar tu turno, o si el móvil cambia de manos o se queda sin vigilar.")) {
     auth.signOut().then(() => location.reload());
   }
 }
