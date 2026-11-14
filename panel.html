@@ -1995,15 +1995,7 @@ function convocadosDe(prueba) {
 
 async function cerrarActa(abierta) {
   const prueba = abierta.prueba;
-  const entraron = (abierta.vivos || []).map(Number);
   const vivosAhora = dorsalesVivos().filter(d => !estaFuera(participantes[d])).map(Number);
-  const vivosSet = new Set(vivosAhora);
-  const entraronSet = new Set(entraron);
-
-  const eliminados = entraron.filter(d => !vivosSet.has(d)).sort((a, b) => a - b);
-  const recuperados = vivosAhora.filter(d => !entraronSet.has(d)).sort((a, b) => a - b);
-  const convocados = convocadosDe(prueba);
-  const jugaron = convocados.length ? convocados : entraron.slice();
 
   // Quién marcó cada eliminación, mientras el dato siga existiendo. A los
   // recuperados se les borra su documento de eliminación al salvarlos: por eso
@@ -2023,6 +2015,22 @@ async function cerrarActa(abierta) {
     detalle.sort((a, b) => a.dorsal - b.dorsal);
   } catch (e) { console.warn("detalle del acta:", e); }
 
+  // Red de seguridad: la foto de inicio empieza a guardarse con el primer
+  // cambio de prueba, así que la primera acta puede no tenerla. En ese caso se
+  // reconstruye con los vivos de ahora más los eliminados de esta prueba.
+  let entraron = (abierta.vivos || []).map(Number);
+  const sinFoto = entraron.length === 0;
+  if (sinFoto) {
+    entraron = Array.from(new Set(vivosAhora.concat(detalle.map(d => d.dorsal)))).sort((a, b) => a - b);
+  }
+
+  const vivosSet = new Set(vivosAhora);
+  const entraronSet = new Set(entraron);
+  const eliminados = entraron.filter(d => !vivosSet.has(d)).sort((a, b) => a - b);
+  const recuperados = vivosAhora.filter(d => !entraronSet.has(d)).sort((a, b) => a - b);
+  const convocados = convocadosDe(prueba);
+  const jugaron = convocados.length ? convocados : entraron.slice();
+
   const acta = {
     prueba: prueba,
     numero: numeroDePrueba(prueba),
@@ -2034,6 +2042,9 @@ async function cerrarActa(abierta) {
     recuperados: recuperados,
     clasificados: vivosAhora.slice().sort((a, b) => a - b),
     por_agrupaciones: convocados.length > 0,
+    // true = esta acta se reconstruyó sin foto de inicio, así que "entraron"
+    // es una estimación y los recuperados en bingo no se pueden distinguir.
+    reconstruida: sinFoto,
     detalle_eliminaciones: detalle,
     guardada_en: TS()
   };
@@ -2100,7 +2111,8 @@ function renderActas() {
         (a.numero ? 'Prueba ' + a.numero + ' · ' : '') + (a.prueba || '—') + '</div>' +
       '<div style="font-size:10px;color:var(--texto2);margin:2px 0 4px;">' +
         horaCorta(a.abierta_en) + ' → ' + horaCorta(a.cerrada_en) +
-        ' · ' + (a.por_agrupaciones ? 'por grupos o parejas' : 'la jugaron todos') + '</div>' +
+        ' · ' + (a.por_agrupaciones ? 'por grupos o parejas' : 'la jugaron todos') +
+        (a.reconstruida ? ' · <b style="color:var(--naranja);">sin foto de inicio: reconstruida</b>' : '') + '</div>' +
       '<div style="font-size:11px;font-weight:700;color:var(--texto);">' +
         (a.entraron || []).length + ' entraron · ' + (a.jugaron || []).length + ' jugaron · ' +
         (a.eliminados || []).length + ' eliminados · ' + (a.clasificados || []).length + ' clasificados</div>' +
