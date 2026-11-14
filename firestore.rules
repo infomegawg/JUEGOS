@@ -19,16 +19,16 @@ rules_version = '2';
 //    nadie de verdad, ni tocar la pantalla LED, ni borrar copias de seguridad.
 //    Su contraseña puede circular por el grupo del staff sin riesgo.
 //
-//  - panel@juegos.com (y cualquier otro usuario que crees) -> tú y quien lleve
-//    el Panel Central, la pantalla LED, la puerta y las pantallas de los
-//    capitanes. Permiso completo. Esta contraseña NO se le da al staff.
+//  - Cualquier otro usuario (infomegawg@gmail.com, omega@juegos.com...) -> tú y
+//    quien lleve el Panel Central, la pantalla LED, la puerta y las pantallas
+//    de los capitanes. Permiso completo. Esas contraseñas NO se dan al staff.
 //
 //  Cualquier usuario que no sea staff@juegos.com se considera "mando".
 //  Por eso los usuarios del panel hay que crearlos tú en la consola: no se
 //  puede dar de alta nadie desde las apps.
 //
 //  IMPORTANTE — ORDEN DE LOS PASOS
-//  1) Crear los dos usuarios en Authentication -> Users.
+//  1) Crear los usuarios en Authentication -> Users.
 //  2) Pegar estas reglas y publicar.
 //  3) Probar UNA vez con un dispositivo de cada tipo: panel, LED, un móvil
 //     del staff, un móvil de la puerta y un PC de capitán.
