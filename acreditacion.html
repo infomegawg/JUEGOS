@@ -30,6 +30,8 @@ input, select, button { font-family: var(--mono); font-weight: 700; }
 .cab img { height: 30px; filter: brightness(0) invert(1); }
 .cab .puesto { margin-left: auto; font-size: 11px; color: var(--texto2); text-align: right; line-height: 1.4; }
 .cab .puesto b { color: #fff; display: block; font-size: 13px; }
+.cab .puesto .quien { color: var(--morado2); font-weight: 700; }
+.cab .puesto .sinquien { color: var(--naranja); font-weight: 700; }
 .cab .manual { margin-left: 10px; flex-shrink: 0; background: rgba(255,255,255,.1);
   border: 1px solid var(--border); color: #fff; padding: 7px 10px; border-radius: 8px;
   font-size: 11px; font-weight: 700; text-decoration: none; white-space: nowrap; }
@@ -244,7 +246,7 @@ input[type=text], input[type=number], select {
 <div class="pie-nav">
   <button class="on" id="nav-acreditar" onclick="irA('acreditar')"><span class="ic">🎫</span>Acreditar</button>
   <button id="nav-buscar" onclick="irA('buscar')"><span class="ic">🔎</span>Buscar</button>
-  <button id="nav-ajustes" onclick="irA('ajustes')"><span class="ic">⚙️</span>Puesto</button>
+  <button id="nav-ajustes" onclick="irA('ajustes')"><span class="ic">⚙️</span>Puesto y quién</button>
 </div>
 
 <!-- CÁMARA -->
@@ -10525,6 +10527,7 @@ function cerrarSesionOmega() {
 
 /* ===== ESTADO ===== */
 let puesto = null;
+let operador = null;        // quién está en ese puesto ahora mismo
 let entradas = {};          // código -> datos
 let participantes = {};     // dorsal -> datos
 let entradaActual = null;
@@ -10540,15 +10543,53 @@ const $ = (id) => document.getElementById(id);
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 
-/* ===== PUESTO ===== */
+/* ===== PUESTO Y PERSONA ===== */
+/* El puesto se queda en el móvil toda la jornada; la persona no. Si el turno
+   cambia de manos a media mañana y nadie lo cambia aquí, todo lo que haga el
+   siguiente sale a nombre del anterior. Por eso se pregunta por separado. */
+function pintarCabecera() {
+  const quien = operador
+    ? '<span class="quien">' + escaparTexto(operador) + '</span>'
+    : '<span class="sinquien">sin nombre</span>';
+  $("cab-puesto").innerHTML = "<b>" + escaparTexto(puesto || "—") + "</b>" + quien;
+}
+
+function escaparTexto(t) {
+  return String(t == null ? "" : t)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 function pedirPuesto() {
   const guardado = lsGet("puestoAcreditacion");
   const nombre = prompt("¿En qué puesto estás?\n(Puerta 1, Puerta 2, Taquilla...)", guardado || "Puerta 1");
   if (nombre && nombre.trim()) {
     puesto = nombre.trim();
     lsSet("puestoAcreditacion", puesto);
-    $("cab-puesto").innerHTML = "<b>" + puesto + "</b>acreditación";
   }
+  pedirOperador();
+}
+
+function pedirOperador() {
+  const guardado = lsGet("operadorAcreditacion");
+  const nombre = prompt(
+    "¿Quién está acreditando en este puesto?\n\n" +
+    "Pon tu nombre, el que te conozcan. Queda guardado con cada acreditación " +
+    "que hagas, para poder preguntarte si luego hay alguna duda.",
+    guardado || "");
+  if (nombre && nombre.trim()) {
+    operador = nombre.trim();
+    lsSet("operadorAcreditacion", operador);
+  }
+  pintarCabecera();
+}
+
+/* Antes de la primera acreditación del turno se insiste una vez. Si aun así
+   no lo pone, se acredita igual: no se para la cola por esto. */
+let yaInsistido = false;
+function asegurarOperador() {
+  if (operador || yaInsistido) return;
+  yaInsistido = true;
+  pedirOperador();
 }
 
 /* ===== LECTURA DE CÓDIGOS ===== */
@@ -10681,7 +10722,8 @@ function esMenorEntrada(e) {
 async function marcarSalida(codigo, e) {
   try {
     await db.collection("entradas").doc(codigo).update({
-      dentro: false, salida_en: TS(), salida_por: puesto || "—"
+      dentro: false, salida_en: TS(), salida_por: puesto || "—",
+      salida_por_nombre: operador || ""
     });
     if (entradas[codigo]) entradas[codigo].dentro = false;
     vibrar(60);
@@ -10698,7 +10740,8 @@ async function marcarSalida(codigo, e) {
 async function marcarReentrada(codigo, e) {
   try {
     await db.collection("entradas").doc(codigo).update({
-      dentro: true, reentrada_en: TS(), reentrada_por: puesto || "—"
+      dentro: true, reentrada_en: TS(), reentrada_por: puesto || "—",
+      reentrada_por_nombre: operador || ""
     });
     if (entradas[codigo]) entradas[codigo].dentro = true;
     vibrar(60);
@@ -11010,7 +11053,8 @@ async function acreditarEspectador() {
   if (!e) return;
   try {
     await db.collection("entradas").doc(e.codigo).update({
-      acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—", dorsal: null, dentro: true
+      acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—",
+      acreditada_por_nombre: operador || "", dorsal: null, dentro: true
     });
     apuntarUltima(e.nombre, null);
     vibrar(80);
@@ -11034,6 +11078,7 @@ function asignarDorsalManual() {
 async function asignarDorsal(dorsal) {
   const e = entradaActual;
   if (!e) { volverAInicio(); return; }
+  asegurarOperador();
   if (dorsal < DORSAL_MIN || dorsal > DORSAL_MAX) {
     mostrarResultado("error", "✖", "Dorsal fuera de rango",
       "El " + dorsal + " no está entre " + DORSAL_MIN + " y " + DORSAL_MAX + ".");
@@ -11055,13 +11100,15 @@ async function asignarDorsal(dorsal) {
       if (datosDorsal.entrada_codigo) throw new Error("DORSAL_OCUPADO:" + datosDorsal.entrada_codigo);
 
       tx.update(refEntrada, {
-        acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—", dorsal: dorsal, dentro: true
+        acreditada: true, acreditada_en: TS(), acreditada_por: puesto || "—",
+        acreditada_por_nombre: operador || "", dorsal: dorsal, dentro: true
       });
       tx.update(refDorsal, {
         entrada_codigo: e.codigo,
         nombre: datosDorsal.nombre || e.nombre || "",
         acreditado_en: TS(),
         acreditado_por: puesto || "—",
+        acreditado_por_nombre: operador || "",
         // Si la acreditación ya se había cerrado y esta persona llega
         // tarde, su dorsal vuelve al grid en cuanto se le acredita.
         en_juego: true
@@ -11275,7 +11322,9 @@ function guardarRespaldo() {
   const lineas = [];
   lineas.push("LOS JUEGOS DE OMEGA - 21 de noviembre de 2026");
   lineas.push("LISTADO DE ACREDITADOS");
-  lineas.push("Puesto: " + (puesto || "sin identificar") + "  |  Generado el " + selloRespaldo());
+  lineas.push("Puesto: " + (puesto || "sin identificar") +
+              "  |  " + (operador || "sin nombre") +
+              "  |  Generado el " + selloRespaldo());
   lineas.push("");
   lineas.push("Acreditados: " + filas.length + "   Jugadores: " + jugadores.length +
     "   Con dorsal: " + (jugadores.length - sinDorsal) + "   Menores: " + menores);
@@ -11334,7 +11383,8 @@ function imprimirRespaldo() {
   $("hoja-respaldo").innerHTML =
     "<h1>Acreditados y dorsal</h1>" +
     '<div class="sub"><b>LOS JUEGOS DE OMEGA</b> &middot; 21 nov 2026 &middot; Paterna &middot; ' +
-    escapar(puesto || "puesto sin identificar") + " &middot; Generado el " + selloRespaldo() + "</div>" +
+    escapar(puesto || "puesto sin identificar") + " &middot; " + escapar(operador || "sin nombre") +
+    " &middot; Generado el " + selloRespaldo() + "</div>" +
     '<div class="cols">' + cuerpo + "</div>" +
     '<div class="pie"><b>' + filas.length + " acreditados</b> &middot; " + jugadores.length +
     " jugadores &middot; " + (jugadores.length - sinDorsal) + " con dorsal &middot; " + menores +
@@ -11360,9 +11410,14 @@ function irA(donde) {
 
 /* ===== ARRANQUE ===== */
 puesto = lsGet("puestoAcreditacion");
-if (puesto) $("cab-puesto").innerHTML = "<b>" + puesto + "</b>acreditación";
+operador = lsGet("operadorAcreditacion");
+pintarCabecera();
 pintarRed();
 escuchar();
+
+/* El nombre no se arrastra de un día para otro ni de un turno a otro sin que
+   alguien lo confirme: al abrir, si no hay puesto o no hay nombre, se pregunta. */
+if (!puesto || !operador) setTimeout(pedirPuesto, 400);
 </script>
 </body>
 </html>

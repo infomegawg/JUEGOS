@@ -109,6 +109,10 @@ button, input, select { font-family: var(--mono); font-weight: 700; }
 .puesto-fila:last-child { border-bottom: 0; }
 .puesto-fila .p-nom { flex: 1; font-size: 13px; }
 .puesto-fila .p-num { font-family: var(--font); font-size: 18px; color: var(--morado2); }
+.puesto-fila .p-sub { font-size: 11px; color: var(--texto2); margin-top: 2px; }
+.punto { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+.punto.vivo { background: #0a8f4d; }
+.punto.parado { background: #8a8a8a; }
 
 #aviso { position: fixed; right: 20px; bottom: 20px; background: var(--morado); color: #fff;
   padding: 12px 18px; border-radius: 10px; font-size: 13px; z-index: 300;
@@ -178,6 +182,10 @@ button, input, select { font-family: var(--mono); font-weight: 700; }
     </div>
 
     <div>
+      <div class="caja">
+        <h2>Quién está acreditando</h2>
+        <div id="quienes"><div class="vacio-lista">Nadie ha acreditado todavía</div></div>
+      </div>
       <div class="caja">
         <h2>Por puesto</h2>
         <div id="puestos"><div class="vacio-lista">Nadie ha acreditado todavía</div></div>
@@ -386,6 +394,7 @@ function pintarTodo() {
 
   pintarRitmo();
   pintarPuestos();
+  pintarQuienes();
   pintarUltimas();
   pintarLista();
 }
@@ -401,17 +410,73 @@ function pintarRitmo() {
     : "";
 }
 
+/* Los nombres vienen del Excel de Enterticket y del teclado de alguien a las
+   nueve de la mañana: se escapan antes de meterlos en el HTML. */
+function esc(t) {
+  return String(t == null ? "" : t)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+/* Esto sale de las propias acreditaciones, no de una señal de presencia: se
+   ve a quien ha acreditado a alguien, con su última hora. Durante la hora de
+   la puerta todos acreditan sin parar, así que basta. Un puesto abierto pero
+   sin mover a nadie no aparece, y eso también dice algo. */
+function haceCuanto(ms) {
+  const s = Math.round((Date.now() - ms) / 1000);
+  if (s < 60) return "hace " + s + " s";
+  const m = Math.round(s / 60);
+  if (m < 60) return "hace " + m + " min";
+  return "hace " + Math.round(m / 60) + " h";
+}
+
+function pintarQuienes() {
+  const gente = {};
+  Object.values(entradas).forEach((e) => {
+    if (!e.acreditada) return;
+    const quien = (e.acreditada_por_nombre || "").trim() || "Sin nombre";
+    const cuando = e.acreditada_en && e.acreditada_en.toDate
+      ? e.acreditada_en.toDate().getTime() : 0;
+    if (!gente[quien]) gente[quien] = { n: 0, ultima: 0, puestos: {} };
+    gente[quien].n++;
+    if (cuando > gente[quien].ultima) gente[quien].ultima = cuando;
+    const p = e.acreditada_por || "—";
+    gente[quien].puestos[p] = (gente[quien].puestos[p] || 0) + 1;
+  });
+
+  const filas = Object.entries(gente).sort((a, b) => b[1].ultima - a[1].ultima);
+  $("quienes").innerHTML = filas.length
+    ? filas.map(([quien, d]) => {
+        const activo = d.ultima && (Date.now() - d.ultima) < 5 * 60 * 1000;
+        const donde = Object.keys(d.puestos).join(", ");
+        const falta = quien === "Sin nombre";
+        return '<div class="puesto-fila"><div class="p-nom">' +
+          '<span class="punto ' + (activo ? "vivo" : "parado") + '"></span>' +
+          (falta ? '<span style="color:var(--naranja)">Sin nombre</span>' : esc(quien)) +
+          '<div class="p-sub">' + esc(donde) +
+            (d.ultima ? " · última " + haceCuanto(d.ultima) : "") + '</div>' +
+          '</div><div class="p-num">' + d.n + '</div></div>';
+      }).join("")
+    : '<div class="vacio-lista">Nadie ha acreditado todavía</div>';
+}
+
 function pintarPuestos() {
   const puestos = {};
   Object.values(entradas).forEach((e) => {
     if (!e.acreditada) return;
     const p = e.acreditada_por || "Sin indicar";
-    puestos[p] = (puestos[p] || 0) + 1;
+    if (!puestos[p]) puestos[p] = { n: 0, gente: {} };
+    puestos[p].n++;
+    const quien = (e.acreditada_por_nombre || "").trim();
+    if (quien) puestos[p].gente[quien] = true;
   });
-  const filas = Object.entries(puestos).sort((a, b) => b[1] - a[1]);
+  const filas = Object.entries(puestos).sort((a, b) => b[1].n - a[1].n);
   $("puestos").innerHTML = filas.length
-    ? filas.map(([p, n]) => '<div class="puesto-fila"><div class="p-nom">' + p + '</div>' +
-        '<div class="p-num">' + n + '</div></div>').join("")
+    ? filas.map(([p, d]) => {
+        const gente = Object.keys(d.gente);
+        return '<div class="puesto-fila"><div class="p-nom">' + esc(p) +
+          '<div class="p-sub">' + (gente.length ? esc(gente.join(", ")) : "sin nombre") + '</div>' +
+          '</div><div class="p-num">' + d.n + '</div></div>';
+      }).join("")
     : '<div class="vacio-lista">Nadie ha acreditado todavía</div>';
 }
 
@@ -423,7 +488,10 @@ function pintarUltimas() {
   $("ultimas").innerHTML = ult.length
     ? ult.map(([, e]) => '<div class="puesto-fila"><div class="p-nom">' +
         (e.dorsal ? '<b style="color:var(--morado2)">' + e.dorsal + '</b> · ' : '') +
-        (e.nombre || "—") + '</div><div style="font-size:11px;color:var(--texto2)">' +
+        esc(e.nombre || "—") +
+        '<div class="p-sub">' + esc(e.acreditada_por || "—") +
+          (e.acreditada_por_nombre ? " · " + esc(e.acreditada_por_nombre) : "") + '</div>' +
+        '</div><div style="font-size:11px;color:var(--texto2)">' +
         hora(e.acreditada_en) + '</div></div>').join("")
     : '<div class="vacio-lista">Ninguna todavía</div>';
 }
@@ -484,7 +552,9 @@ function pintarLista() {
       e.codigo,
       e.tipo === "espectador" ? "espectador" : "jugador",
       typeof e.edad_evento === "number" ? e.edad_evento + " años" : null,
-      e.acreditada ? etiquetaEstado + " · " + hora(e.acreditada_en) + (e.acreditada_por ? " · " + e.acreditada_por : "") : etiquetaEstado
+      e.acreditada ? etiquetaEstado + " · " + hora(e.acreditada_en) +
+        (e.acreditada_por ? " · " + e.acreditada_por : "") +
+        (e.acreditada_por_nombre ? " · " + e.acreditada_por_nombre : "") : etiquetaEstado
     ].filter(Boolean).join(" · ");
 
     const acciones = [];
@@ -607,13 +677,14 @@ async function reactivar(codigo) {
 /* ===== EXPORTAR ===== */
 function exportarCSV() {
   const filas = [["Codigo", "Nombre", "Tipo", "Edad", "Menor", "Dorsal", "Estado",
-    "Hora acreditacion", "Puesto", "Hora salida"]];
+    "Hora acreditacion", "Puesto", "Acreditado por", "Hora salida"]];
   Object.entries(entradas).forEach(([codigo, e]) => {
     filas.push([
       codigo, e.nombre || "", e.tipo || "", e.edad_evento != null ? e.edad_evento : "",
       esMenor(e) ? "Si" : "No", e.dorsal || "",
       !esValida(e) ? "Anulada" : estaDentro(e) ? "Dentro" : haSalido(e) ? "Ha salido" : "Sin llegar",
-      hora(e.acreditada_en), e.acreditada_por || "", hora(e.salida_en)
+      hora(e.acreditada_en), e.acreditada_por || "", e.acreditada_por_nombre || "",
+      hora(e.salida_en)
     ]);
   });
   const csv = "﻿" + filas.map((f) =>
