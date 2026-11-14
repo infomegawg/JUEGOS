@@ -2066,7 +2066,7 @@ async function rehacerActaActual() {
     await cerrarActa(pruebaAbierta && pruebaAbierta.prueba === prueba
       ? pruebaAbierta
       : { prueba: prueba, desde: null, vivos: dorsalesVivos().filter(d => !estaFuera(participantes[d])) });
-  } catch (e) { console.error(e); mostrarNotif("Error al rehacer el acta"); }
+  } catch (e) { mostrarNotif("No se ha rehecho el acta — " + motivoFallo(e)); }
 }
 
 function escucharActas() {
@@ -2074,7 +2074,7 @@ function escucharActas() {
     actasCache = {};
     snap.forEach(d => { actasCache[d.id] = d.data(); });
     renderActas();
-  }, e => console.warn("actas:", e));
+  }, e => mostrarNotif("No se pueden leer las actas — " + motivoFallo(e)));
 }
 
 /* Las horas del acta se guardan en milisegundos, no como Timestamp de
@@ -2167,6 +2167,20 @@ let grupoAzarPropuesto = null;    // { nombre, dorsales } pendiente de confirmar
 let parejaAzarPropuesta = null;   // [a, b] pendiente de confirmar
 let modoCrearPareja = false;
 
+/* Traduce el fallo de Firestore a algo que se pueda leer de un vistazo en
+   mitad del evento, y lo deja también en la consola por si hace falta más. */
+function motivoFallo(e) {
+  console.error(e);
+  const c = (e && e.code) || "";
+  if (c === "permission-denied")
+    return "permisos: hay que publicar las reglas de Firestore";
+  if (c === "unavailable" || c === "deadline-exceeded")
+    return "sin conexión con Firebase";
+  if (c === "unauthenticated")
+    return "sesión caducada: vuelve a entrar";
+  return (e && (e.message || e.code)) || "error desconocido";
+}
+
 function pruebaEnCurso() {
   return document.getElementById("prueba-select").value;
 }
@@ -2233,7 +2247,7 @@ async function confirmarGrupoAleatorio() {
     document.getElementById("nuevo-equipo-nombre").value = "";
     cancelarGrupoAleatorio();
     mostrarNotif(nombre + " creado y anunciado (" + dorsales.length + " jugadores)");
-  } catch (e) { console.error(e); mostrarNotif("Error al crear el grupo"); }
+  } catch (e) { mostrarNotif("No se ha creado el grupo — " + motivoFallo(e)); }
 }
 
 /* ---------- PAREJAS ---------- */
@@ -2244,7 +2258,7 @@ function escucharParejas() {
     snap.forEach(d => { parejasCache[d.id] = d.data(); });
     renderParejasList();
     renderGrid();
-  }, e => console.warn("parejas:", e));
+  }, e => mostrarNotif("No se pueden leer las parejas — " + motivoFallo(e)));
 }
 
 /* Mapa dorsal -> pareja, solo de la prueba en curso. Lo usan el grid, el
@@ -2331,7 +2345,7 @@ async function crearPareja(dorsales, origen) {
     });
     mostrarNotif("Pareja #" + dorsales[0] + " · #" + dorsales[1] + " creada");
     return true;
-  } catch (e) { console.error(e); mostrarNotif("Error al crear la pareja"); return false; }
+  } catch (e) { mostrarNotif("No se ha creado la pareja — " + motivoFallo(e)); return false; }
 }
 
 function toggleModoCrearPareja() {
@@ -2373,7 +2387,7 @@ async function cerrarParejasPorEliminacion(dorsales, prueba) {
     });
     await lote.commit();
     if (avisos.length) mostrarNotif("Ya han jugado esta prueba: " + avisos.join(", "));
-  } catch (e) { console.error("cerrar parejas:", e); }
+  } catch (e) { mostrarNotif("No se ha podido cerrar la pareja — " + motivoFallo(e)); }
 }
 
 async function marcarParejaJugada(id) {
@@ -2382,14 +2396,14 @@ async function marcarParejaJugada(id) {
   try {
     await db.collection("parejas").doc(id).update({ jugada: true, jugada_en: TS(), cerrada_por: null });
     mostrarNotif("Pareja marcada como jugada");
-  } catch (e) { console.error(e); mostrarNotif("Error al marcar la pareja"); }
+  } catch (e) { mostrarNotif("No se ha marcado la pareja — " + motivoFallo(e)); }
 }
 
 async function reabrirPareja(id) {
   try {
     await db.collection("parejas").doc(id).update({ jugada: false, jugada_en: null, cerrada_por: null });
     mostrarNotif("Pareja reabierta");
-  } catch (e) { console.error(e); mostrarNotif("Error al reabrir la pareja"); }
+  } catch (e) { mostrarNotif("No se ha reabierto la pareja — " + motivoFallo(e)); }
 }
 
 async function disolverPareja(id) {
@@ -2399,7 +2413,7 @@ async function disolverPareja(id) {
   try {
     await db.collection("parejas").doc(id).update({ activo: false });
     mostrarNotif("Pareja disuelta");
-  } catch (e) { console.error(e); mostrarNotif("Error al disolver la pareja"); }
+  } catch (e) { mostrarNotif("No se ha disuelto la pareja — " + motivoFallo(e)); }
 }
 
 async function disolverParejasDeLaPrueba() {
@@ -3282,7 +3296,13 @@ async function cambiarPruebaActual(valor) {
     // Antes de nada, el acta de la que se cierra. Si falla, el cambio de
     // prueba se hace igual: lo urgente es que los móviles se enteren.
     if (pruebaAbierta && pruebaAbierta.prueba && pruebaAbierta.prueba !== valor) {
-      await cerrarActa(pruebaAbierta);
+      try {
+        await cerrarActa(pruebaAbierta);
+      } catch (e) {
+        // El acta no puede bloquear el cambio de prueba: lo urgente es que los
+        // móviles del staff se enteren. Se avisa y se sigue.
+        mostrarNotif("No se ha guardado el acta de " + pruebaAbierta.prueba + " — " + motivoFallo(e));
+      }
     }
     await db.collection("sesion").doc("actual").set({ prueba_actual: valor }, { merge: true });
     await abrirPrueba(valor);
