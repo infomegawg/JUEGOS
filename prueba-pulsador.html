@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prueba de pulsadores — Los Juegos de Omega</title>
+<style>
+  :root{
+    --bg:#0b0b12; --bg2:#14141f; --borde:#2a2a3d;
+    --texto:#f2f2f7; --texto2:#9a9ab0;
+    --verde:#17c96b; --rojo:#ff3b4e; --naranja:#ff7a1a; --morado:#8224e3; --azul:#3b82f6;
+    --font:'Courier New',monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--bg); color:var(--texto);
+    font-family:'Segoe UI',system-ui,sans-serif; font-size:14px;
+  }
+  header{
+    padding:14px 20px; background:var(--bg2); border-bottom:1px solid var(--borde);
+    display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  }
+  header h1{font-size:16px; margin:0; letter-spacing:2px; text-transform:uppercase;}
+  header .sub{font-size:12px; color:var(--texto2);}
+  .foco{
+    margin-left:auto; font-size:12px; font-weight:800; padding:6px 12px; border-radius:8px;
+    border:2px solid var(--verde); color:#b6ffcf; background:rgba(23,201,107,.12);
+  }
+  .foco.perdido{border-color:var(--rojo); color:#ffd7db; background:rgba(255,59,78,.15);}
+
+  .wrap{padding:20px; display:grid; grid-template-columns:minmax(360px,1fr) minmax(420px,1.2fr); gap:20px; align-items:start;}
+  @media (max-width:980px){ .wrap{grid-template-columns:1fr;} }
+
+  .caja{background:var(--bg2); border:1px solid var(--borde); border-radius:12px; padding:16px; margin-bottom:20px;}
+  .caja h2{font-size:12px; letter-spacing:2px; text-transform:uppercase; color:var(--texto2); margin:0 0 12px;}
+  .caja p{color:var(--texto2); line-height:1.6; margin:0 0 10px;}
+  .caja p b{color:var(--texto);}
+  ol{margin:0 0 4px; padding-left:20px; color:var(--texto2); line-height:1.8;}
+  ol b{color:var(--texto);}
+
+  /* ---- última pulsación ---- */
+  #ultima{
+    text-align:center; padding:22px 14px; border-radius:12px;
+    border:2px dashed var(--borde); background:rgba(255,255,255,.02);
+  }
+  #ultima.hay{border-style:solid; border-color:var(--verde); background:rgba(23,201,107,.08);}
+  #ult-tecla{font-family:var(--font); font-size:54px; font-weight:900; line-height:1; word-break:break-all;}
+  #ult-info{font-family:var(--font); font-size:13px; color:var(--texto2); margin-top:10px;}
+
+  /* ---- contadores por tecla ---- */
+  #contadores{display:flex; flex-wrap:wrap; gap:10px;}
+  .chip{
+    border:2px solid var(--borde); border-radius:10px; padding:8px 12px; min-width:120px;
+    background:rgba(255,255,255,.03);
+  }
+  .chip .k{font-family:var(--font); font-size:18px; font-weight:900;}
+  .chip .n{font-size:11px; color:var(--texto2); text-transform:uppercase; letter-spacing:1px;}
+  .chip.c0{border-color:var(--verde);}  .chip.c0 .k{color:#b6ffcf;}
+  .chip.c1{border-color:var(--rojo);}   .chip.c1 .k{color:#ffb3ba;}
+  .chip.c2{border-color:var(--azul);}   .chip.c2 .k{color:#bfd7ff;}
+  .chip.c3{border-color:var(--naranja);}.chip.c3 .k{color:#ffd9b8;}
+  .chip.c4{border-color:var(--morado);} .chip.c4 .k{color:#e0c4ff;}
+
+  /* ---- reposo ---- */
+  #reposo-reloj{font-family:var(--font); font-size:40px; font-weight:900; text-align:center; letter-spacing:2px;}
+  #reposo-estado{text-align:center; font-size:12px; color:var(--texto2); text-transform:uppercase; letter-spacing:2px; margin-top:4px;}
+  .hitos{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
+  .hito{
+    flex:1; min-width:70px; text-align:center; padding:8px 4px; border-radius:8px;
+    border:1px solid var(--borde); font-size:11px; color:var(--texto2);
+  }
+  .hito.pasado{border-color:var(--naranja); color:#ffd9b8;}
+  .hito b{display:block; font-family:var(--font); font-size:16px; color:var(--texto);}
+
+  /* ---- prioridad ---- */
+  #prioridad{display:flex; flex-direction:column; gap:8px;}
+  .carrera{display:flex; align-items:center; gap:10px; font-family:var(--font); font-size:14px;}
+  .carrera .pos{width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    font-weight:900; font-size:12px; background:var(--borde);}
+  .carrera.g .pos{background:var(--verde); color:#06281a;}
+  .carrera .barra{height:10px; border-radius:5px; background:var(--azul); min-width:3px;}
+
+  /* ---- tabla ---- */
+  table{width:100%; border-collapse:collapse; font-family:var(--font); font-size:12px;}
+  th{
+    text-align:left; padding:6px 8px; color:var(--texto2); font-size:10px; letter-spacing:1px;
+    text-transform:uppercase; border-bottom:1px solid var(--borde); position:sticky; top:0; background:var(--bg2);
+  }
+  td{padding:5px 8px; border-bottom:1px solid rgba(255,255,255,.05);}
+  tr.aviso td{background:rgba(255,59,78,.12);}
+  tr.repe td{color:var(--texto2); font-style:italic;}
+  #tabla-caja{max-height:52vh; overflow:auto;}
+
+  .botones{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+  button{
+    background:transparent; color:var(--texto); border:1px solid var(--borde);
+    border-radius:8px; padding:8px 14px; font-size:12px; font-weight:700; cursor:pointer;
+    text-transform:uppercase; letter-spacing:1px;
+  }
+  button:hover{border-color:var(--morado); color:#e0c4ff;}
+  .nota{font-size:11px; color:var(--texto2); line-height:1.6; margin-top:10px;}
+  .alerta{
+    border:1px solid var(--naranja); background:rgba(255,122,26,.1); color:#ffd9b8;
+    border-radius:8px; padding:10px 12px; font-size:12px; line-height:1.6; margin-top:10px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Prueba de pulsadores</h1>
+  <div class="sub">Omega Trivial · comprobación del macro keypad antes de comprar más</div>
+  <div class="foco" id="foco">Escuchando el teclado</div>
+</header>
+
+<div class="wrap">
+
+  <!-- ================= COLUMNA IZQUIERDA ================= -->
+  <div>
+
+    <div class="caja">
+      <h2>1 · Qué tecla manda</h2>
+      <div id="ultima">
+        <div id="ult-tecla">—</div>
+        <div id="ult-info">pulsa el botón del aparato</div>
+      </div>
+      <p class="nota">
+        Cada pulsador tiene que mandar una tecla <b>distinta</b>. Si los tres mandan lo mismo,
+        el ordenador no puede saber quién ha pulsado.
+      </p>
+      <div id="contadores"></div>
+    </div>
+
+    <div class="caja">
+      <h2>2 · ¿Se duerme?</h2>
+      <p>
+        La ficha dice que entra en reposo tras unos minutos. Si al despertar <b>se come la primera
+        pulsación</b>, no sirve para el trivial.
+      </p>
+      <div id="reposo-reloj">0:00</div>
+      <div id="reposo-estado">sin pulsar todavía</div>
+      <div class="hitos">
+        <div class="hito" data-min="1"><b>1′</b>pulsa</div>
+        <div class="hito" data-min="3"><b>3′</b>pulsa</div>
+        <div class="hito" data-min="5"><b>5′</b>pulsa</div>
+        <div class="hito" data-min="10"><b>10′</b>pulsa</div>
+      </div>
+      <ol>
+        <li>Deja el aparato quieto hasta que el reloj pase el hito.</li>
+        <li>Entonces pulsa <b>dos veces seguidas</b>, rápido.</li>
+        <li>Mira la tabla: si solo aparece <b>una</b>, se comió la primera al despertar.</li>
+      </ol>
+      <div class="alerta" id="aviso-reposo" style="display:none;"></div>
+    </div>
+
+  </div>
+
+  <!-- ================= COLUMNA DERECHA ================= -->
+  <div>
+
+    <div class="caja">
+      <h2>3 · Quién ha pulsado antes</h2>
+      <p>
+        Con varios pulsadores: se abre una carrera con la primera pulsación y dura
+        <b>2 segundos</b>. Se ve el orden y <b>cuántos milisegundos</b> separan a uno de otro.
+      </p>
+      <div id="prioridad"><span class="nota">Sin carreras todavía.</span></div>
+    </div>
+
+    <div class="caja">
+      <h2>4 · Registro</h2>
+      <div id="tabla-caja">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Hora</th><th>Tecla</th><th>Desde la anterior</th><th>Pulsación</th><th>Nota</th>
+          </tr></thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="botones">
+        <button onclick="limpiar()">Vaciar registro</button>
+        <button onclick="copiar()">Copiar para enviar</button>
+      </div>
+      <p class="nota">
+        <b>Rebote</b> = dos pulsaciones del mismo botón en menos de 50 ms: el interruptor está
+        sucio y mandaría dos. <b>Repetición</b> = la tecla se repite sola al mantenerla apretada;
+        no es un fallo, pero la app del trivial tendrá que ignorarlas.
+      </p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   Prueba de pulsadores — Los Juegos de Omega
+   Página suelta, sin internet ni Firebase: solo escucha el teclado.
+   El macro keypad se ve desde el navegador como un teclado más, así que
+   todo lo que hay que medir se puede medir aquí.
+   ========================================================= */
+
+const UMBRAL_REBOTE_MS = 50;   // dos iguales más juntas que esto = rebote del interruptor
+const VENTANA_CARRERA_MS = 2000;
+
+let n = 0;                      // nº de pulsación
+let ultimaPulsacion = null;     // instante de la última, para medir el hueco
+let abajoDesde = {};            // code -> instante en que se apretó (para medir la duración)
+let porTecla = {};              // code -> veces
+let ordenTeclas = [];           // para darle un color fijo a cada tecla
+let carrera = null;             // carrera de prioridad en curso
+let filas = [];                 // registro en texto, para poder copiarlo
+const ultimaDeEstaTecla = {};   // code -> instante de la anterior, para detectar rebotes
+
+/* ---------- Teclas que el navegador se queda para él ---------- */
+const PROHIBIDAS = ["F11", "F12"];
+
+function ahora() { return performance.now(); }
+function horaCorta() {
+  const d = new Date();
+  return d.toLocaleTimeString("es-ES") + "." + String(d.getMilliseconds()).padStart(3, "0");
+}
+function colorDe(code) {
+  let i = ordenTeclas.indexOf(code);
+  if (i === -1) { ordenTeclas.push(code); i = ordenTeclas.length - 1; }
+  return "c" + (i % 5);
+}
+
+/* =========================================================
+   ESCUCHA DEL TECLADO
+   ========================================================= */
+window.addEventListener("keydown", (e) => {
+  // Se evita que la tecla haga además lo suyo (espacio baja la página, etc.).
+  if (!PROHIBIDAS.includes(e.key)) e.preventDefault();
+
+  const t = ahora();
+  const esRepeticion = e.repeat;
+
+  if (!esRepeticion) abajoDesde[e.code] = t;
+
+  const hueco = ultimaPulsacion === null ? null : Math.round(t - ultimaPulsacion);
+  ultimaPulsacion = t;
+
+  // ----- rebote: la misma tecla dos veces casi a la vez -----
+  const anteriorIgual = ultimaDeEstaTecla[e.code];
+  const rebote = !esRepeticion && anteriorIgual != null && (t - anteriorIgual) < UMBRAL_REBOTE_MS;
+  if (!esRepeticion) ultimaDeEstaTecla[e.code] = t;
+
+  pintarUltima(e, esRepeticion);
+  if (!esRepeticion) { contar(e.code); apuntarCarrera(e.code, t); }
+  apuntarFila(e, hueco, esRepeticion, rebote);
+  reiniciarReposo(t);
+});
+
+window.addEventListener("keyup", (e) => {
+  const inicio = abajoDesde[e.code];
+  if (inicio == null) return;
+  const dur = Math.round(ahora() - inicio);
+  delete abajoDesde[e.code];
+  // Se rellena la duración en la última fila de esa tecla que aún no la tenga.
+  const celda = document.querySelector('#tbody tr[data-code="' + CSS.escape(e.code) + '"][data-dur="no"]');
+  if (celda) { celda.dataset.dur = "si"; celda.querySelector(".dur").textContent = dur + " ms"; }
+});
+
+/* El aviso de foco: si el usuario pincha en otra ventana, deja de llegar nada
+   y parecería que el pulsador no funciona. */
+function pintarFoco() {
+  const el = document.getElementById("foco");
+  const hay = document.hasFocus();
+  el.textContent = hay ? "Escuchando el teclado" : "⚠ Pincha en esta ventana";
+  el.className = "foco" + (hay ? "" : " perdido");
+}
+window.addEventListener("focus", pintarFoco);
+window.addEventListener("blur", pintarFoco);
+pintarFoco();
+
+/* =========================================================
+   1 · ÚLTIMA PULSACIÓN Y CONTADORES
+   ========================================================= */
+function pintarUltima(e, esRepeticion) {
+  const caja = document.getElementById("ultima");
+  caja.classList.add("hay");
+  document.getElementById("ult-tecla").textContent = e.code || e.key;
+  document.getElementById("ult-info").textContent =
+    "key: " + JSON.stringify(e.key) + " · keyCode: " + e.keyCode +
+    (esRepeticion ? " · REPETICIÓN automática" : "") +
+    (e.ctrlKey || e.altKey || e.shiftKey || e.metaKey
+      ? " · con " + [e.ctrlKey && "Ctrl", e.altKey && "Alt", e.shiftKey && "Shift", e.metaKey && "Win"].filter(Boolean).join("+")
+      : "");
+}
+
+function contar(code) {
+  porTecla[code] = (porTecla[code] || 0) + 1;
+  const cont = document.getElementById("contadores");
+  cont.innerHTML = Object.keys(porTecla).map(c =>
+    '<div class="chip ' + colorDe(c) + '"><div class="k">' + c + '</div>' +
+    '<div class="n">' + porTecla[c] + ' pulsaciones</div></div>'
+  ).join("");
+}
+
+/* =========================================================
+   2 · ¿SE DUERME?
+   ========================================================= */
+let desdeUltima = null;
+let avisoPendiente = null;   // {minutos, instante} del hito que estaba esperando
+
+function reiniciarReposo(t) {
+  // Si llevaba parado más de un minuto, se anota para que el usuario sepa
+  // qué estaba comprobando cuando ha pulsado.
+  if (desdeUltima !== null) {
+    const parado = (t - desdeUltima) / 1000;
+    if (parado >= 55) {
+      const av = document.getElementById("aviso-reposo");
+      av.style.display = "block";
+      av.innerHTML = "Has pulsado tras <b>" + formatear(parado) + "</b> parado. " +
+        "Pulsa <b>otra vez ya</b> y comprueba en la tabla que han llegado las dos.";
+    }
+  }
+  desdeUltima = t;
+  document.querySelectorAll(".hito").forEach(h => h.classList.remove("pasado"));
+}
+
+function formatear(seg) {
+  const m = Math.floor(seg / 60), s = Math.floor(seg % 60);
+  return m + ":" + String(s).padStart(2, "0");
+}
+
+setInterval(() => {
+  const rel = document.getElementById("reposo-reloj");
+  const est = document.getElementById("reposo-estado");
+  if (desdeUltima === null) { rel.textContent = "0:00"; return; }
+  const seg = (ahora() - desdeUltima) / 1000;
+  rel.textContent = formatear(seg);
+  est.textContent = "parado desde la última pulsación";
+  document.querySelectorAll(".hito").forEach(h => {
+    h.classList.toggle("pasado", seg >= parseInt(h.dataset.min, 10) * 60);
+  });
+}, 250);
+
+/* =========================================================
+   3 · CARRERA DE PRIORIDAD
+   ========================================================= */
+function apuntarCarrera(code, t) {
+  if (!carrera || t - carrera.inicio > VENTANA_CARRERA_MS) {
+    carrera = { inicio: t, participantes: [] };
+  }
+  if (carrera.participantes.some(p => p.code === code)) return;  // una por tecla
+  carrera.participantes.push({ code: code, ms: Math.round(t - carrera.inicio) });
+  pintarCarrera();
+}
+
+function pintarCarrera() {
+  const caja = document.getElementById("prioridad");
+  if (!carrera || !carrera.participantes.length) return;
+  const maximo = Math.max(1, ...carrera.participantes.map(p => p.ms));
+  caja.innerHTML = carrera.participantes.map((p, i) =>
+    '<div class="carrera' + (i === 0 ? ' g' : '') + '">' +
+      '<div class="pos">' + (i + 1) + '</div>' +
+      '<div style="width:110px;">' + p.code + '</div>' +
+      '<div class="barra" style="width:' + Math.round((p.ms / maximo) * 180) + 'px;"></div>' +
+      '<div>' + (i === 0 ? 'primero' : '+' + p.ms + ' ms') + '</div>' +
+    '</div>'
+  ).join("");
+}
+
+/* =========================================================
+   4 · REGISTRO
+   ========================================================= */
+function apuntarFila(e, hueco, esRepeticion, rebote) {
+  n++;
+  const nota = rebote ? "⚠ REBOTE (&lt;" + UMBRAL_REBOTE_MS + " ms)"
+             : esRepeticion ? "repetición automática" : "";
+  const tr = document.createElement("tr");
+  tr.dataset.code = e.code;
+  tr.dataset.dur = esRepeticion ? "si" : "no";
+  if (rebote) tr.className = "aviso";
+  else if (esRepeticion) tr.className = "repe";
+  tr.innerHTML =
+    "<td>" + n + "</td>" +
+    "<td>" + horaCorta() + "</td>" +
+    "<td><b>" + e.code + "</b></td>" +
+    "<td>" + (hueco === null ? "—" : hueco + " ms") + "</td>" +
+    '<td class="dur">' + (esRepeticion ? "—" : "…") + "</td>" +
+    "<td>" + nota + "</td>";
+  const tb = document.getElementById("tbody");
+  tb.insertBefore(tr, tb.firstChild);
+  filas.unshift([n, horaCorta(), e.code, hueco === null ? "—" : hueco + " ms",
+                 esRepeticion ? "repetición" : "", rebote ? "REBOTE" : ""].join("\t"));
+}
+
+function limpiar() {
+  n = 0; ultimaPulsacion = null; porTecla = {}; ordenTeclas = []; filas = []; carrera = null;
+  document.getElementById("tbody").innerHTML = "";
+  document.getElementById("contadores").innerHTML = "";
+  document.getElementById("prioridad").innerHTML = '<span class="nota">Sin carreras todavía.</span>';
+  document.getElementById("aviso-reposo").style.display = "none";
+  document.getElementById("ultima").classList.remove("hay");
+  document.getElementById("ult-tecla").textContent = "—";
+  document.getElementById("ult-info").textContent = "pulsa el botón del aparato";
+}
+
+function copiar() {
+  const resumen = Object.keys(porTecla).map(c => c + ": " + porTecla[c]).join(" · ");
+  const texto = "PRUEBA DE PULSADORES — " + new Date().toLocaleString("es-ES") + "\n" +
+    "Teclas detectadas: " + (resumen || "ninguna") + "\n\n" +
+    "#\thora\ttecla\thueco\tnota1\tnota2\n" + filas.join("\n");
+  navigator.clipboard.writeText(texto).then(
+    () => alert("Copiado. Pégalo en el chat."),
+    () => alert("No se ha podido copiar; selecciona la tabla a mano.")
+  );
+}
+</script>
+</body>
+</html>

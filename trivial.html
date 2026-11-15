@@ -362,6 +362,20 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
 .puls.turno { border-color: var(--eq); box-shadow: 0 0 22px color-mix(in srgb, var(--eq) 55%, transparent); }
 .puls.bloq { opacity: .36; }
 .puls.bloq .n::after { content: " · YA JUGÓ"; font-size: 9px; }
+.puls.pp-on { border-color: #00ff88; box-shadow: 0 0 18px rgba(0,255,136,.55); }
+
+/* ---- prueba de los tres pulsadores ---- */
+#puls-prueba { margin-top: 11px; border: 1px dashed #4a3568; border-radius: 10px; padding: 11px; background: #110722; }
+.pp-fila { display: flex; align-items: center; gap: 10px; padding: 7px 2px; border-bottom: 1px solid #241437; font-size: 13px; }
+.pp-fila:last-of-type { border-bottom: 0; }
+.pp-led { width: 14px; height: 14px; flex: 0 0 14px; border-radius: 50%; background: #2a1842; border: 1px solid #5a3a88; }
+.pp-fila.ok .pp-led { background: #00ff88; border-color: #00ff88; box-shadow: 0 0 10px #00ff88; }
+.pp-eq { font-family: 'Orbitron', sans-serif; font-weight: 900; letter-spacing: 1px; width: 86px; flex: 0 0 86px; }
+.pp-k { font-family: 'Courier New', monospace; color: #c9b3ff; flex: 1; }
+.pp-n { color: #806b9e; font-size: 11px; text-align: right; }
+.pp-fila.ok .pp-n { color: #7dffc4; }
+#pp-sueltas { margin-top: 9px; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.7; }
+#pp-sueltas b { color: #ffd49f; }
 
 .aviso { padding: 11px 13px; border-radius: 9px; font-size: 13px; line-height: 1.5; margin-bottom: 11px; }
 .aviso.info { background: #0d2033; border: 1px solid #1f5a8a; color: #9fd4ff; }
@@ -605,6 +619,14 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
       <div class="caja">
         <h2>Pulsadores</h2>
         <div class="pulsadores" id="caja-puls"></div>
+        <div id="puls-choque"></div>
+        <button class="btn" id="b-probar-puls" onclick="togglePruebaPuls()" style="width:100%;margin-top:11px">🔧 Probar los tres pulsadores</button>
+        <div id="puls-prueba" style="display:none">
+          <div id="pp-filas"></div>
+          <div id="pp-sueltas"></div>
+          <div class="mini">Pulsa los tres, uno a uno, y luego los tres a la vez. Cada uno tiene que encender <b>su</b> luz.
+            Mientras esta prueba está abierta los pulsadores <b>no juegan</b>: no dan turno ni paran el reloj. Se cierra con Escape.</div>
+        </div>
         <div class="mini">El equipo que pulsa primero se lleva el turno y el presupuesto se para solo. Si un pulsador falla, pincha aquí encima del equipo para darle el turno a mano.</div>
       </div>
 
@@ -636,7 +658,7 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
         <div class="ajuste"><span>Tecla pulsador C</span><input type="text" id="aj-k2" value="Insert" readonly onclick="capturarTecla(2)"></div>
         <div class="mini">«Ventana para 2.º y 3.º»: al pulsar el primero se para el reloj, pero durante esos segundos las pulsaciones que vienen de camino siguen contando y forman la cola. Súbela si en el ensayo veis que alguien se queda fuera por poco.</div>
         <div class="mini">«Tras un fallo, reanudar» solo se usa cuando se acaba la cola: es el tiempo que se les da a los equipos que no llegaron a pulsar.</div>
-        <div class="mini">Pincha en una tecla y pulsa el mando que quieras asignarle. Los ajustes se guardan solos en este ordenador.</div>
+        <div class="mini">Pincha en una tecla y pulsa el mando que quieras asignarle; Escape deja la que había. Los tres tienen que ser <b>distintas</b>: la app no deja poner dos iguales. Los ajustes se guardan solos en este ordenador.</div>
       </div>
     </div>
   </div>
@@ -1108,6 +1130,7 @@ if (!esLED) {
   if (AJ.reanudar === "fijo") AJ.reanudar = "20";
   document.getElementById("aj-reanudar").value = AJ.reanudar;
   AJ.teclas.forEach((k, i) => document.getElementById("aj-k" + i).value = k);
+  setTimeout(revisarChoqueTeclas, 0);   // la caja del aviso ya existe en el HTML
   ["aj-presu","aj-opciones","aj-ventana","aj-meta","aj-reanudar"].forEach(id => {
     document.getElementById(id).addEventListener("change", () => {
       AJ.presu = +document.getElementById("aj-presu").value;
@@ -1649,17 +1672,58 @@ function pintarPanel() {
    11. PANEL: pulsadores físicos
    ========================================================= */
 let capturando = null;
+const LETRA = ["A", "B", "C"];
+
 function capturarTecla(i) {
   capturando = i;
-  document.getElementById("aj-k" + i).value = "pulsa el mando…";
+  document.getElementById("aj-k" + i).value = "pulsa el mando… (Escape para dejarlo)";
 }
+
+/* Dos mandos con la misma tecla es el fallo mas facil de cometer programando
+   tres aparatos iguales, y el mas difícil de ver: la app se queda con el
+   primero y el otro no cuenta jamas. Asi que no se deja asignar. */
+function revisarChoqueTeclas() {
+  const caja = document.getElementById("puls-choque");
+  if (!caja) return;
+  const choques = [];
+  for (let i = 0; i < 3; i++) {
+    for (let j = i + 1; j < 3; j++) {
+      if (AJ.teclas[i] && AJ.teclas[i] === AJ.teclas[j]) choques.push(LETRA[i] + " y " + LETRA[j]);
+    }
+  }
+  caja.innerHTML = choques.length
+    ? '<div class="aviso warn" style="margin:11px 0 0"><b>Dos pulsadores con la misma tecla (' + choques.join(", ") +
+      ').</b> La app solo puede atender a uno: el otro no contará nunca. Cámbialo en Ajustes antes de jugar.</div>'
+    : "";
+}
+
 window.addEventListener("keydown", e => {
   if (esLED) return;
   if (capturando != null) {
     e.preventDefault();
-    AJ.teclas[capturando] = e.code;
-    document.getElementById("aj-k" + capturando).value = e.code;
-    capturando = null; guardarAjustes(); pintarPanel();
+    const slot = capturando;
+    capturando = null;
+    if (e.code === "Escape") { document.getElementById("aj-k" + slot).value = AJ.teclas[slot]; return; }
+    const otro = AJ.teclas.findIndex((k, n) => k === e.code && n !== slot);
+    if (otro >= 0) {
+      document.getElementById("aj-k" + slot).value = AJ.teclas[slot];
+      alert("Esa tecla (" + e.code + ") ya es la del pulsador " + LETRA[otro] + ".\n\n" +
+            "Los tres mandos tienen que mandar teclas distintas: si dos mandan la misma, " +
+            "la app no puede saber quién ha pulsado y el segundo no cuenta nunca.\n\n" +
+            "Reprograma el mando con el MINI_KEYBOARD y vuelve a intentarlo.");
+      return;
+    }
+    AJ.teclas[slot] = e.code;
+    document.getElementById("aj-k" + slot).value = e.code;
+    guardarAjustes(); pintarPanel(); revisarChoqueTeclas();
+    return;
+  }
+
+  /* Modo prueba: los mandos se comprueban, no juegan. */
+  if (modoPruebaPuls && e.target.tagName !== "INPUT" && e.target.tagName !== "SELECT") {
+    if (e.code === "Escape") { e.preventDefault(); togglePruebaPuls(); return; }
+    if (AJ.teclas.includes(e.code)) e.preventDefault();
+    if (!e.repeat) registrarPruebaPuls(e.code);
     return;
   }
   if (e.code === "KeyP" && !e.repeat) {
@@ -1668,7 +1732,18 @@ window.addEventListener("keydown", e => {
     return;
   }
   const i = AJ.teclas.indexOf(e.code);
-  if (i >= 0) { e.preventDefault(); if (!e.repeat) pulsar(i, false); return; }
+  if (i >= 0) {
+    e.preventDefault();
+    if (e.repeat) return;
+    // Un interruptor sucio manda dos pulsaciones pegadas. Se ignora la segunda:
+    // 40 ms es mas rapido de lo que un dedo humano puede pulsar dos veces.
+    const t = performance.now();
+    const previa = ultimaDeTecla[e.code];
+    ultimaDeTecla[e.code] = t;
+    if (previa != null && t - previa < REBOTE_MS) return;
+    pulsar(i, false);
+    return;
+  }
   // Atajos de teclado del operador
   if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
   if (e.code === "Space") { e.preventDefault();
@@ -1677,6 +1752,90 @@ window.addEventListener("keydown", e => {
   }
   if (["Digit1","Digit2","Digit3","Digit4"].includes(e.code) && E.fase === "respondiendo") marcar(+e.code.slice(5) - 1);
 });
+
+/* ---------------------------------------------------------
+   Prueba de los tres mandos
+
+   Antes de esto no habia manera de comprobarlos sin empezar una partida: con
+   el juego en espera, pulsar no hacia nada visible. Lo que mas falta hacia no
+   es la luz verde, es la lista de "teclas que no son de nadie": eso es lo que
+   se ve cuando un mando llega sin programar, o programado con la tecla de
+   otro, y es justo lo que no se puede descubrir el dia del evento.
+   --------------------------------------------------------- */
+const REBOTE_MS = 40;
+const ultimaDeTecla = {};
+
+let modoPruebaPuls = false;
+let ppCuenta = [0, 0, 0];
+let ppSueltas = {};
+let ppT0 = null;          // primera pulsacion de la rafaga, para medir el hueco
+let ppMs = [null, null, null];
+
+function togglePruebaPuls() {
+  modoPruebaPuls = !modoPruebaPuls;
+  const b = document.getElementById("b-probar-puls");
+  const caja = document.getElementById("puls-prueba");
+  if (modoPruebaPuls) {
+    ppCuenta = [0, 0, 0]; ppSueltas = {}; ppT0 = null; ppMs = [null, null, null];
+    b.textContent = "✔ Cerrar la prueba";
+    b.classList.add("verde");
+    caja.style.display = "block";
+    pintarPruebaPuls();
+  } else {
+    b.textContent = "🔧 Probar los tres pulsadores";
+    b.classList.remove("verde");
+    caja.style.display = "none";
+    EQUIPOS.forEach((eq, i) => {
+      const d = document.getElementById("puls-" + i);
+      if (d) d.classList.remove("pp-on");
+    });
+  }
+}
+
+function registrarPruebaPuls(code) {
+  const t = performance.now();
+  if (ppT0 === null || t - ppT0 > 3000) ppT0 = t;   // rafaga nueva
+  const i = AJ.teclas.indexOf(code);
+  if (i >= 0) {
+    ppCuenta[i]++;
+    ppMs[i] = Math.round(t - ppT0);
+    const d = document.getElementById("puls-" + i);
+    if (d) { d.classList.add("pp-on"); setTimeout(() => d.classList.remove("pp-on"), 400); }
+    sonido("puls");
+  } else {
+    ppSueltas[code] = (ppSueltas[code] || 0) + 1;
+  }
+  pintarPruebaPuls();
+}
+
+function pintarPruebaPuls() {
+  document.getElementById("pp-filas").innerHTML = EQUIPOS.map((eq, i) => {
+    const veces = ppCuenta[i];
+    return '<div class="pp-fila' + (veces ? " ok" : "") + '">' +
+      '<div class="pp-led"></div>' +
+      '<div class="pp-eq" style="color:' + eq.color + '">' + LETRA[i] + '</div>' +
+      '<div class="pp-k">' + AJ.teclas[i] + '</div>' +
+      '<div class="pp-n">' + (veces
+        ? veces + (veces === 1 ? " pulsación" : " pulsaciones") + (ppMs[i] ? " · +" + ppMs[i] + " ms" : " · primero")
+        : "sin probar") + '</div></div>';
+  }).join("");
+
+  const sueltas = Object.keys(ppSueltas);
+  const faltan = EQUIPOS.map((e, i) => ppCuenta[i] ? null : LETRA[i]).filter(Boolean);
+  let txt = "";
+  if (sueltas.length) {
+    txt += '<b>⚠ Llegan teclas que no son de nadie:</b> ' +
+      sueltas.map(c => c + " (×" + ppSueltas[c] + ")").join(", ") +
+      '<br>Ese mando está sin programar, o programado con otra tecla. Asígnasela en Ajustes ' +
+      '(pincha en «Tecla pulsador» y púlsalo), o reprográmalo con el MINI_KEYBOARD.';
+  }
+  if (!sueltas.length && !faltan.length) {
+    txt += '<span style="color:#7dffc4"><b>✔ Los tres responden</b> y cada uno manda su tecla. Ya puedes cerrar la prueba.</span>';
+  } else if (faltan.length && !sueltas.length) {
+    txt += '<span style="color:#806b9e">Falta probar: ' + faltan.join(", ") + '</span>';
+  }
+  document.getElementById("pp-sueltas").innerHTML = txt;
+}
 
 /* =========================================================
    12. SONIDO (generado, no hacen falta archivos)
