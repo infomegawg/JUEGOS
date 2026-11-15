@@ -748,7 +748,10 @@ function marcadorVivo() { return E.etapa === "extra" ? E.puntosExtra : E.puntos;
 function construirOrdenExtra() {
   const orden = [];
   CATEGORIAS.forEach((cat, ci) => {
-    const q = BANCO.filter(x => x.cat === cat.nombre && x.uso === "extra" && !usadasReserva.has(x.id))[0];
+    // La suya; y si por lo que sea no estuviera, una de reserva, porque la
+    // ronda tiene que ser de cinco: una por categoria, como dice el manual.
+    const q = BANCO.filter(x => x.cat === cat.nombre && x.uso === "extra" && !usadasReserva.has(x.id))[0]
+           || BANCO.filter(x => x.cat === cat.nombre && x.uso === "reserva" && !usadasReserva.has(x.id))[0];
     if (q) { usadasReserva.add(q.id); orden.push({ ci: ci, q: q }); }
   });
   return orden;
@@ -761,7 +764,7 @@ function construirOrdenSubita() {
   const orden = [];
   for (let n = 0; n < 5; n++) {
     const candidatas = CATEGORIAS
-      .map((cat, ci) => ({ ci: ci, q: BANCO.filter(x => x.cat === cat.nombre && x.uso !== "ordinaria" && !usadasReserva.has(x.id))[0] }))
+      .map((cat, ci) => ({ ci: ci, q: BANCO.filter(x => x.cat === cat.nombre && x.uso === "reserva" && !usadasReserva.has(x.id))[0] }))
       .filter(x => x.q);
     if (!candidatas.length) break;
     const elegida = candidatas[Math.floor(Math.random() * candidatas.length)];
@@ -771,9 +774,12 @@ function construirOrdenSubita() {
   return orden;
 }
 
+/* Sustituta de una pregunta anulada. SOLO de reserva: la de desempate de esa
+   categoria se queda donde esta. Antes entraba la del desempate la primera,
+   y la ronda extra se quedaba sin esa categoria sin avisar a nadie. */
 function reservaDe(ci, usadas) {
   const cat = CATEGORIAS[ci].nombre;
-  return BANCO.filter(q => q.cat === cat && q.uso !== "ordinaria" && !usadas.has(q.id))[0] || null;
+  return BANCO.filter(q => q.cat === cat && q.uso === "reserva" && !usadas.has(q.id))[0] || null;
 }
 
 /* =========================================================

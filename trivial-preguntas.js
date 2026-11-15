@@ -2,7 +2,7 @@
    OMEGA TRIVIAL — BANCO DE PREGUNTAS
    Los Juegos de Omega · 21 de noviembre de 2026
 
-   GENERADO el 14 de noviembre de 2026 a partir de
+   GENERADO el 15 de noviembre de 2026 a partir de
    "Omega Trivial - Banco de Preguntas - Consolidado.docx".
    No se edita a mano: se edita el Word y se vuelve a generar, o se pierde
    el cambio la proxima vez.
@@ -237,7 +237,7 @@ window.TRIVIAL_PREGUNTAS = [
 
 { id:"CIN-15", cat:"CINE Y SERIES", uso:"reserva", dif:"media",
   p:"¿A qué juego de rol de mesa juegan Mike, Will, Dustin y Lucas al inicio del primer episodio de Stranger Things?",
-  o:["Dungeons & Dragons","Magic: The Gathering","Warhammer","HeroQuest"], c:0,
+  o:["Dungeons &amp; Dragons","Magic: The Gathering","Warhammer","HeroQuest"], c:0,
   expl:"Los amigos toman del juego el nombre Demogorgon para referirse a la criatura de la primera temporada." },
 
 { id:"CIN-16", cat:"CINE Y SERIES", uso:"reserva", dif:"media",
@@ -363,14 +363,14 @@ window.TRIVIAL_PREGUNTAS = [
   expl:"Su primer videojuego salió en 1991 para la consola Mega Drive de Sega." },
 
 { id:"VID-02", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"media",
-  p:"Según el Libro Guinness de los Récords, ¿cuál es el videojuego individual más vendido de la historia?",
+  p:"Según el Libro Guinness de los Récords, ¿cuál es el videojuego individual más vendido de la historia? ",
   o:["Tetris","EA Sports FIFA","GTA","Minecraft"], c:3,
   expl:"Es el videojuego más vendido de la historia (+ de 350 millones de copias) si se considera un único título individual (un mismo juego base adaptado a distintas plataformas)." },
 
-{ id:"VID-03", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"facil",
-  p:"¿Qué videojuego de Mojang permite extraer y colocar bloques y tiene un modo Creativo y otro de Supervivencia?",
-  o:["Fortnite","Terraria","Minecraft","Roblox"], c:2,
-  expl:"En el modo Supervivencia hay que conseguir recursos para fabricar herramientas y construir refugios." },
+{ id:"VID-03", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"media",
+  p:"¿Qué juego de móvil lanzó Niantic en 2016 para capturar Pokémon en ubicaciones del mundo real?",
+  o:["Pikmin Bloom","Pokémon GO","Monster Hunter Now","Ingress"], c:1,
+  expl:"El juego usa la ubicación del móvil para situar en el mapa a los Pokémon, las Poképaradas y los gimnasios." },
 
 { id:"VID-04", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"media",
   p:"¿Cómo se llama el héroe jugable que empuña la Espada Maestra en The Legend of Zelda: Ocarina of Time?",
@@ -382,10 +382,10 @@ window.TRIVIAL_PREGUNTAS = [
   o:["Wii U","Nintendo 3DS","Nintendo Switch","Game Boy Advance"], c:2,
   expl:"La Switch original permite pasar del televisor al modo portátil retirándola de su base." },
 
-{ id:"VID-06", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"media",
-  p:"¿Qué juego de móvil lanzó Niantic en 2016 para capturar Pokémon en ubicaciones del mundo real?",
-  o:["Pikmin Bloom","Pokémon GO","Monster Hunter Now","Ingress"], c:1,
-  expl:"El juego usa la ubicación del móvil para situar en el mapa a los Pokémon, las Poképaradas y los gimnasios." },
+{ id:"VID-06", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"facil",
+  p:"¿Qué videojuego de Mojang permite extraer y colocar bloques y tiene un modo Creativo y otro de Supervivencia?",
+  o:["Fortnite","Terraria","Minecraft","Roblox"], c:2,
+  expl:"En el modo Supervivencia hay que conseguir recursos para fabricar herramientas y construir refugios." },
 
 /* -- La del desempate -- */
 
@@ -468,7 +468,7 @@ window.TRIVIAL_PREGUNTAS = [
 
 { id:"VID-22", cat:"VIDEOJUEGOS", uso:"reserva", dif:"media",
   p:"¿En qué juego de Wii aparece Luigi bajo la identidad de Mr. L tras un lavado de cerebro?",
-  o:["Super Mario Galaxy","Super Paper Mario","Mario & Luigi: Viaje al centro de Bowser","Paper Mario: La puerta milenaria"], c:1,
+  o:["Super Mario Galaxy","Super Paper Mario","Mario &amp; Luigi: Viaje al centro de Bowser","Paper Mario: La puerta milenaria"], c:1,
   expl:"Bajo la identidad de Mr. L, Luigi combate usando un robot llamado Brobot." },
 
 { id:"VID-23", cat:"VIDEOJUEGOS", uso:"reserva", dif:"media",
@@ -478,7 +478,7 @@ window.TRIVIAL_PREGUNTAS = [
 
 { id:"VID-24", cat:"VIDEOJUEGOS", uso:"reserva", dif:"dificil",
   p:"¿Qué juego de miniaturas de fantasía de Games Workshop inspiró el estilo visual del primer Warcraft, según su desarrollador Patrick Wyatt?",
-  o:["Dungeons & Dragons","BattleTech","Warhammer 40.000","Warhammer Fantasy Battle"], c:3,
+  o:["Dungeons &amp; Dragons","BattleTech","Warhammer 40.000","Warhammer Fantasy Battle"], c:3,
   expl:"Wyatt explicó que Blizzard llegó a considerar una licencia de Warhammer antes de crear un mundo propio." },
 
 { id:"VID-25", cat:"VIDEOJUEGOS", uso:"reserva", dif:"media",
