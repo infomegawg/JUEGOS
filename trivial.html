@@ -955,8 +955,16 @@ function pintarLED() {
         <div class="small">SE RESUELVE CON TARJETAS OMEGA</div>`;
       pararConfeti();
     }
+    espera.dataset.cartel = "fin";
   } else {
     pararConfeti();
+    // De vuelta a la espera hay que REESCRIBIR el rotulo: es el mismo hueco
+    // que el del ganador, y si no se toca se queda el de la partida anterior.
+    if (v.fase === "espera" && espera.dataset.cartel !== "inicio") {
+      espera.dataset.cartel = "inicio";
+      espera.innerHTML = `<div class="big">OMEGA TRIVIAL</div>
+        <div class="small">TRES EQUIPOS · CINCO CATEGORÍAS · TREINTA PREGUNTAS</div>`;
+    }
   }
 
   const hayCubo = (v.fase !== "espera" && v.fase !== "fin");

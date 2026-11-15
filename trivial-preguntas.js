@@ -367,10 +367,10 @@ window.TRIVIAL_PREGUNTAS = [
   o:["Tetris","EA Sports FIFA","GTA","Minecraft"], c:3,
   expl:"Es el videojuego más vendido de la historia (+ de 350 millones de copias) si se considera un único título individual (un mismo juego base adaptado a distintas plataformas)." },
 
-{ id:"VID-03", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"media",
-  p:"¿Qué juego de móvil lanzó Niantic en 2016 para capturar Pokémon en ubicaciones del mundo real?",
-  o:["Pikmin Bloom","Pokémon GO","Monster Hunter Now","Ingress"], c:1,
-  expl:"El juego usa la ubicación del móvil para situar en el mapa a los Pokémon, las Poképaradas y los gimnasios." },
+{ id:"VID-03", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"facil",
+  p:"¿Qué videojuego de Mojang permite extraer y colocar bloques y tiene un modo Creativo y otro de Supervivencia?",
+  o:["Fortnite","Terraria","Minecraft","Roblox"], c:2,
+  expl:"En el modo Supervivencia hay que conseguir recursos para fabricar herramientas y construir refugios." },
 
 { id:"VID-04", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"media",
   p:"¿Cómo se llama el héroe jugable que empuña la Espada Maestra en The Legend of Zelda: Ocarina of Time?",
@@ -382,10 +382,10 @@ window.TRIVIAL_PREGUNTAS = [
   o:["Wii U","Nintendo 3DS","Nintendo Switch","Game Boy Advance"], c:2,
   expl:"La Switch original permite pasar del televisor al modo portátil retirándola de su base." },
 
-{ id:"VID-06", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"facil",
-  p:"¿Qué videojuego de Mojang permite extraer y colocar bloques y tiene un modo Creativo y otro de Supervivencia?",
-  o:["Fortnite","Terraria","Minecraft","Roblox"], c:2,
-  expl:"En el modo Supervivencia hay que conseguir recursos para fabricar herramientas y construir refugios." },
+{ id:"VID-06", cat:"VIDEOJUEGOS", uso:"ordinaria", dif:"media",
+  p:"¿Qué juego de móvil lanzó Niantic en 2016 para capturar Pokémon en ubicaciones del mundo real?",
+  o:["Pikmin Bloom","Pokémon GO","Monster Hunter Now","Ingress"], c:1,
+  expl:"El juego usa la ubicación del móvil para situar en el mapa a los Pokémon, las Poképaradas y los gimnasios." },
 
 /* -- La del desempate -- */
 
