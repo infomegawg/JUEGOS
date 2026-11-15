@@ -51,6 +51,16 @@
   .cifra.nuevos{border-color:var(--verde);} .cifra.nuevos .n{color:var(--verde);}
   .cifra.viejos .n{color:var(--texto2);}
   .cifra.malos{border-color:var(--naranja);} .cifra.malos .n{color:var(--naranja);}
+  .cifra.fuera .n{color:var(--texto2);}
+
+  .tipos{display:flex;flex-direction:column;gap:7px;margin-bottom:12px;}
+  .tipo{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:9px;
+    border:1px solid var(--borde);background:var(--bg3);cursor:pointer;transition:all .13s ease;}
+  .tipo:hover{border-color:var(--borde2);}
+  .tipo.si{border-color:var(--verde);background:rgba(0,224,122,.07);}
+  .tipo input{width:17px;height:17px;accent-color:var(--verde);cursor:pointer;flex:none;}
+  .tipo .nom{flex:1;font-weight:600;}
+  .tipo .cnt{font-family:var(--mono);font-size:12px;color:var(--texto2);}
 
   textarea{width:100%;min-height:180px;background:#07040d;color:#d9ffe9;border:1px solid var(--borde);
     border-radius:9px;padding:12px;font-family:var(--mono);font-size:13px;line-height:1.6;resize:vertical;}
@@ -118,9 +128,22 @@
     <p class="nota" style="margin-top:14px">Nada de esto sale de tu ordenador: el archivo se lee aquí mismo, no se sube a ningún sitio.</p>
   </div>
 
-  <!-- ============ 2 · RESULTADO ============ -->
+  <!-- ============ 2 · TIPOS DE ENTRADA ============ -->
+  <div class="caja" id="caja-tipos" style="display:none">
+    <h2>2 · ¿Qué entradas son de jugador?</h2>
+    <p>Estos son los tipos de entrada que trae el listado. <b>Marca solo los de jugador</b>:
+      a los demás (acompañantes, público, staff, invitaciones…) no se les mandan las normas de jugador.</p>
+    <div id="tipos"></div>
+    <div class="btns">
+      <button class="gris" onclick="marcarTipos(true)">Marcar todos</button>
+      <button class="gris" onclick="marcarTipos(false)">Desmarcar todos</button>
+    </div>
+    <div id="aviso-tipos"></div>
+  </div>
+
+  <!-- ============ 3 · RESULTADO ============ -->
   <div class="caja" id="caja-resultado" style="display:none">
-    <h2>2 · Resultado</h2>
+    <h2>3 · Resultado</h2>
     <div class="cifras" id="cifras"></div>
     <div id="avisos"></div>
 
@@ -154,7 +177,7 @@
 
   <!-- ============ 3 · HISTORIAL ============ -->
   <div class="caja">
-    <h2>3 · El historial</h2>
+    <h2>4 · El historial</h2>
     <p>Los correos marcados como enviados se guardan <b>en este navegador y en este ordenador</b>.
       Si cambias de ordenador, vacías el navegador o abres el archivo desde otro sitio, <b>el historial no viaja contigo</b>.</p>
     <p>Por eso: <b>guarda una copia</b> de vez en cuando. Es un archivo pequeño y se vuelve a cargar en un clic.
@@ -207,9 +230,24 @@ function escribirHistorial(set) {
 }
 
 let HISTORIAL = leerHistorial();
-let ANTERIORES = new Set();      // correos de los Excel de dias pasados
+let filasHoy = [], filasAntes = [];   // los Excel de dias pasados, enteros
+let TIPOS = new Map();                // tipo de entrada -> cuantos hay
+let TIPOS_SI = null;                  // los tipos marcados como de jugador
+let hayColumnaTipo = false;
 let nuevos = [], viejos = [], malos = [];
 let conNombres = false;
+
+/* Los tipos elegidos se recuerdan, que si no hay que marcarlos cada dia. */
+const CLAVE_TIPOS = "omega_tipos_jugador";
+function guardarTipos() {
+  try { localStorage.setItem(CLAVE_TIPOS, JSON.stringify([...TIPOS_SI])); } catch (e) {}
+}
+function tiposGuardados() {
+  try {
+    const v = JSON.parse(localStorage.getItem(CLAVE_TIPOS) || "null");
+    return Array.isArray(v) && v.length ? new Set(v) : null;
+  } catch (e) { return null; }
+}
 
 function pintarHistorial() {
   document.getElementById("n-historial").textContent = HISTORIAL.size;
@@ -227,8 +265,6 @@ pintarHistorial();
   }));
   z.addEventListener("drop", e => cargar(e.dataTransfer.files, cual));
 });
-
-let filasHoy = [];
 
 function cargar(archivos, cual) {
   if (!archivos || !archivos.length) return;
@@ -264,9 +300,10 @@ function terminarCarga(acumulado, cual) {
     filasHoy = [];
     acumulado.forEach(a => filasHoy.push(...a.filas));
   } else {
-    ANTERIORES = new Set();
-    acumulado.forEach(a => a.filas.forEach(r => { if (r.email) ANTERIORES.add(r.email); }));
+    filasAntes = [];
+    acumulado.forEach(a => filasAntes.push(...a.filas));
   }
+  repasarTipos();
   procesar();
 }
 
@@ -299,18 +336,26 @@ function aFilas(contenido, nombreArchivo) {
   const RE_MAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
   const limpio = c => String(c == null ? "" : c).trim();
 
+  // "Nombre de la entrada" es un tipo, no un nombre de persona: por eso lo de
+  // nombre es casi exacto y lo del tipo se comprueba aparte.
+  const esNombre = c => /^(nombre|nombres|name|first ?name|cliente|asistente|titular|comprador)$/.test(c)
+    || /^nombre (del |de la |de )?(asistente|cliente|comprador|titular|jugador|participante)/.test(c);
+  const esTipo = c => /^(tipo|entrada|producto|tarifa|categor|nombre de la entrada|nombre entrada|nombre del producto)/.test(c);
+
   // Fila de cabecera: la primera que tenga una celda tipo "email" / "correo"
-  let iCab = -1, cMail = -1, cNombre = -1, cApe = -1;
+  let iCab = -1, cMail = -1, cNombre = -1, cApe = -1, cTipo = -1;
   for (let i = 0; i < Math.min(matriz.length, 30); i++) {
     const fila = (matriz[i] || []).map(c => limpio(c).toLowerCase());
     const j = fila.findIndex(c => /^(e-?mail|correo|correo electr|email del|mail)/.test(c));
     if (j >= 0) {
       iCab = i; cMail = j;
-      cNombre = fila.findIndex(c => /^(nombre|name|cliente|asistente)/.test(c));
-      cApe = fila.findIndex(c => /^(apellido|apellidos|surname)/.test(c));
+      cNombre = fila.findIndex(esNombre);
+      cApe = fila.findIndex(c => /^(apellido|apellidos|surname|last ?name)/.test(c));
+      cTipo = fila.findIndex(esTipo);
       break;
     }
   }
+  hayColumnaTipo = hayColumnaTipo || cTipo >= 0;
 
   const filas = [];
   const desde = iCab >= 0 ? iCab + 1 : 0;
@@ -327,6 +372,7 @@ function aFilas(contenido, nombreArchivo) {
     }
     if (cNombre >= 0) nombre = limpio(fila[cNombre]);
     if (cApe >= 0) nombre = (nombre + " " + limpio(fila[cApe])).trim();
+    const tipo = cTipo >= 0 ? (limpio(fila[cTipo]) || "(sin tipo)") : "";
 
     const cruda = fila.map(limpio).filter(Boolean).join(" · ");
     if (!cruda) continue;
@@ -335,6 +381,7 @@ function aFilas(contenido, nombreArchivo) {
     filas.push({
       nombre: nombre,
       email: m ? m[0].toLowerCase() : "",
+      tipo: tipo,
       cruda: cruda
     });
   }
@@ -357,14 +404,85 @@ function partirCSV(linea) {
   return out;
 }
 
+/* ---------- Los tipos de entrada ---------- */
+function repasarTipos() {
+  TIPOS = new Map();
+  [...filasHoy, ...filasAntes].forEach(f => {
+    if (!f.tipo) return;
+    TIPOS.set(f.tipo, (TIPOS.get(f.tipo) || 0) + (filasHoy.includes(f) ? 1 : 0));
+  });
+
+  const caja = document.getElementById("caja-tipos");
+  if (!TIPOS.size) {
+    // Sin columna de tipo no se puede distinguir: hay que decirlo, no callarse.
+    caja.style.display = "none";
+    TIPOS_SI = null;
+    return;
+  }
+  caja.style.display = "block";
+
+  // Por defecto, los que llevan "jugador" en el nombre.
+  const porNombre = [...TIPOS.keys()].filter(t => /jugador|participante/i.test(t));
+  if (TIPOS_SI === null) {
+    const recordados = tiposGuardados();
+    TIPOS_SI = recordados
+      ? new Set([...TIPOS.keys()].filter(t => recordados.has(t)))
+      : new Set(porNombre);
+    if (!TIPOS_SI.size) TIPOS_SI = new Set(porNombre);
+  }
+
+  document.getElementById("tipos").innerHTML =
+    '<div class="tipos">' + [...TIPOS.entries()].sort((a, b) => b[1] - a[1]).map(([t, n]) =>
+      '<label class="tipo ' + (TIPOS_SI.has(t) ? "si" : "") + '">' +
+        '<input type="checkbox" ' + (TIPOS_SI.has(t) ? "checked" : "") +
+          ' onchange="cambiarTipo(' + JSON.stringify(t).replace(/"/g, "&quot;") + ', this.checked)">' +
+        '<span class="nom">' + esc(t) + '</span>' +
+        '<span class="cnt">' + n + ' en el de hoy</span>' +
+      '</label>').join("") + '</div>';
+
+  document.getElementById("aviso-tipos").innerHTML = TIPOS_SI.size
+    ? ""
+    : '<div class="aviso warn"><b>No hay ningún tipo marcado</b>, así que no sale nadie. ' +
+      (porNombre.length
+        ? 'Márcalos para que salgan los correos.'
+        : 'Ninguno de los tipos del listado lleva «jugador» en el nombre, así que no he podido ' +
+          'adivinar cuál es: tienes que marcarlo tú.') + '</div>';
+}
+
+function cambiarTipo(t, si) {
+  if (si) TIPOS_SI.add(t); else TIPOS_SI.delete(t);
+  guardarTipos();
+  repasarTipos();
+  procesar();
+}
+function marcarTipos(todos) {
+  TIPOS_SI = todos ? new Set(TIPOS.keys()) : new Set();
+  guardarTipos();
+  repasarTipos();
+  procesar();
+}
+
 /* ---------- Clasificar ---------- */
+function deJugador(f) {
+  if (!TIPOS_SI || !f.tipo) return true;   // sin columna de tipo, entran todas
+  return TIPOS_SI.has(f.tipo);
+}
+
 function procesar() {
   if (!filasHoy.length) return;
   nuevos = []; viejos = []; malos = [];
   const vistos = new Set();
   let repetidosDentro = 0;
 
-  filasHoy.forEach(f => {
+  // Los dias anteriores se filtran con el mismo criterio: si alguien compro
+  // entrada de acompanante ayer y de jugador hoy, hoy tiene que salir.
+  const ANTERIORES = new Set();
+  filasAntes.forEach(f => { if (f.email && deJugador(f)) ANTERIORES.add(f.email); });
+
+  const dentro = filasHoy.filter(deJugador);
+  const fuera = filasHoy.length - dentro.length;
+
+  dentro.forEach(f => {
     if (!f.email) { malos.push(f); return; }
     if (vistos.has(f.email)) { repetidosDentro++; return; }
     vistos.add(f.email);
@@ -376,12 +494,16 @@ function procesar() {
 
   document.getElementById("cifras").innerHTML =
     cifra(filasHoy.length, "filas leídas", "") +
-    cifra(vistos.size, "correos distintos", "") +
+    (TIPOS_SI ? cifra(fuera, "no son jugador", "fuera") : "") +
+    cifra(vistos.size, "correos de jugador", "") +
     cifra(nuevos.length, "nuevos", "nuevos") +
     cifra(viejos.length, "ya los tenías", "viejos") +
     cifra(malos.length, "sin correo", "malos");
 
   let av = "";
+  if (!hayColumnaTipo) av += '<div class="aviso warn"><b>Ojo: no he encontrado la columna del tipo de entrada.</b> ' +
+    'Estoy cogiendo <b>todas</b> las filas con correo, así que si en el listado hay acompañantes, ' +
+    'público o staff también salen. Compruébalo en la tabla antes de enviar nada.</div>';
   if (!almacenaOK) av += '<div class="aviso warn"><b>Este navegador no me deja guardar nada.</b> ' +
     'Puedo separarte los correos, pero no recordaré a quién ya le escribiste. ' +
     'Usa la casilla de «listados anteriores» para que no se te cuele ninguno dos veces.</div>';
@@ -422,8 +544,9 @@ function esc(t) {
   return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 function tabla(filas, viejo) {
-  return "<tr><th>Nombre</th><th>Correo</th><th></th></tr>" + filas.map(f =>
+  return "<tr><th>Nombre</th><th>Entrada</th><th>Correo</th><th></th></tr>" + filas.map(f =>
     '<tr class="' + (viejo ? "viejo" : "") + '"><td>' + esc(f.nombre || "—") + '</td>' +
+    '<td style="color:var(--texto2);font-size:12px">' + esc(f.tipo || "—") + '</td>' +
     '<td class="mail">' + esc(f.email) + '</td>' +
     '<td><a class="env" title="Escribirle" href="mailto:' + f.email +
       '?subject=' + encodeURIComponent("Los Juegos de Omega · 21 de noviembre · normas") + '">✉</a></td></tr>'
