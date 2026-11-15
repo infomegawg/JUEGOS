@@ -1582,11 +1582,11 @@ function renderEspectador() {
 
   const banner = document.getElementById("espectador-banner");
   if (d.fase === 'terminada') {
-    banner.innerHTML = d.ganador
-      ? '🏆 <b>GANADOR: ' + (d.ganador === 'A' ? d.equipoA : d.equipoB).toUpperCase() + '</b>' +
-        '<div style="font-size:.55em;letter-spacing:1px;margin-top:6px;opacity:.85;">' + textoMotivoFin(d) + '</div>'
-      : '⚖️ <b>EMPATE ABSOLUTO</b>' +
-        '<div style="font-size:.55em;letter-spacing:1px;margin-top:6px;opacity:.85;">' + textoMotivoFin(d) + '</div>';
+    banner.innerHTML = (d.ganador
+        ? '🏆 <b>GANADOR: ' + (d.ganador === 'A' ? d.equipoA : d.equipoB).toUpperCase() + '</b>'
+        : '⚖️ <b>EMPATE ABSOLUTO</b>') +
+      '<div style="font-size:.55em;letter-spacing:1px;margin-top:6px;opacity:.85;">' + textoMotivoFin(d) + '</div>' +
+      detalleFinalEspectador(d);
     banner.className = "turno-banner mio";
   } else if (d.fase === 'colocacion') {
     banner.textContent = `Colocando flotas... (${d.listoA ? '✓' : '…'} ${d.equipoA} · ${d.listoB ? '✓' : '…'} ${d.equipoB})`;
@@ -1754,8 +1754,23 @@ function anunciarEvento(d) {
     animarSorteoInicio(d, ev.equipoLetra);
   } else if (ev.tipo === 'tiempo') {
     const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
-    hablar([`Se acabó el tiempo. ${conEquipo(nombre)} pierde la jugada`]);
-    mostrarOverlayEvento("TIEMPO AGOTADO", `${nombre.toUpperCase()} PIERDE LA JUGADA`);
+    const frases = [`Se acabó el tiempo. ${conEquipo(nombre)} pierde la jugada`];
+    // Si esa jugada perdida era la ultima, la partida acaba aqui: antes salia
+    // "TIEMPO AGOTADO" y ahi se quedaba, sin cantar quien habia ganado.
+    const finDePartida = d.fase === 'terminada';
+    if (finDePartida) {
+      frases.push("Se han agotado los disparos de los dos equipos");
+      if (d.ganador) {
+        const g = d.ganador === 'A' ? d.equipoA : d.equipoB;
+        if (d.motivoFin === 'hundidos') frases.push(`Gana ${conEquipo(g)} por barcos hundidos`);
+        else if (d.motivoFin === 'impactos') frases.push(`Empate a barcos hundidos. Gana ${conEquipo(g)} por impactos`);
+        else frases.push(`Empate a barcos e impactos. Gana ${conEquipo(g)} por tiempo consumido`);
+      } else {
+        frases.push("Empate absoluto. Lo deciden las tarjetas Omega");
+      }
+    }
+    hablar(frases, finDePartida ? () => mostrarOverlayGanador(d) : null);
+    mostrarOverlayEvento("TIEMPO AGOTADO", `${nombre.toUpperCase()} PIERDE LA JUGADA`, finDePartida ? 12000 : undefined);
   } else if (ev.tipo === 'disparo') {
     const nombre = ev.equipoLetra === 'A' ? d.equipoA : d.equipoB;
     const resultadoTexto = ev.resultado === 'agua' ? 'Agua'
@@ -1779,7 +1794,7 @@ function anunciarEvento(d) {
         frases.push("Empate absoluto. Lo deciden las tarjetas Omega");
       }
     }
-    mostrarOverlayEvento(`${nombre.toUpperCase()} LANZA ${ev.coord}`, resultadoTexto.toUpperCase(), finDePartida ? 20000 : undefined);
+    mostrarOverlayEvento(`${nombre.toUpperCase()} LANZA ${ev.coord}`, resultadoTexto.toUpperCase(), finDePartida ? 12000 : undefined);
     hablar(frases, finDePartida ? () => mostrarOverlayGanador(d) : null);
   } else if (d.fase === 'terminada') {
     // Partida terminada sin un disparo asociado (p. ej. al recargar): solo cartel
@@ -1789,12 +1804,30 @@ function anunciarEvento(d) {
 
 // Cartel de ganador: aparece tras la locución y NO lleva audio.
 function mostrarOverlayGanador(d) {
+  // Ocho segundos. Lo justo para el momento, y luego se quita: detras esta el
+  // tablero con la jugada que ha decidido la partida, y el resultado completo
+  // se queda escrito arriba, que no se va.
   if (!d.ganador) {
-    mostrarOverlayEvento("EMPATE ABSOLUTO", "TARJETAS OMEGA", 15000);
+    mostrarOverlayEvento("EMPATE ABSOLUTO", "TARJETAS OMEGA", 10000);
     return;
   }
   const nombreGanador = d.ganador === 'A' ? d.equipoA : d.equipoB;
-  mostrarOverlayEvento("GANADOR", nombreGanador.toUpperCase(), 15000);
+  mostrarOverlayEvento("GANADOR", nombreGanador.toUpperCase(), 8000);
+}
+
+/* El resultado que se queda en la pantalla grande cuando el cartel se va.
+   El publico tiene que poder leer POR QUE ha ganado, no solo quien. */
+function detalleFinalEspectador(d) {
+  const r = d.recuento || ((d.flotaA && d.flotaB)
+    ? { A: marcadorDe(d.flotaB, d.historial || [], 'A'),
+        B: marcadorDe(d.flotaA, d.historial || [], 'B') }
+    : null);
+  if (!r || !r.A || !r.B) return "";
+  const fila = (letra, nombre) =>
+    (nombre || ("EQUIPO " + letra)).toUpperCase() + ": " + r[letra].hundidos +
+    " barcos · " + r[letra].impactos + " impactos · " + mmss(r[letra].ms);
+  return '<div style="font-size:.5em;letter-spacing:1px;margin-top:12px;opacity:.85;line-height:1.8;">' +
+         fila('A', d.equipoA) + '<br>' + fila('B', d.equipoB) + '</div>';
 }
 
 /* Sorteo de quien empieza: el nombre salta de un equipo al otro, cada vez mas
