@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Correos de Enterticket — Los Juegos de Omega</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&family=Montserrat:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0b0714; --bg2:#150c24; --bg3:#1d1030;
+    --borde:#33224f; --borde2:#4a3568;
+    --texto:#f2ecff; --texto2:#9b87bd;
+    --morado:#8224e3; --morado2:#b061ff;
+    --verde:#00e07a; --rojo:#ff3b4e; --naranja:#ff9020; --azul:#3b9bff;
+    --mono:'Courier New',monospace;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--texto);font-family:'Montserrat',system-ui,sans-serif;font-size:14px;}
+
+  header{padding:18px 26px;background:var(--bg2);border-bottom:1px solid var(--borde);
+    display:flex;align-items:center;gap:18px;flex-wrap:wrap;}
+  header h1{font-family:'Orbitron',sans-serif;font-size:17px;margin:0;letter-spacing:3px;text-transform:uppercase;}
+  header .sub{font-size:12px;color:var(--texto2);}
+  .hist{margin-left:auto;font-size:12px;padding:8px 14px;border-radius:8px;
+    border:1px solid var(--borde2);background:var(--bg3);}
+  .hist b{font-family:var(--mono);font-size:16px;color:var(--morado2);}
+
+  .wrap{padding:24px;max-width:1180px;margin:0 auto;}
+  .caja{background:var(--bg2);border:1px solid var(--borde);border-radius:12px;padding:18px;margin-bottom:18px;}
+  .caja h2{font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:2.5px;text-transform:uppercase;
+    color:var(--texto2);margin:0 0 12px;}
+  .caja p{color:var(--texto2);line-height:1.65;margin:0 0 10px;}
+  .caja p b{color:var(--texto);}
+
+  /* ---- zonas de archivo ---- */
+  .zonas{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;}
+  @media(max-width:860px){.zonas{grid-template-columns:1fr;}}
+  .zona{border:2px dashed var(--borde2);border-radius:12px;padding:22px;text-align:center;
+    background:rgba(255,255,255,.02);transition:all .15s ease;cursor:pointer;}
+  .zona:hover,.zona.encima{border-color:var(--morado2);background:rgba(176,97,255,.08);}
+  .zona.hay{border-style:solid;border-color:var(--verde);background:rgba(0,224,122,.06);}
+  .zona .t{font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:1px;margin-bottom:6px;}
+  .zona .d{font-size:12px;color:var(--texto2);line-height:1.6;}
+  .zona .f{font-family:var(--mono);font-size:12px;color:var(--verde);margin-top:10px;word-break:break-all;}
+
+  /* ---- resumen ---- */
+  .cifras{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+  .cifra{flex:1;min-width:120px;border:1px solid var(--borde);border-radius:10px;padding:12px;background:var(--bg3);text-align:center;}
+  .cifra .n{font-family:'Orbitron',sans-serif;font-size:26px;font-weight:900;line-height:1;}
+  .cifra .e{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--texto2);margin-top:6px;}
+  .cifra.nuevos{border-color:var(--verde);} .cifra.nuevos .n{color:var(--verde);}
+  .cifra.viejos .n{color:var(--texto2);}
+  .cifra.malos{border-color:var(--naranja);} .cifra.malos .n{color:var(--naranja);}
+
+  textarea{width:100%;min-height:180px;background:#07040d;color:#d9ffe9;border:1px solid var(--borde);
+    border-radius:9px;padding:12px;font-family:var(--mono);font-size:13px;line-height:1.6;resize:vertical;}
+
+  .btns{display:flex;flex-wrap:wrap;gap:9px;margin-top:12px;}
+  button{padding:11px 16px;border:1px solid var(--borde2);border-radius:9px;background:#231238;color:var(--texto);
+    font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .14s ease;}
+  button:hover:not(:disabled){background:#30184d;border-color:var(--morado);}
+  button:disabled{opacity:.33;cursor:not-allowed;}
+  button.verde{background:#063b24;border-color:var(--verde);color:#7dffc4;}
+  button.verde:hover:not(:disabled){background:#0a5c37;}
+  button.rojo{background:#3b0612;border-color:var(--rojo);color:#ff9aa9;}
+  button.gris{background:transparent;}
+
+  .aviso{padding:12px 14px;border-radius:9px;font-size:13px;line-height:1.6;margin-bottom:12px;}
+  .aviso.info{background:rgba(59,155,255,.1);border:1px solid #2a5f94;color:#bfdcff;}
+  .aviso.warn{background:rgba(255,144,32,.1);border:1px solid #8a5a1f;color:#ffd49f;}
+  .aviso.ok{background:rgba(0,224,122,.1);border:1px solid #0d7a4a;color:#9fffd0;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th,td{padding:7px 9px;border-bottom:1px solid var(--borde);text-align:left;}
+  th{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--texto2);font-weight:700;}
+  td.mail{font-family:var(--mono);color:#d9ffe9;}
+  tr.viejo td.mail{color:var(--texto2);}
+  a.env{color:var(--morado2);text-decoration:none;font-size:15px;}
+  a.env:hover{color:#fff;}
+
+  details{margin-top:12px;} details summary{cursor:pointer;color:var(--texto2);font-size:13px;padding:6px 0;}
+  details summary:hover{color:var(--texto);}
+  .tabla-caja{max-height:340px;overflow:auto;border:1px solid var(--borde);border-radius:9px;margin-top:10px;}
+  .nota{font-size:11.5px;color:var(--texto2);line-height:1.6;}
+  .oculto{display:none;}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Correos de Enterticket</h1>
+  <div class="sub">Saca los correos del listado y te dice cuáles son nuevos</div>
+  <div class="hist">Ya enviados: <b id="n-historial">0</b></div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ 1 · CARGAR ============ -->
+  <div class="caja">
+    <h2>1 · Carga el listado</h2>
+    <div class="zonas">
+      <div class="zona" id="zona-hoy" onclick="document.getElementById('f-hoy').click()">
+        <div class="t">EL LISTADO DE HOY</div>
+        <div class="d">Arrastra aquí el Excel de Enterticket, o pincha para buscarlo.<br>
+          Vale <b>.xlsx</b>, <b>.xls</b> y <b>.csv</b>.</div>
+        <div class="f" id="f-hoy-nombre"></div>
+      </div>
+      <div class="zona" id="zona-antes" onclick="document.getElementById('f-antes').click()">
+        <div class="t">LISTADOS ANTERIORES <span style="color:var(--texto2);font-size:11px">(opcional)</span></div>
+        <div class="d">Si tienes los Excel de días pasados, suéltalos aquí y
+          <b>todos esos correos cuentan como ya enviados</b>.<br>
+          Puedes soltar varios a la vez.</div>
+        <div class="f" id="f-antes-nombre"></div>
+      </div>
+    </div>
+    <input type="file" id="f-hoy" class="oculto" accept=".xlsx,.xls,.csv" onchange="cargar(this.files, 'hoy')">
+    <input type="file" id="f-antes" class="oculto" accept=".xlsx,.xls,.csv" multiple onchange="cargar(this.files, 'antes')">
+    <p class="nota" style="margin-top:14px">Nada de esto sale de tu ordenador: el archivo se lee aquí mismo, no se sube a ningún sitio.</p>
+  </div>
+
+  <!-- ============ 2 · RESULTADO ============ -->
+  <div class="caja" id="caja-resultado" style="display:none">
+    <h2>2 · Resultado</h2>
+    <div class="cifras" id="cifras"></div>
+    <div id="avisos"></div>
+
+    <h2 style="margin-top:20px">Correos nuevos · los que hay que avisar</h2>
+    <textarea id="salida" spellcheck="false" readonly></textarea>
+    <div class="btns">
+      <button class="verde" onclick="copiar('lineas')">Copiar (uno por línea)</button>
+      <button onclick="copiar('comas')">Copiar (separados por comas)</button>
+      <button onclick="descargarCSV()">Descargar CSV para Mailrelay</button>
+      <button class="gris" onclick="cambiarVista()" id="b-vista">Ver con nombres</button>
+    </div>
+
+    <div class="aviso warn" style="margin-top:16px" id="aviso-marcar">
+      Cuando ya les hayas mandado las normas, dale a <b>«Marcar como enviados»</b>.
+      Si no lo haces, mañana volverán a salir como nuevos.
+    </div>
+    <div class="btns">
+      <button class="verde" onclick="marcarEnviados()" id="b-marcar">✔ Marcar estos como enviados</button>
+    </div>
+
+    <details id="det-viejos">
+      <summary id="sum-viejos">Ver los que ya estaban</summary>
+      <div class="tabla-caja"><table id="tabla-viejos"></table></div>
+    </details>
+
+    <details id="det-malos" style="display:none">
+      <summary id="sum-malos">Ver las filas sin correo válido</summary>
+      <div class="tabla-caja"><table id="tabla-malos"></table></div>
+    </details>
+  </div>
+
+  <!-- ============ 3 · HISTORIAL ============ -->
+  <div class="caja">
+    <h2>3 · El historial</h2>
+    <p>Los correos marcados como enviados se guardan <b>en este navegador y en este ordenador</b>.
+      Si cambias de ordenador, vacías el navegador o abres el archivo desde otro sitio, <b>el historial no viaja contigo</b>.</p>
+    <p>Por eso: <b>guarda una copia</b> de vez en cuando. Es un archivo pequeño y se vuelve a cargar en un clic.
+      Y si algún día se pierde, siempre puedes soltar los Excel antiguos en la casilla de «listados anteriores».</p>
+    <div class="btns">
+      <button onclick="guardarHistorial()">Guardar copia del historial</button>
+      <button onclick="document.getElementById('f-hist').click()">Cargar una copia</button>
+      <button class="rojo" onclick="vaciarHistorial()">Vaciar el historial</button>
+    </div>
+    <input type="file" id="f-hist" class="oculto" accept=".json" onchange="cargarHistorial(this.files[0])">
+    <div id="aviso-hist"></div>
+  </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+/* =========================================================
+   CORREOS DE ENTERTICKET
+   Los Juegos de Omega
+
+   Lo que hace falta de verdad no es partir el Excel —eso lo hace cualquiera—
+   sino saber A QUIEN YA SE LE ESCRIBIO. Por eso hay tres formas de saberlo, y
+   se usan las tres a la vez:
+
+     1. El historial que se guarda al dar a "marcar como enviados".
+     2. Los listados de dias anteriores, si los sueltas en su casilla.
+     3. Lo repetido dentro del propio archivo de hoy.
+
+   Con eso, aunque se pierda el historial del navegador (otro ordenador, otro
+   perfil, limpieza de datos), sigues pudiendo sacar los nuevos soltando los
+   Excel viejos. Un fallo aqui significa escribir dos veces a la misma persona
+   o, peor, no escribir a alguien que viene el sabado.
+   ========================================================= */
+
+const CLAVE = "omega_correos_enviados";
+
+/* El almacenamiento puede fallar (ventana privada, datos bloqueados). Si falla
+   no se tumba la pagina: se sigue trabajando sin memoria y se avisa. */
+let almacenaOK = true;
+function leerHistorial() {
+  try {
+    const v = JSON.parse(localStorage.getItem(CLAVE) || "[]");
+    return new Set(Array.isArray(v) ? v : []);
+  } catch (e) { almacenaOK = false; return new Set(); }
+}
+function escribirHistorial(set) {
+  try { localStorage.setItem(CLAVE, JSON.stringify([...set])); return true; }
+  catch (e) { almacenaOK = false; return false; }
+}
+
+let HISTORIAL = leerHistorial();
+let ANTERIORES = new Set();      // correos de los Excel de dias pasados
+let nuevos = [], viejos = [], malos = [];
+let conNombres = false;
+
+function pintarHistorial() {
+  document.getElementById("n-historial").textContent = HISTORIAL.size;
+}
+pintarHistorial();
+
+/* ---------- Lectura de archivos ---------- */
+["hoy", "antes"].forEach(cual => {
+  const z = document.getElementById("zona-" + cual);
+  ["dragenter", "dragover"].forEach(ev => z.addEventListener(ev, e => {
+    e.preventDefault(); z.classList.add("encima");
+  }));
+  ["dragleave", "drop"].forEach(ev => z.addEventListener(ev, e => {
+    e.preventDefault(); z.classList.remove("encima");
+  }));
+  z.addEventListener("drop", e => cargar(e.dataTransfer.files, cual));
+});
+
+let filasHoy = [];
+
+function cargar(archivos, cual) {
+  if (!archivos || !archivos.length) return;
+  const lista = [...archivos];
+  let pendientes = lista.length;
+  const acumulado = [];
+
+  lista.forEach(f => {
+    const lector = new FileReader();
+    lector.onload = e => {
+      try {
+        const contenido = /\.csv$/i.test(f.name) ? aTexto(e.target.result) : e.target.result;
+        acumulado.push({ nombre: f.name, filas: aFilas(contenido, f.name) });
+      } catch (err) {
+        alert("No he podido leer «" + f.name + "».\n\n" + err.message +
+              "\n\nSi es un Excel raro, pruébalo guardándolo como CSV desde Excel.");
+      }
+      if (--pendientes === 0) terminarCarga(acumulado, cual);
+    };
+    lector.onerror = () => { if (--pendientes === 0) terminarCarga(acumulado, cual); };
+    // Los CSV se leen como bytes y se decodifican a mano, porque Excel en
+    // Windows los guarda en Windows-1252 y los nombres saldrian con rombos.
+    lector.readAsArrayBuffer(f);
+  });
+}
+
+function terminarCarga(acumulado, cual) {
+  const nombres = acumulado.map(a => a.nombre).join(" · ");
+  document.getElementById("f-" + cual + "-nombre").textContent = nombres;
+  document.getElementById("zona-" + cual).classList.add("hay");
+
+  if (cual === "hoy") {
+    filasHoy = [];
+    acumulado.forEach(a => filasHoy.push(...a.filas));
+  } else {
+    ANTERIORES = new Set();
+    acumulado.forEach(a => a.filas.forEach(r => { if (r.email) ANTERIORES.add(r.email); }));
+  }
+  procesar();
+}
+
+/* UTF-8 primero; si sale el caracter de reemplazo, era Windows-1252. */
+function aTexto(buffer) {
+  const bytes = new Uint8Array(buffer);
+  const utf8 = new TextDecoder("utf-8").decode(bytes);
+  if (!utf8.includes("\ufffd")) return utf8;
+  try { return new TextDecoder("windows-1252").decode(bytes); } catch (e) { return utf8; }
+}
+
+/* Convierte lo leido en filas {nombre, email, origen}. Se busca la columna del
+   correo por el titulo; si no hay titulo reconocible, se rastrea celda a celda,
+   que es lo que salva los Excel con cabeceras raras o filas de titulo encima. */
+function aFilas(contenido, nombreArchivo) {
+  let matriz;
+  if (/\.csv$/i.test(nombreArchivo)) {
+    matriz = String(contenido).split(/\r?\n/).map(l => partirCSV(l));
+  } else {
+    if (typeof XLSX === "undefined")
+      throw new Error("No se ha podido cargar el lector de Excel (¿sin internet?). Guarda el listado como CSV y vuelve a probar.");
+    const libro = XLSX.read(new Uint8Array(contenido), { type: "array" });
+    matriz = [];
+    libro.SheetNames.forEach(h => {
+      const hoja = XLSX.utils.sheet_to_json(libro.Sheets[h], { header: 1, defval: "", raw: false });
+      matriz.push(...hoja);
+    });
+  }
+
+  const RE_MAIL = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i;
+  const limpio = c => String(c == null ? "" : c).trim();
+
+  // Fila de cabecera: la primera que tenga una celda tipo "email" / "correo"
+  let iCab = -1, cMail = -1, cNombre = -1, cApe = -1;
+  for (let i = 0; i < Math.min(matriz.length, 30); i++) {
+    const fila = (matriz[i] || []).map(c => limpio(c).toLowerCase());
+    const j = fila.findIndex(c => /^(e-?mail|correo|correo electr|email del|mail)/.test(c));
+    if (j >= 0) {
+      iCab = i; cMail = j;
+      cNombre = fila.findIndex(c => /^(nombre|name|cliente|asistente)/.test(c));
+      cApe = fila.findIndex(c => /^(apellido|apellidos|surname)/.test(c));
+      break;
+    }
+  }
+
+  const filas = [];
+  const desde = iCab >= 0 ? iCab + 1 : 0;
+  for (let i = desde; i < matriz.length; i++) {
+    const fila = matriz[i] || [];
+    if (!fila.length) continue;
+    let email = "", nombre = "";
+
+    if (cMail >= 0) email = limpio(fila[cMail]);
+    // Si en esa columna no hay correo (o no habia cabecera), se busca en toda la fila.
+    if (!RE_MAIL.test(email)) {
+      const encontrada = fila.map(limpio).find(c => RE_MAIL.test(c));
+      if (encontrada) email = encontrada;
+    }
+    if (cNombre >= 0) nombre = limpio(fila[cNombre]);
+    if (cApe >= 0) nombre = (nombre + " " + limpio(fila[cApe])).trim();
+
+    const cruda = fila.map(limpio).filter(Boolean).join(" · ");
+    if (!cruda) continue;
+
+    const m = email.match(RE_MAIL);
+    filas.push({
+      nombre: nombre,
+      email: m ? m[0].toLowerCase() : "",
+      cruda: cruda
+    });
+  }
+  return filas;
+}
+
+/* CSV a mano: respeta las comillas y acepta coma o punto y coma. */
+function partirCSV(linea) {
+  const sep = (linea.split(";").length > linea.split(",").length) ? ";" : ",";
+  const out = []; let actual = "", dentro = false;
+  for (let i = 0; i < linea.length; i++) {
+    const c = linea[i];
+    if (c === '"') {
+      if (dentro && linea[i + 1] === '"') { actual += '"'; i++; }
+      else dentro = !dentro;
+    } else if (c === sep && !dentro) { out.push(actual); actual = ""; }
+    else actual += c;
+  }
+  out.push(actual);
+  return out;
+}
+
+/* ---------- Clasificar ---------- */
+function procesar() {
+  if (!filasHoy.length) return;
+  nuevos = []; viejos = []; malos = [];
+  const vistos = new Set();
+  let repetidosDentro = 0;
+
+  filasHoy.forEach(f => {
+    if (!f.email) { malos.push(f); return; }
+    if (vistos.has(f.email)) { repetidosDentro++; return; }
+    vistos.add(f.email);
+    if (HISTORIAL.has(f.email) || ANTERIORES.has(f.email)) viejos.push(f);
+    else nuevos.push(f);
+  });
+
+  document.getElementById("caja-resultado").style.display = "block";
+
+  document.getElementById("cifras").innerHTML =
+    cifra(filasHoy.length, "filas leídas", "") +
+    cifra(vistos.size, "correos distintos", "") +
+    cifra(nuevos.length, "nuevos", "nuevos") +
+    cifra(viejos.length, "ya los tenías", "viejos") +
+    cifra(malos.length, "sin correo", "malos");
+
+  let av = "";
+  if (!almacenaOK) av += '<div class="aviso warn"><b>Este navegador no me deja guardar nada.</b> ' +
+    'Puedo separarte los correos, pero no recordaré a quién ya le escribiste. ' +
+    'Usa la casilla de «listados anteriores» para que no se te cuele ninguno dos veces.</div>';
+  if (repetidosDentro) av += '<div class="aviso info">En el listado de hoy ' +
+    (repetidosDentro === 1 ? 'venía <b>1</b> correo repetido' : 'venían <b>' + repetidosDentro + '</b> correos repetidos') +
+    '. Se cuenta una sola vez.</div>';
+  if (malos.length) av += '<div class="aviso warn">Hay <b>' + malos.length + '</b> fila' +
+    (malos.length === 1 ? '' : 's') + ' sin un correo válido. Míra' + (malos.length === 1 ? 'la' : 'las') +
+    ' abajo antes de dar nada por hecho: ' +
+    'pueden ser filas de totales del Excel, o gente que se apuntó sin correo.</div>';
+  if (!nuevos.length) av += '<div class="aviso ok"><b>No hay ninguno nuevo.</b> ' +
+    'Todos los del listado de hoy ya los tenías.</div>';
+  document.getElementById("avisos").innerHTML = av;
+
+  pintarSalida();
+
+  document.getElementById("b-marcar").disabled = !nuevos.length;
+  document.getElementById("aviso-marcar").style.display = nuevos.length ? "block" : "none";
+
+  document.getElementById("sum-viejos").textContent =
+    viejos.length === 1 ? "Ver el que ya estaba" : "Ver los " + viejos.length + " que ya estaban";
+  document.getElementById("tabla-viejos").innerHTML = tabla(viejos, true);
+  document.getElementById("det-viejos").style.display = viejos.length ? "block" : "none";
+
+  document.getElementById("sum-malos").textContent = malos.length === 1
+    ? "Ver la fila sin correo válido"
+    : "Ver las " + malos.length + " filas sin correo válido";
+  document.getElementById("tabla-malos").innerHTML =
+    "<tr><th>Fila del Excel, tal cual</th></tr>" +
+    malos.map(f => "<tr><td>" + esc(f.cruda) + "</td></tr>").join("");
+  document.getElementById("det-malos").style.display = malos.length ? "block" : "none";
+}
+
+function cifra(n, et, clase) {
+  return '<div class="cifra ' + clase + '"><div class="n">' + n + '</div><div class="e">' + et + '</div></div>';
+}
+function esc(t) {
+  return String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+function tabla(filas, viejo) {
+  return "<tr><th>Nombre</th><th>Correo</th><th></th></tr>" + filas.map(f =>
+    '<tr class="' + (viejo ? "viejo" : "") + '"><td>' + esc(f.nombre || "—") + '</td>' +
+    '<td class="mail">' + esc(f.email) + '</td>' +
+    '<td><a class="env" title="Escribirle" href="mailto:' + f.email +
+      '?subject=' + encodeURIComponent("Los Juegos de Omega · 21 de noviembre · normas") + '">✉</a></td></tr>'
+  ).join("");
+}
+
+function pintarSalida() {
+  document.getElementById("salida").value = conNombres
+    ? nuevos.map(f => (f.nombre ? f.nombre + " <" + f.email + ">" : f.email)).join("\n")
+    : nuevos.map(f => f.email).join("\n");
+}
+function cambiarVista() {
+  conNombres = !conNombres;
+  document.getElementById("b-vista").textContent = conNombres ? "Ver solo los correos" : "Ver con nombres";
+  pintarSalida();
+}
+
+/* ---------- Copiar y descargar ---------- */
+function copiar(modo) {
+  if (!nuevos.length) return;
+  const txt = modo === "comas" ? nuevos.map(f => f.email).join(", ") : nuevos.map(f => f.email).join("\n");
+  navigator.clipboard.writeText(txt).then(
+    () => alert("Copiados " + nuevos.length + " correos.\n\nPégalos en Mailrelay."),
+    () => alert("No he podido copiar solo. Selecciona el texto del cuadro y cópialo a mano.")
+  );
+}
+
+function bajar(nombre, contenido, tipo) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([contenido], { type: tipo }));
+  a.download = nombre;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+function descargarCSV() {
+  if (!nuevos.length) return;
+  // Con BOM, que si no Excel se come las tildes.
+  const csv = "﻿nombre,email\n" + nuevos.map(f =>
+    '"' + (f.nombre || "").replace(/"/g, '""') + '","' + f.email + '"').join("\n");
+  bajar("correos-nuevos-" + hoy() + ".csv", csv, "text/csv;charset=utf-8");
+}
+
+function hoy() {
+  const d = new Date();
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+/* ---------- Historial ---------- */
+function marcarEnviados() {
+  if (!nuevos.length) return;
+  if (!confirm("Voy a marcar " + nuevos.length + " correos como enviados.\n\n" +
+               "A partir de ahora no volverán a salir como nuevos. ¿Ya les has mandado las normas?")) return;
+  nuevos.forEach(f => HISTORIAL.add(f.email));
+  const ok = escribirHistorial(HISTORIAL);
+  pintarHistorial();
+  if (!ok) {
+    alert("Los he marcado, pero este navegador no me deja guardarlo:\n" +
+          "en cuanto cierres la página se perderá.\n\n" +
+          "Guarda una copia del historial ahora mismo.");
+  }
+  procesar();
+}
+
+function guardarHistorial() {
+  bajar("historial-correos-omega-" + hoy() + ".json",
+        JSON.stringify([...HISTORIAL], null, 1), "application/json");
+}
+
+function cargarHistorial(f) {
+  if (!f) return;
+  const lector = new FileReader();
+  lector.onload = e => {
+    try {
+      const v = JSON.parse(e.target.result);
+      if (!Array.isArray(v)) throw new Error("el archivo no tiene la forma esperada");
+      const antes = HISTORIAL.size;
+      // Se SUMA, nunca se sustituye: perder correos ya enviados significa
+      // escribir dos veces a la misma gente.
+      v.forEach(c => HISTORIAL.add(String(c).toLowerCase()));
+      escribirHistorial(HISTORIAL);
+      pintarHistorial();
+      document.getElementById("aviso-hist").innerHTML =
+        '<div class="aviso ok" style="margin-top:12px">Historial cargado: tenías <b>' + antes +
+        '</b> y ahora hay <b>' + HISTORIAL.size + '</b>. Se han sumado, no se ha borrado nada.</div>';
+      procesar();
+    } catch (err) {
+      document.getElementById("aviso-hist").innerHTML =
+        '<div class="aviso warn" style="margin-top:12px">No he podido leer ese archivo: ' + esc(err.message) + '</div>';
+    }
+  };
+  lector.readAsText(f, "UTF-8");
+}
+
+function vaciarHistorial() {
+  if (!HISTORIAL.size) { alert("El historial ya está vacío."); return; }
+  if (!confirm("Esto borra los " + HISTORIAL.size + " correos del historial.\n\n" +
+               "Después, TODOS los del próximo listado saldrán como nuevos y les escribirás otra vez.\n\n" +
+               "¿Seguro? No se puede deshacer.")) return;
+  if (!confirm("Última comprobación: ¿has guardado una copia?")) return;
+  HISTORIAL = new Set();
+  escribirHistorial(HISTORIAL);
+  pintarHistorial();
+  procesar();
+}
+</script>
+</body>
+</html>
