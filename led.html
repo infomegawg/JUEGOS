@@ -167,6 +167,15 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   text-shadow: 0 0 30px rgba(255,116,33,0.7);
   animation: pulseNaranja 1s ease-in-out infinite alternate;
 }
+/* El numero de pareja, el mismo que dice la megafonia y que sale en el
+   Panel. Pequeno y blanco: se lee, pero no compite con los dorsales. */
+.pareja-n {
+  font-size: .26em; color: #fff; opacity: .75;
+  font-family: 'Montserrat', sans-serif; font-weight: 900;
+  letter-spacing: 1px; text-shadow: none;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 8px; padding: .25em .5em; margin-right: .25em;
+}
 .pareja-sep {
   font-size: .42em; color: #fff; opacity: .5;
   font-family: 'Montserrat', sans-serif; letter-spacing: 2px;
@@ -692,10 +701,10 @@ function init() {
    muchas, mas columnas y letra algo menor, pero nunca por debajo de lo que
    se ve a treinta metros. */
 function pintarParejas(lista, zona) {
-  // Llega como [{a,b},...] desde Firestore; se admite tambien [[a,b],...]
+  // Llega como [{n,a,b},...] desde Firestore; se admite tambien [[a,b],...]
   // por si queda abierta alguna pantalla con el formato anterior.
   const parejas = (lista || []).map(function (p) {
-    return Array.isArray(p) ? p : [p.a, p.b];
+    return Array.isArray(p) ? { n: 0, a: p[0], b: p[1] } : { n: p.n || 0, a: p.a, b: p.b };
   });
   const n = parejas.length;
   const cols = n <= 2 ? 1 : n <= 6 ? 2 : n <= 12 ? 3 : 4;
@@ -706,14 +715,15 @@ function pintarParejas(lista, zona) {
   // ocupa de ancho unas cinco veces el tamano de letra ("23 . 188"), y a lo
   // alto se deja algo menos de dos tercios de pantalla para el titulo y el
   // pie. El tope de 220 es el mismo que usa la llamada de un solo dorsal.
-  const porAncho = (window.innerWidth  * 0.92) / (cols * 5.0);
+  const porAncho = (window.innerWidth  * 0.92) / (cols * 5.6);
   const porAlto  = (window.innerHeight * 0.60) / Math.max(filas, 1);
   const tam = Math.max(30, Math.min(220, Math.round(Math.min(porAncho, porAlto))));
   grid.style.fontSize = tam + 'px';
-  grid.innerHTML = parejas.map(function (ds) {
-    const a = ds[0], b = ds[1];
-    return '<div class="pareja-cell">' + a +
-           '<span class="pareja-sep">\u00b7</span>' + b + '</div>';
+  grid.innerHTML = parejas.map(function (p) {
+    return '<div class="pareja-cell">' +
+           (p.n ? '<span class="pareja-n">' + p.n + '</span>' : '') +
+           p.a + '<span class="pareja-sep">\u00b7</span>' + p.b +
+           '</div>';
   }).join('');
   document.getElementById('parejas-zona').textContent =
     'ACUDID A ' + (zona || 'LA ZONA DE JUEGO');

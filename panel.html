@@ -140,6 +140,13 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .agrup { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; }
 .agrup .cab { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
 .agrup .tit { font-size: 13px; font-weight: 900; color: var(--morado); }
+/* El numero de la pareja: el mismo que dice la megafonia y que sale en la
+   LED. Va delante de los dorsales y es lo que ordena la lista. */
+.agrup .num-pareja {
+  background: var(--morado); color: #fff; border-radius: 4px;
+  padding: 2px 7px; font-size: 11px; font-weight: 900;
+  letter-spacing: .5px; margin-right: 2px; white-space: nowrap;
+}
 .agrup .tit.pareja { font-family: var(--mono); color: #0a8f4d; }
 .agrup .sub { font-size: 10px; color: var(--texto2); }
 .agrup .sello { border-radius: 3px; padding: 1px 6px; font-size: 9px; font-weight: 800; color: #fff; }
@@ -1654,15 +1661,14 @@ function renderVistaParejas(grid) {
     .filter(([, pa]) => pa.activo !== false)
     .filter(([, pa]) => agrupacionCoincide(pa.dorsales || [], ''))
     .sort((a, b) => {
+      // Primero las de la prueba en curso, y dentro de ellas POR SU NUMERO,
+      // en el orden en que se crearon. No se reordena por nada mas: la
+      // pareja 7 esta siempre entre la 6 y la 8, haya jugado o no.
       const pa = (a[1].prueba || '') === prueba ? 0 : 1;
       const pb = (b[1].prueba || '') === prueba ? 0 : 1;
       if (pa !== pb) return pa - pb;
-      // Las pendientes arriba: son las que quedan por jugar.
-      const ja = a[1].jugada ? 1 : 0, jb = b[1].jugada ? 1 : 0;
-      if (ja !== jb) return ja - jb;
-      // Y dentro de esas, primero la ronda que todavia no se ha anunciado.
-      const aa = a[1].anunciada ? 1 : 0, ab = b[1].anunciada ? 1 : 0;
-      if (aa !== ab) return aa - ab;
+      const oa = ordenDePareja(a[1]), ob = ordenDePareja(b[1]);
+      if (oa !== ob) return oa - ob;
       return (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0];
     });
   if (!lista.length) {
@@ -1677,6 +1683,8 @@ function renderVistaParejas(grid) {
                 : (pa.origen && pa.origen.indexOf('aleatorio') === 0 ? 'sorteada' : 'a mano');
     return '<div class="agrup' + (pa.jugada || deOtraPrueba ? ' cerrada' : '') + '">' +
       '<div class="cab">' +
+        (typeof pa.numero === 'number'
+          ? '<span class="num-pareja">PAREJA ' + pa.numero + '</span>' : '') +
         '<span class="tit pareja">#' + ds.join(' · #') + '</span>' +
         '<span class="sello" style="background:' +
           (pa.jugada ? '#6b6b6b' : pa.anunciada ? '#d96400' : '#0a8f4d') + ';">' +
@@ -2443,8 +2451,11 @@ function sortearParejasAleatorias() {
     (n < cuantas ? " (pedías " + cuantas + ", solo da para " + n + ")" : "") +
     (sobran ? " · quedan " + sobran + " sin emparejar" : "");
   document.getElementById("pareja-azar-cab").textContent = cab;
+  // Los mismos numeros que van a quedar grabados y que dira la megafonia.
+  const desde = siguienteNumeroDePareja();
   document.getElementById("pareja-azar-lista").innerHTML =
-    parejasAzarPropuestas.map((p, i) => (i + 1) + ".  #" + p[0] + "  vs  #" + p[1]).join("<br>");
+    parejasAzarPropuestas.map((p, i) =>
+      "Pareja " + (desde + i) + ":  #" + p[0] + "  vs  #" + p[1]).join("<br>");
   document.getElementById("pareja-azar-prev").style.display = "block";
 }
 
@@ -2474,9 +2485,15 @@ async function confirmarParejasAleatorias() {
   }
   try {
     const lote = db.batch();
-    parejasAzarPropuestas.forEach(dorsales => {
+    // Todas las del lote comparten el serverTimestamp, asi que no sirve para
+    // ordenarlas entre si: se guarda el orden del sorteo a mano.
+    const base = Date.now();
+    const primerNumero = siguienteNumeroDePareja();
+    parejasAzarPropuestas.forEach((dorsales, i) => {
       lote.set(db.collection("parejas").doc(), {
         dorsales: dorsales.map(Number),
+        numero: primerNumero + i,
+        orden: base + i,
         prueba: prueba,
         origen: "aleatorio-panel",
         creado_por: "Panel-Central",
@@ -2521,6 +2538,8 @@ async function crearPareja(dorsales, origen) {
   try {
     await db.collection("parejas").add({
       dorsales: dorsales.map(Number).sort((a, b) => a - b),
+      numero: siguienteNumeroDePareja(),
+      orden: Date.now(),
       prueba: prueba,
       origen: origen,
       creado_por: "Panel-Central",
@@ -2671,7 +2690,13 @@ async function mostrarParejasEnLED(parejas, segundos) {
     await db.collection("llamadas").doc("actual").set({
       tipo: "parejas",
       // Mapas, no arrays: Firestore rechaza un array dentro de otro array.
-      parejas: parejas.map(function (ds) { return { a: Number(ds[0]), b: Number(ds[1]) }; }),
+      parejas: parejas.map(function (p) {
+        return {
+          n: typeof p.n === "number" ? p.n : 0,
+          a: Number(p.ds[0]),
+          b: Number(p.ds[1])
+        };
+      }),
       zona: "LA ZONA DE JUEGO",
       activa: true,
       llamado_en: TS()
@@ -2687,6 +2712,29 @@ async function mostrarParejasEnLED(parejas, segundos) {
 /* Las parejas vivas de la prueba en curso, con el mismo filtro que la lista
    de la pantalla (buscador incluido), para que lo que se anuncia sea
    exactamente lo que el operador esta viendo. */
+/* El numero siguiente libre de la prueba en curso. Se mira la cache, que es
+   lo que el Panel tiene en vivo. Dos puestos creando a la vez podrian pedir
+   el mismo numero; es poco probable y, si pasa, el orden lo desempata el
+   momento de creacion y se ve a simple vista en la lista. */
+function siguienteNumeroDePareja() {
+  const prueba = pruebaEnCurso();
+  let mayor = 0;
+  Object.values(parejasCache).forEach(function (pa) {
+    if (!pa || pa.activo === false) return;
+    if ((pa.prueba || '') !== prueba) return;
+    if (typeof pa.numero === "number" && pa.numero > mayor) mayor = pa.numero;
+  });
+  return mayor + 1;
+}
+
+/* Orden de la lista, de la megafonia y de la pantalla: el numero de pareja.
+   Las de antes de que existiera el numero no lo tienen y se quedan al final,
+   ordenadas por dorsal, que es como estaban. */
+function ordenDePareja(pa) {
+  if (typeof pa.numero === "number") return pa.numero;
+  return Number.MAX_SAFE_INTEGER;
+}
+
 function parejasVivasParaAnunciar(condicion) {
   const prueba = pruebaEnCurso();
   return Object.entries(parejasCache)
@@ -2700,10 +2748,14 @@ function parejasVivasParaAnunciar(condicion) {
       return {
         id: e[0],
         tanda: e[1].tanda || '',
+        orden: ordenDePareja(e[1]),
+        numero: e[1].numero,
         dorsales: (e[1].dorsales || []).slice().sort(function (a, b) { return a - b; })
       };
     })
-    .sort(function (a, b) { return a.dorsales[0] - b.dorsales[0]; });
+    .sort(function (a, b) {
+      return a.orden !== b.orden ? a.orden - b.orden : a.dorsales[0] - b.dorsales[0];
+    });
 }
 
 /* La ronda que toca anunciar: las que aun no han salido por megafonia. */
@@ -2767,9 +2819,16 @@ async function marcarParejasAnunciadas(items) {
    propia frase para que la voz haga pausa y se entienda por megafonia.
    Devuelve si de verdad ha sonado: si el operador cancela, no se marca. */
 function lanzarAnuncioDeParejas(items, esRepeticion) {
-  const parejas = items.map(function (p) { return p.dorsales; });
+  // n = el numero grabado de la pareja. Si no lo tiene (parejas de antes),
+  // se usa la posicion, que es lo que se hacia.
+  const parejas = items.map(function (p, i) {
+    return { n: typeof p.numero === "number" ? p.numero : (i + 1), ds: p.dorsales };
+  });
   if (!parejas.length) return false;
-  if (parejas.length === 1) { anunciarParejaPorDatos(parejas[0]); return true; }
+  if (parejas.length === 1) {
+    anunciarParejaPorDatos(parejas[0].ds, parejas[0].n);
+    return true;
+  }
 
   // Mas de ocho seguidas son varios minutos de megafonia del tiron.
   if (parejas.length > 8 &&
@@ -2778,8 +2837,8 @@ function lanzarAnuncioDeParejas(items, esRepeticion) {
 
   const frases = [esRepeticion ? "Atención, se repite" : "Atención",
                   "Se anuncian las " + parejas.length + " parejas"];
-  parejas.forEach(function (ds, i) {
-    frases.push("Pareja " + (i + 1) + ", " + ds[0] + " y " + ds[1]);
+  parejas.forEach(function (p) {
+    frases.push("Pareja " + p.n + ", " + p.ds[0] + " y " + p.ds[1]);
   });
   frases.push("Todas estas parejas", "por favor", "acudir a la zona de juego");
   hablarPorFrases(frases);
@@ -2817,17 +2876,20 @@ function repetirUltimaTanda() {
 function anunciarPareja(id) {
   const pa = parejasCache[id];
   if (!pa) return;
-  anunciarParejaPorDatos(pa.dorsales || []);
+  anunciarParejaPorDatos(pa.dorsales || [], pa.numero);
   // Queda marcada: si no, volveria a salir con la ronda siguiente.
   marcarParejasAnunciadas([{ id: id }]);
 }
 
-function anunciarParejaPorDatos(dorsales) {
+function anunciarParejaPorDatos(dorsales, numero) {
   if (!dorsales || dorsales.length !== 2) return;
-  hablarPorFrases(["Pareja " + dorsales[0] + " y " + dorsales[1],
-                   "por favor", "acudir a la zona de juego"]);
-  mostrarParejasEnLED([dorsales], 16);
-  mostrarNotif("Anunciando la pareja #" + dorsales[0] + " · #" + dorsales[1]);
+  const cabecera = typeof numero === "number"
+    ? ("Pareja " + numero + ", " + dorsales[0] + " y " + dorsales[1])
+    : ("Pareja " + dorsales[0] + " y " + dorsales[1]);
+  hablarPorFrases([cabecera, "por favor", "acudir a la zona de juego"]);
+  mostrarParejasEnLED([{ n: numero, ds: dorsales }], 16);
+  mostrarNotif("Anunciando la pareja #" + dorsales[0] + " · #" + dorsales[1] +
+               (typeof numero === "number" ? " (pareja " + numero + ")" : ""));
 }
 
 function actualizarContadorMulti() {
