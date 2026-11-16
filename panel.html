@@ -540,6 +540,10 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
             <i class="ti ti-dice"></i> Sortear
           </button>
           <span class="barra-sep"></span>
+          <button class="btn btn-verde" id="btn-anunciar-todas" style="width:auto;padding:8px 14px;" onclick="anunciarTodasLasParejas()">
+            <i class="ti ti-volume"></i> Anunciar todas
+          </button>
+          <span class="barra-sep"></span>
           <button class="btn btn-morado" id="crear-pareja-toggle-btn" style="width:auto;padding:8px 14px;" onclick="toggleModoCrearPareja()">
             <i class="ti ti-hand-finger"></i> Formar una a mano
           </button>
@@ -1626,6 +1630,7 @@ function renderVistaEquipos(grid) {
 
 function renderVistaParejas(grid) {
   const prueba = pruebaEnCurso();
+  actualizarBotonAnunciarTodas();
   const lista = Object.entries(parejasCache)
     .filter(([, pa]) => pa.activo !== false)
     .filter(([, pa]) => agrupacionCoincide(pa.dorsales || [], ''))
@@ -2581,6 +2586,58 @@ function agrupacionesHTML(a) {
         '</div>').join('');
   }
   return h + '</div>';
+}
+
+/* Las parejas que de verdad se van a anunciar: las de la prueba en curso que
+   siguen pendientes. Se filtra igual que la lista de la pantalla, buscador
+   incluido, para que "todas" sea exactamente lo que el operador esta viendo. */
+function parejasPendientesDeLaPrueba() {
+  const prueba = pruebaEnCurso();
+  return Object.entries(parejasCache)
+    .filter(function (e) { return e[1].activo !== false; })
+    .filter(function (e) { return !e[1].jugada; })
+    .filter(function (e) { return (e[1].prueba || '') === prueba; })
+    .filter(function (e) { return agrupacionCoincide(e[1].dorsales || [], ''); })
+    .map(function (e) { return (e[1].dorsales || []).slice().sort(function (a, b) { return a - b; }); })
+    .filter(function (ds) { return ds.length === 2; })
+    .sort(function (a, b) { return a[0] - b[0]; });
+}
+
+/* El boton dice cuantas va a anunciar: asi nunca sorprende lo que sale por
+   megafonia. Sin parejas pendientes se desactiva en vez de desaparecer, que
+   si no parece que se ha roto algo. */
+function actualizarBotonAnunciarTodas() {
+  const btn = document.getElementById("btn-anunciar-todas");
+  if (!btn) return;
+  const n = parejasPendientesDeLaPrueba().length;
+  btn.innerHTML = '<i class="ti ti-volume"></i> ' +
+    (n ? (n === 1 ? 'Anunciar la pareja' : 'Anunciar las ' + n) : 'Nada que anunciar');
+  btn.disabled = !n;
+  btn.style.opacity = n ? '' : '.5';
+}
+
+/* Una sola locucion con todas las parejas. El preambulo se dice una vez, no
+   una por pareja, que era lo que hacia eterno el anuncio. Cada dorsal va en
+   su propia frase para que la voz haga pausa y se entienda por megafonia. */
+function anunciarTodasLasParejas() {
+  const parejas = parejasPendientesDeLaPrueba();
+  if (!parejas.length) { mostrarNotif("No hay parejas pendientes en esta prueba"); return; }
+  if (parejas.length === 1) { anunciarParejaPorDatos(parejas[0]); return; }
+
+  // Mas de ocho seguidas son varios minutos de megafonia del tiron.
+  if (parejas.length > 8 &&
+      !confirm("Son " + parejas.length + " parejas seguidas por megafonia.\n\n" +
+               "Eso son varios minutos sin poder cortar.\n\n¿Las anuncio todas?")) return;
+
+  const frases = ["Atención", "Se anuncian las " + parejas.length + " parejas"];
+  parejas.forEach(function (ds, i) {
+    frases.push("Pareja " + (i + 1));
+    frases.push("el " + ds[0]);
+    frases.push("y el " + ds[1]);
+  });
+  frases.push("Todas estas parejas", "por favor", "acudir a la zona de juego");
+  hablarPorFrases(frases);
+  mostrarNotif("Anunciando " + parejas.length + " parejas de una vez");
 }
 
 function anunciarPareja(id) {
