@@ -691,7 +691,12 @@ function init() {
    Se lee desde el fondo del campo: con pocas parejas, letra enorme; con
    muchas, mas columnas y letra algo menor, pero nunca por debajo de lo que
    se ve a treinta metros. */
-function pintarParejas(parejas, zona) {
+function pintarParejas(lista, zona) {
+  // Llega como [{a,b},...] desde Firestore; se admite tambien [[a,b],...]
+  // por si queda abierta alguna pantalla con el formato anterior.
+  const parejas = (lista || []).map(function (p) {
+    return Array.isArray(p) ? p : [p.a, p.b];
+  });
   const n = parejas.length;
   const cols = n <= 2 ? 1 : n <= 6 ? 2 : n <= 12 ? 3 : 4;
   const filas = Math.ceil(n / cols);

@@ -1344,8 +1344,8 @@ function escucharLlamadas() {
         document.getElementById("call-prev-zona").textContent = d.zona || "";
         prev.classList.add("show");
         document.querySelectorAll(".cell.called").forEach(c => c.classList.remove("called"));
-        d.parejas.forEach(function (ds) {
-          (ds || []).forEach(function (dor) {
+        d.parejas.forEach(function (pa) {
+          (Array.isArray(pa) ? pa : [pa.a, pa.b]).forEach(function (dor) {
             const c = document.getElementById("cell-" + dor);
             if (c) c.classList.add("called");
           });
@@ -2633,7 +2633,8 @@ async function mostrarParejasEnLED(parejas, segundos) {
   try {
     await db.collection("llamadas").doc("actual").set({
       tipo: "parejas",
-      parejas: parejas.map(function (ds) { return [Number(ds[0]), Number(ds[1])]; }),
+      // Mapas, no arrays: Firestore rechaza un array dentro de otro array.
+      parejas: parejas.map(function (ds) { return { a: Number(ds[0]), b: Number(ds[1]) }; }),
       zona: "LA ZONA DE JUEGO",
       activa: true,
       llamado_en: TS()
@@ -2742,8 +2743,8 @@ function lanzarAnuncioDeParejas(items, esRepeticion) {
                   "Se anuncian las " + parejas.length + " parejas"];
   parejas.forEach(function (ds, i) {
     frases.push("Pareja " + (i + 1));
-    frases.push("el " + ds[0]);
-    frases.push("y el " + ds[1]);
+    frases.push(String(ds[0]));
+    frases.push("y " + ds[1]);
   });
   frases.push("Todas estas parejas", "por favor", "acudir a la zona de juego");
   hablarPorFrases(frases);
