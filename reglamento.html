@@ -1,0 +1,1416 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reglamento de las pruebas</title>
+<meta name="description" content="Las doce fichas de prueba de Los Juegos de Omega, para el movil del staff.">
+<style>
+:root {
+  --bg: #f0ecf7;
+  --papel: #fff;
+  --morado: #7018cc;
+  --morado-claro: #9b4dff;
+  --texto: #1a0a2e;
+  --gris: #5c5470;
+  --linea: rgba(130,36,227,.2);
+  --rojo: #d41230;
+  --rojo-fondo: #fff0f2;
+  --verde: #0d8a4a;
+  --verde-fondo: #eefaf3;
+  --amarillo: #fff3c4;
+}
+* { box-sizing: border-box; -webkit-text-size-adjust: 100%; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--texto);
+  font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 15px; line-height: 1.55;
+  padding-bottom: 64px;
+}
+
+/* ---- Barra de arriba, pegada ---- */
+.barra { position: sticky; top: 0; z-index: 20; background: #000; color: #fff; padding: 8px 12px; }
+.barra .fila { display: flex; gap: 8px; align-items: center; }
+.barra a.volver, .barra button.indice {
+  background: #241436; color: #fff; border: 0; border-radius: 8px;
+  font: inherit; font-weight: 700; font-size: 12px; padding: 8px 10px;
+  text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.barra select {
+  flex: 1; min-width: 0; font: inherit; font-weight: 800; font-size: 13px;
+  padding: 8px 10px; border-radius: 8px; border: 0; background: #fff; color: var(--texto);
+}
+.buscar { display: flex; gap: 6px; margin-top: 8px; }
+.buscar input {
+  flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 8px 10px;
+  border-radius: 8px; border: 0; background: #241436; color: #fff;
+}
+.buscar input::placeholder { color: #9b8fb0; }
+.buscar button { background: var(--morado); color: #fff; border: 0; border-radius: 8px; font: inherit; font-weight: 700; font-size: 12px; padding: 8px 12px; cursor: pointer; }
+#cuenta { color: #c9bcde; font-size: 11px; font-weight: 700; padding: 6px 2px 0; display: none; }
+
+/* ---- Indice ---- */
+#indice { display: none; padding: 10px 12px 14px; background: #130a22; }
+#indice.abierto { display: block; }
+.chips { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.chip {
+  display: flex; align-items: center; gap: 7px; text-align: left;
+  background: #241436; color: #fff; border: 1px solid #3a2456; border-radius: 9px;
+  font: inherit; font-weight: 700; font-size: 12px; line-height: 1.25;
+  padding: 9px 9px; cursor: pointer;
+}
+.chip b {
+  flex: 0 0 auto; min-width: 20px; text-align: center;
+  background: var(--morado); border-radius: 5px; padding: 1px 4px; font-size: 11px;
+}
+.chip.activo { background: var(--morado); border-color: var(--morado-claro); }
+
+/* ---- Ficha ---- */
+/* La barra de arriba es sticky y tapa 110 px: sin este margen, un salto por
+   ancla deja el titulo de la prueba debajo de ella. */
+.ficha { display: none; padding: 0 12px 28px; scroll-margin-top: 130px; }
+.ficha.visible { display: block; }
+.tit { display: flex; gap: 10px; align-items: center; margin: 14px 0 6px; }
+.tit .num {
+  flex: 0 0 auto; background: var(--morado); color: #fff; font-weight: 800;
+  border-radius: 9px; padding: 5px 10px; font-size: 13px;
+}
+.tit h1 { margin: 0; font-size: 19px; line-height: 1.2; }
+
+h2 {
+  font-size: 15px; margin: 24px 0 4px; padding: 7px 10px;
+  background: var(--morado); color: #fff; border-radius: 8px;
+}
+h3 { font-size: 14px; margin: 16px 0 2px; color: var(--morado); }
+h4 { font-size: 13.5px; margin: 12px 0 2px; }
+p { margin: 7px 0; }
+hr { border: 0; border-top: 1px solid var(--linea); margin: 18px 0; }
+strong { font-weight: 800; }
+code { font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: #ece4f8; border-radius: 4px; padding: 1px 4px; }
+
+ul, ol { margin: 7px 0; padding-left: 22px; }
+li { margin: 4px 0; }
+
+blockquote {
+  margin: 12px 0; padding: 10px 12px; background: var(--papel);
+  border-left: 4px solid var(--morado-claro); border-radius: 0 9px 9px 0;
+}
+blockquote p { margin: 0; }
+blockquote.aviso { background: var(--rojo-fondo); border-left-color: var(--rojo); }
+blockquote.hecho { background: var(--verde-fondo); border-left-color: var(--verde); }
+blockquote em { font-style: normal; font-weight: 700; }
+
+table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; display: block; overflow-x: auto; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--linea); vertical-align: top; }
+th { background: var(--morado); color: #fff; font-weight: 700; }
+
+dl.pares { margin: 10px 0; background: var(--papel); border: 1px solid var(--linea); border-radius: 10px; overflow: hidden; }
+dl.pares dt { font-weight: 800; font-size: 12.5px; padding: 8px 10px 0; color: var(--morado); }
+dl.pares dd { margin: 0; padding: 1px 10px 9px; border-bottom: 1px solid var(--linea); font-size: 13.5px; }
+dl.pares dd:last-child { border-bottom: 0; }
+
+mark { background: var(--amarillo); color: inherit; border-radius: 3px; padding: 0 2px; }
+
+/* ---- Pie fijo: subir ---- */
+#arriba {
+  position: fixed; right: 12px; bottom: 14px; z-index: 15;
+  background: #000; color: #fff; border: 0; border-radius: 50%;
+  width: 44px; height: 44px; font-size: 17px; cursor: pointer;
+  box-shadow: 0 3px 10px rgba(0,0,0,.3); display: none;
+}
+
+@media print {
+  .barra, #indice, #arriba { display: none !important; }
+  body { background: #fff; font-size: 10.5pt; padding: 0; }
+  .ficha { display: block !important; padding: 0; page-break-after: always; }
+  .ficha:last-child { page-break-after: auto; }
+  h2 { background: #eee !important; color: #000 !important; -webkit-print-color-adjust: exact; }
+  .tit .num, th { background: #ddd !important; color: #000 !important; -webkit-print-color-adjust: exact; }
+  blockquote { border-left: 3px solid #666; background: #f6f6f6 !important; -webkit-print-color-adjust: exact; }
+  blockquote.aviso { border-left-color: #000; }
+}
+</style>
+</head>
+<body>
+
+<div class="barra">
+  <div class="fila">
+    <a class="volver" href="staff.html">&#8592; App</a>
+    <select id="selector" aria-label="Elegir prueba">
+      <option value="p01">1. Luz Roja, Luz Verde</option>
+      <option value="p02">2. Selección Fatal</option>
+      <option value="p03">3. Campo de Batalla</option>
+      <option value="p04">4. Pistolas Ciegas</option>
+      <option value="p05">5. Tiro al Saco</option>
+      <option value="p06">6. La Ruleta</option>
+      <option value="p07">7. Batalla Naval</option>
+      <option value="p08">8. Las Canicas</option>
+      <option value="p09">9. Omega Trivial</option>
+      <option value="p10">10. Equilibrio Fatal</option>
+      <option value="p11">11. La Gran Final</option>
+      <option value="pb">EXTRA · Desafío Explosivo</option>
+    </select>
+    <button type="button" class="indice" id="btn-indice">Todas</button>
+  </div>
+  <div class="buscar">
+    <input type="search" id="q" placeholder="Buscar en esta prueba&hellip;" autocomplete="off" enterkeyhint="search">
+    <button type="button" id="btn-buscar">Buscar</button>
+  </div>
+  <div id="cuenta"></div>
+</div>
+
+<nav id="indice"><div class="chips">
+  <button type="button" class="chip" data-ir="p01"><b>1</b>Luz Roja, Luz Verde</button>
+  <button type="button" class="chip" data-ir="p02"><b>2</b>Selección Fatal</button>
+  <button type="button" class="chip" data-ir="p03"><b>3</b>Campo de Batalla</button>
+  <button type="button" class="chip" data-ir="p04"><b>4</b>Pistolas Ciegas</button>
+  <button type="button" class="chip" data-ir="p05"><b>5</b>Tiro al Saco</button>
+  <button type="button" class="chip" data-ir="p06"><b>6</b>La Ruleta</button>
+  <button type="button" class="chip" data-ir="p07"><b>7</b>Batalla Naval</button>
+  <button type="button" class="chip" data-ir="p08"><b>8</b>Las Canicas</button>
+  <button type="button" class="chip" data-ir="p09"><b>9</b>Omega Trivial</button>
+  <button type="button" class="chip" data-ir="p10"><b>10</b>Equilibrio Fatal</button>
+  <button type="button" class="chip" data-ir="p11"><b>11</b>La Gran Final</button>
+  <button type="button" class="chip" data-ir="pb"><b>EXTRA</b>Desafío Explosivo</button>
+</div></nav>
+
+<section class="ficha" id="p01" data-num="1" data-nombre="Luz Roja, Luz Verde">
+<header class="tit"><span class="num">1</span><h1>Luz Roja, Luz Verde</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd>10:00 – 10:23</dd><dt><strong>Entran</strong></dt><dd>300</dd><dt><strong>Clasifican</strong></dt><dd><strong>Variable.</strong> No hay cupo: clasifica todo el que cruce la meta</dd><dt><strong>Formato</strong></dt><dd>3 tandas de 100</dd><dt><strong>Recorrido</strong></dt><dd>80 m de largo sobre 60 m de ancho útil</dd><dt><strong>Tiempo de juego</strong></dt><dd>45 segundos netos de verde por tanda</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Esta prueba no tiene un número de eliminados.</strong> No se elimina a una cantidad: se elimina a quien se mueva y a quien no llegue. El resultado puede ser de 10 eliminados o de 60, y <strong>nadie fuerza el corte en ninguna dirección</strong>.  La estimación de trabajo de la organización es de unos 30 eliminados, pero <strong>es solo una estimación para dimensionar material y tiempos</strong>, no un objetivo. Lo que salga de aquí condiciona la carga de Selección Fatal y el bingo 1, y para eso están las <strong>tres cargas preparadas el día 20</strong>. <strong>Mesa comunica el número real en cuanto cierra la tercera tanda.</strong></p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Cruzar <strong>completamente</strong> la línea de meta mientras suena el fragmento musical, antes de que se agoten los 45 segundos netos de verde de la tanda.</p>
+<h2>1.2 Cómo se juega</h2>
+<ol>
+<li><strong>No hay carriles.</strong> El ancho útil es libre.</li>
+<li>Se avanza <strong>andando o corriendo</strong> mientras suena el fragmento musical.</li>
+<li><strong>Al terminar el fragmento, inmovilidad total.</strong> Coordinación autoriza el siguiente fragmento cuando el arbitraje confirma que el campo está controlado, y <strong>A12 lo activa</strong>.</li>
+<li>El contador de 45 segundos <strong>solo corre mientras suena la música</strong>. Las fases de inmovilidad no consumen tiempo y su duración se ajusta en directo.</li>
+<li>La tanda puede acabar antes si todos han clasificado o han sido eliminados.</li>
+</ol>
+<h2>1.3 Qué elimina</h2>
+<table><thead><tr><th>Causa</th><th>Detalle</th></tr></thead><tbody><tr><td><strong>Moverse durante la pausa</strong></td><td>Solo con <strong>observación clara y dorsal identificado</strong></td></tr><tr><td><strong>Empujar, sujetar o bloquear</strong></td><td>A otro participante</td></tr><tr><td><strong>Jugar en una tanda que no es la suya</strong></td><td>Eliminación de la prueba</td></tr></tbody></table>
+<p><strong>No son infracción por sí solos:</strong> respirar, parpadear o el movimiento de la ropa. Los movimientos causados por un empujón o por evitar una caída <strong>se valoran por su causa</strong>, no por el movimiento en sí.</p>
+<h2>1.4 Qué clasifica</h2>
+<p>Cruzar <strong>completamente</strong> la meta en verde, antes de agotarse la secuencia y sin eliminación. <strong>Estar sobre la línea no basta.</strong></p>
+<h2>1.5 Cómo se marca una eliminación</h2>
+<p>El árbitro que ve el movimiento <strong>acude hasta el participante y le escanea el dorsal con la app de staff</strong>. Ese escaneo es la eliminación: no se canta desde lejos, no se señala con el dedo y no se discute en el sitio.</p>
+<blockquote class="aviso"><p>🚨 <strong>El escaneo del dorsal es la única forma de eliminar. No se elimina a distancia.</strong></p></blockquote>
+<p><strong>El árbitro siempre puede llegar.</strong> El campo está abierto, todo el mundo está quieto y el fragmento siguiente <strong>no arranca hasta que los ocho pulgares están arriba</strong>, así que nadie va a tener que correr ni a dejarse a nadie sin escanear. <strong>Lo que espera es el campo, no el árbitro.</strong></p>
+<p><strong>Si ha visto moverse a dos o a tres, va a por los tres.</strong> Los escanea <strong>uno a uno</strong> —la cámara no hay que cerrarla entre dorsal y dorsal— y vuelve a su sitio. El Panel Central va recibiendo los escaneos y <strong>Coordinación acepta las eliminaciones</strong> desde allí.</p>
+<p>Esto es lo que hace que la prueba no se pare: el árbitro no discute, no anota y no habla por radio. <strong>Se acerca, escanea y vuelve.</strong></p>
+<h3>El único caso en el que no se puede escanear</h3>
+<p>Que el participante <strong>se niegue a enseñar el dorsal, se tape o se aparte</strong>.</p>
+<p>Eso <strong>ya no es una duda de arbitraje, es una conducta</strong>. El árbitro <strong>no forcejea y no discute</strong>: lo comunica por radio, Coordinación lo resuelve y <strong>la tanda continúa</strong>. Ese dorsal lo da de baja Coordinación desde el Panel.</p>
+<h2>1.6 El eliminado</h2>
+<p>Permanece <strong>de pie con las dos manos levantadas</strong>. Cuando no queden activos por detrás, un árbitro puede autorizarle a sentarse. Espera al final de la tanda sin obstaculizar: <strong>no hay retiradas durante la tanda</strong>.</p>
+<h2>1.7 Los árbitros durante las pausas</h2>
+<p>Durante las fases de luz roja, <strong>dos árbitros pasean entre los participantes de forma aleatoria</strong>. No buscan a nadie en concreto: están ahí para que nadie sepa quién le está mirando. Es parte del juego.</p>
+<p>Se mueven despacio, sin tocar a nadie salvo para eliminar, y <strong>vuelven a su tramo antes de que se active el siguiente fragmento</strong>.</p>
+<h2>1.8 Las tandas en espera</h2>
+<p>Esperan al final del campo, <strong>colocadas por orden numérico</strong> y <strong>de espaldas al juego</strong>.</p>
+<blockquote class="aviso"><p>🚨 <strong>Nadie se da la vuelta.</strong> Si una tanda ve las pausas y los arranques de la anterior, juega con una ventaja que no tuvo la primera. Dos auxiliares lo controlan durante toda la prueba.</p></blockquote>
+<hr/>
+<p><strong>La puede dar el speaker por megafonía o tú a tu grupo.</strong> Las dos valen, y el guion es el mismo: el de aquí abajo, que está también en el <strong>Manual del Speaker</strong>. Lo normal es que la dé el speaker; <strong>si el día se mueve</strong> —se va el sonido, vais con retraso, tu grupo entra tarde— <strong>la das tú</strong>. <strong>Coordinación canta por radio quién la da antes de abrir la prueba</strong>: es lo único que no se improvisa, porque si no, o no la da nadie o la dan los dos. Por megafonía se dice <strong>una sola vez</strong>, con los grupos ya formados y antes de la primera tanda.</p>
+<p><strong>Si la ha dado el speaker</strong>, antes de cada tanda, a tu grupo, y en veinte segundos solo recuerdas esto: <em>«Quietos de verdad cuando pare la música. Si os escaneo el dorsal, estáis fuera: os quedáis de pie con las manos levantadas. La meta se cruza del todo. Los que esperan, de espaldas.»</em></p>
+<blockquote><p><em>«Escuchadme, que esto es corto.»</em>  <em>«Avanzáis mientras suena la música. En cuanto la música para, os quedáis inmóviles. Inmóviles de verdad.»</em>  <em>«Si os vemos movernos, uno de nosotros irá hasta vosotros y <strong>os escaneará el dorsal con el móvil</strong>. Ese escaneo significa que estáis eliminados. No hace falta nada más.»</em>  <em>«Y si vemos a varios, vamos a por todos: os vamos escaneando de uno en uno.»</em>  <em>«Y si os eliminan, os quedáis <strong>de pie con las dos manos levantadas</strong> donde estéis, sin moveros del sitio, hasta que acabe la tanda.»</em>  <em>«Durante las pausas vamos a estar andando entre vosotros. No sabéis quién os está mirando. Vosotros, quietos.»</em>  <em>«Tenéis que cruzar la línea de meta <strong>del todo</strong>. Pisarla no vale.»</em>  <em>«Prohibido empujar, agarrar o bloquear a otro. Eso es eliminación directa.»</em>  <em>«Los que esperáis: de espaldas. No se mira hacia el campo. El que se dé la vuelta, perjudica a toda su tanda.»</em>  <em>«Lo que yo diga en este campo es lo que vale. Si no estáis de acuerdo, no se discute aquí: se reclama en la mesa de Coordinación. ¿Alguna duda?»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 – A8</strong></td><td>Arbitraje en <strong>4 parejas</strong>, una persona a cada lado del tramo. Referencias de 20 m: <strong>0-20, 20-40, 40-60, 60-80</strong></td></tr><tr><td><strong>+2 auxiliares</strong></td><td>Colocan las tandas al final del campo <strong>por orden numérico</strong>, explican que esperan de espaldas y <strong>controlan que nadie se dé la vuelta</strong></td></tr><tr><td><strong>A9</strong></td><td>Ordena y llama tandas</td></tr><tr><td><strong>A10</strong></td><td>Controla llegada y salida de clasificados</td></tr><tr><td><strong>A11</strong></td><td>Apoya circulación y eliminados</td></tr><tr><td><strong>A12</strong></td><td><strong>Opera la locución junto a la pantalla LED.</strong> Activa y desactiva el fragmento musical <strong>solo cuando los árbitros han dado el OK</strong>. Es un árbitro más de la prueba</td></tr></tbody></table>
+<p><strong>A las 09:55 los ocho árbitros, los dos auxiliares y A12 están en posición.</strong></p>
+<p><strong>La señal de los árbitros es el pulgar hacia arriba</strong>, con la mano levantada desde su puesto de observación. <strong>A12 necesita los ocho pulgares</strong> antes de activar nada.</p>
+<blockquote class="aviso"><p>🚨 <strong>A12 no arranca nunca la música por su cuenta ni por reloj.</strong> La secuencia es siempre la misma: <strong>los ocho árbitros levantan el pulgar</strong> → Coordinación autoriza → <strong>A12 activa</strong>. Y al terminar el fragmento, <strong>A12 corta</strong>. Entre medias, A12 vigila su tramo como un árbitro más.  Si A12 arranca antes de tener el OK, hay gente avanzando mientras un árbitro todavía está identificando a un eliminado. Eso es una prueba impugnable.</p></blockquote>
+<h2>3.2 Montaje y comprobación previa</h2>
+<ul>
+<li>Marcación <strong>sin clavar</strong> (césped sintético): salida, meta y sectores con referencias visibles.</li>
+<li><strong>Meta en la cabecera norte.</strong> Sector exterior de clasificados y sector separado de eliminados, este último fuera del público.</li>
+<li>Las rutas de llegada y salida <strong>no invaden la tanda activa</strong>.</li>
+<li>Listas de las 3 tandas, cronómetro, aplicación de arbitraje.</li>
+<li><strong>Audio probado en todo el recorrido, desde el puesto de A12.</strong> La misma secuencia de fragmentos en las tres tandas, sumando 45 segundos netos cada una.</li>
+<li><strong>Demostrar la señal antes de la primera tanda</strong> y aplicar el mismo criterio en las tres.</li>
+</ul>
+<h2>3.3 Secuencia</h2>
+<ol>
+<li>A9 llama la tanda y la sitúa en la salida común, con dorsal visible.</li>
+<li>Coordinación confirma terreno listo y da paso a <strong>A12</strong>.</li>
+<li><strong>A12 activa el fragmento.</strong> Se permite avanzar y corre el contador neto.</li>
+<li><strong>A12 corta el fragmento</strong> e inmovilidad. Dos árbitros <strong>pasean entre los participantes</strong> mientras los demás observan desde su tramo.</li>
+<li>El árbitro que vea un movimiento <strong>va hasta la persona y le escanea el dorsal</strong>. Si ha visto a dos o a tres, <strong>los escanea a todos, uno a uno</strong>, sin cerrar la cámara.</li>
+<li><strong>Antes de volver a su sitio, pulsa ENVIAR.</strong> Escanear no envía nada por sí solo: los dorsales se quedan en una lista dentro del móvil hasta que se pulsa ese botón.</li>
+<li>Resuelto el tramo, cada árbitro <strong>levanta la mano con el pulgar hacia arriba</strong>. Los dos que paseaban vuelven a su sitio. <strong>Con los ocho pulgares</strong>, Coordinación autoriza y A12 activa el siguiente fragmento.</li>
+<li>Coordinación va <strong>aceptando las eliminaciones en el Panel Central</strong> mientras corre el fragmento siguiente. <strong>No se para el juego para confirmar bajas.</strong></li>
+<li>Al finalizar, eliminados y quienes no llegaron salen <strong>por la puerta opuesta a gradas</strong> a su sector. Los clasificados salen al suyo.</li>
+<li><strong>Se despeja el recorrido antes de entrar la tanda siguiente.</strong></li>
+</ol>
+<h2>3.4 El escáner de la app de staff</h2>
+<p>Así funciona exactamente, y conviene haberlo usado una vez antes del día 21:</p>
+<ol>
+<li><strong>Botón de cámara</strong> abajo a la derecha de la app.</li>
+<li><strong>Escaneo continuo.</strong> No hay que pulsar nada entre un dorsal y el siguiente: se apunta al QR del dorsal y se oye y se nota la vibración.</li>
+<li>El dorsal <strong>se añade a una lista</strong> que se ve abajo en la pantalla. Si te has equivocado, <strong>tocas ese número y se quita</strong>.</li>
+<li><strong>Se pulsa ENVIAR.</strong> La app pide confirmación con los dorsales escritos y los manda al Panel como <strong>una sola propuesta</strong>.</li>
+</ol>
+<blockquote class="aviso"><p>🚨 <strong>Escanear no elimina a nadie. Lo que elimina es pulsar ENVIAR.</strong> Un árbitro que escanea a tres y se vuelve a su tramo sin enviar <strong>tiene tres eliminaciones dormidas en el bolsillo</strong>, y el Panel no sabe nada de ellas.</p></blockquote>
+<p><strong>La regla es: se envía antes de levantar el pulgar.</strong> Si no has enviado, no levantas el pulgar.</p>
+<h3>Lo que la app avisa sola</h3>
+<table><thead><tr><th>Aviso</th><th>Qué significa</th></tr></thead><tbody><tr><td><strong>«Dorsal X ya estaba eliminado»</strong></td><td>Otro árbitro llegó antes. <strong>No es un error</strong>: sigue con el siguiente</td></tr><tr><td><strong>«Dorsal X ya está en la lista»</strong></td><td>Lo has leído dos veces. No pasa nada, no se duplica</td></tr><tr><td><strong>«Dorsal X no existe»</strong></td><td>Ese dorsal no está dado de alta. <strong>Avisar a Mesa</strong>, no insistir</td></tr><tr><td><strong>«Esto no es un dorsal»</strong></td><td>Has escaneado la entrada, no el dorsal</td></tr></tbody></table>
+<p>Un mismo dorsal <strong>no se vuelve a leer durante unos segundos</strong>, para que no se cuele tres veces por tenerlo delante de la cámara.</p>
+<blockquote class="aviso"><p>🚨 <strong>Comprobar que el selector de prueba del móvil dice «Luz Roja» antes de empezar.</strong> La propuesta se manda etiquetada con la prueba que tenga puesta el árbitro. Si lleva otra, la eliminación llega al Panel mal clasificada.</p></blockquote>
+<p><strong>Si no hay cobertura</strong>, la app guarda la propuesta y la manda sola cuando vuelva. El árbitro no reenvía ni duplica.</p>
+<h2>3.5 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Caída, invasión o fallo de señal</td><td><strong>Pausa</strong> y resolución de Coordinación. Se conservan el tiempo neto y las posiciones</td></tr><tr><td>La señal no llega a todo el recorrido</td><td><strong>No se continúa</strong></td></tr><tr><td>Conducta grave</td><td>La resuelve Coordinación</td></tr></tbody></table>
+<h2>3.6 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Explicación y colocación de la tanda 1</td><td>5 min</td></tr><tr><td>Tanda 1</td><td>6 min</td></tr><tr><td>Tanda 2</td><td>6 min</td></tr><tr><td>Tanda 3</td><td>4 min</td></tr><tr><td>Bajas y salida</td><td>2 min</td></tr><tr><td><strong>Total</strong></td><td><strong>23 min</strong></td></tr></tbody></table>
+<h2>3.7 Lo que hay que ensayar</h2>
+<blockquote class="aviso"><p>⚠️ <strong>Hay que cronometrar cuánto tarda un árbitro en ir, escanear y volver.</strong> Es el dato que decide esta prueba: mientras está escaneando no vigila su tramo, y el fragmento siguiente no arranca hasta que vuelve y levanta el pulgar.  Escanear es más rápido y mucho menos discutible que teclear un dorsal, pero <strong>obliga a acercarse lo suficiente para leer el QR</strong>. Hay que probar con los dorsales reales, impresos al tamaño real, <strong>a pleno sol y con el participante de pie y quieto</strong>: si el QR no lee a la primera a esa distancia, el árbitro se queda plantado delante de una persona con el móvil, y eso son segundos de todos.  Probar también si <strong>ocho árbitros cubren cien personas por tanda</strong>. Si no da, la alternativa es <strong>anotar en papel y volcar al acabar la tanda</strong> — pero eso se decide en el ensayo, no en la primera tanda.</p></blockquote>
+</section>
+
+<section class="ficha" id="p02" data-num="2" data-nombre="Selección Fatal">
+<header class="tit"><span class="num">2</span><h1>Selección Fatal</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd>10:23 – 10:39</dd><dt><strong>Entran</strong></dt><dd><strong>Variable.</strong> Los que salgan de Luz Roja</dd><dt><strong>Clasifican</strong></dt><dd><strong>Variable.</strong> Los que no saquen bola roja</dd><dt><strong>Formato</strong></dt><dd>Grupos de referencia de <strong>25</strong>, en <strong>2 tandas de cajas</strong></dd><dt><strong>Material clave</strong></dt><dd>6 cajas opacas · 150 bolas · <strong>las rojas se cargan según los activos reales</strong></dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Aquí tampoco se sabe cuánta gente va a entrar.</strong> Luz Roja no tiene cupo, así que a Selección llegan los que lleguen. <strong>Ni el número de grupos ni el de rojas por caja están decididos de antemano:</strong> se calculan con los activos reales del día 21.  <strong>El único número fijo de la mañana es 240</strong>, que es lo que necesita Campo de Batalla para sus cuatro partidos de treinta contra treinta. Selección tiene que dejar el campo <strong>en 240 o por debajo</strong>, y el bingo 1 sube hasta 240 exactos.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>No sacar la bola roja.</p>
+<h2>1.2 Cómo se juega</h2>
+<ol>
+<li>Cada participante se coloca en la fila de <strong>la caja que le ha asignado Mesa</strong>.</li>
+<li>Cuando el árbitro le autoriza, <strong>muestra el dorsal</strong>, mete la mano en la caja y <strong>extrae una sola bola, sin mirar y sin comparar</strong>.</li>
+<li><strong>La saca él.</strong> El árbitro no mete la mano en la caja.</li>
+<li>Mantiene la bola <strong>visible</strong> hasta que el árbitro canta el color.</li>
+<li><strong>Bola roja: eliminado.</strong> Cualquier otro color: clasificado.</li>
+<li>La bola va al recipiente de usadas y la persona libera el puesto.</li>
+</ol>
+<h2>1.3 Carga de las cajas</h2>
+<ul>
+<li><strong>Una bola por persona</strong> del grupo.</li>
+<li><strong>El número de rojas lo fija Mesa ese día</strong>, según cuánta gente haya salido de Luz Roja.</li>
+<li>Todas las bolas son <strong>iguales en tacto, tamaño, peso y acabado</strong>: solo cambia el color.</li>
+<li><strong>Las usadas no vuelven a la caja durante ese grupo.</strong></li>
+</ul>
+<h2>1.4 Control de cada grupo</h2>
+<p>Al cerrar un grupo, el árbitro comprueba <strong>tres cosas</strong>:</p>
+<ol>
+<li>Todas las personas del grupo han extraído.</li>
+<li><strong>La caja está vacía.</strong></li>
+<li><strong>Usadas = carga inicial.</strong></li>
+</ol>
+<p>Verificado el balance, se devuelve y se mezcla en la misma caja la carga del grupo siguiente.</p>
+<h2>1.5 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td><strong>Salen dos bolas a la vez</strong></td><td><strong>Parar ANTES de registrar.</strong> Devolver las dos, mezclar y repetir <strong>una sola</strong> extracción, siempre que no haya habido manipulación</td></tr><tr><td><strong>Bola caída</strong></td><td>Si el color y la identidad son inequívocos, <strong>conserva el resultado</strong>. Si hay duda, se detiene el puesto</td></tr><tr><td><strong>Carga incorrecta, faltante o sobrante</strong></td><td>Conservar caja, usadas y registros. <strong>Resolver antes de reutilizar.</strong> No se compensa durante las extracciones</td></tr></tbody></table>
+<hr/>
+<p><strong>La puede dar el speaker por megafonía o el árbitro a su grupo</strong>, lo que mejor venga ese momento del día; <strong>Coordinación lo canta por radio antes de abrir la prueba</strong> para que no quede en el aire. Lo normal es el speaker. El guion es el mismo en los dos casos —el de aquí abajo— y está también en el <strong>Manual del Speaker</strong>.</p>
+<blockquote><p><em>«Esto es rápido y no depende de vosotros.»</em>  <em>«Cuando os diga, me enseñáis el dorsal, metéis la mano en la caja y sacáis <strong>una bola</strong>. Una. Sin mirar dentro y sin ir palpando.»</em>  <em>«La sacáis con la mano cerrada, la abrís aquí delante y la dejáis a la vista.»</em>  <em>«Si es roja, estáis eliminados. Cualquier otro color, seguís en el juego.»</em>  <em>«No se toca la caja. No se cambia la bola. No se devuelve.»</em>  <em>«Lo que yo diga en este puesto es lo que vale. Si no estáis de acuerdo, no se discute aquí: se reclama en la mesa de Coordinación. ¿Alguna duda?»</em></p></blockquote>
+<p><strong>Si alguien pregunta cuántas rojas hay:</strong> <em>«Eso no se dice.»</em></p>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 – A6</strong></td><td><strong>Una caja cada uno.</strong> Identifican, observan la extracción, cantan el resultado y reciben la bola</td></tr><tr><td><strong>A7 – A8</strong></td><td>Apoyo de aplicación y material. <strong>No retransmiten dorsales por radio</strong></td></tr><tr><td><strong>A9 – A10</strong></td><td>Forman y guían los grupos</td></tr><tr><td><strong>A11</strong></td><td>Controla el área</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr><tr><td><strong>Mesa</strong></td><td>Calcula las cargas y comprueba las bajas confirmadas</td></tr></tbody></table>
+<h2>3.2 Cuántas rojas se cargan</h2>
+<h3>La cuenta</h3>
+<p><strong>Campo de Batalla necesita exactamente 240 personas</strong>, porque son cuatro partidos de treinta contra treinta. Y <strong>el bingo 1 solo suma: repesca, no elimina.</strong></p>
+<p>De ahí sale la única obligación de esta prueba:</p>
+<blockquote class="aviso"><p>🚨 <strong>Selección Fatal tiene que dejar el campo en 240 o menos.</strong> Lo que falte hasta 240 lo repesca el bingo 1. Lo que sobre por encima de 240 <strong>ya no lo arregla nadie</strong>.</p></blockquote>
+<p>El cálculo que hace Mesa en cuanto Luz Roja cierra la tercera tanda:</p>
+<table><thead><tr><th>Paso</th><th>Cuenta</th></tr></thead><tbody><tr><td>1 · Activos reales</td><td>Los que ha comunicado Mesa al cerrar Luz Roja</td></tr><tr><td>2 · Grupos</td><td>Activos ÷ 25, aplicando la regla de reparto del apartado 3.3</td></tr><tr><td>3 · Eliminaciones mínimas</td><td><strong>Activos − 240</strong></td></tr><tr><td>4 · Rojas por caja</td><td>Eliminaciones mínimas ÷ número de grupos, <strong>redondeando hacia arriba</strong></td></tr></tbody></table>
+<p><strong>Y después se sube una o dos rojas por encima de ese mínimo</strong>, para que la prueba elimine de verdad y el bingo 1 tenga a quién repescar. Una Selección Fatal que no elimina a nadie no es una prueba, y el bingo se queda sin sentido.</p>
+<h3>Tres cargas de referencia</h3>
+<table><thead><tr><th>Llegan de Luz Roja</th><th>Grupos</th><th>Rojas por caja</th><th>Eliminan</th><th>Quedan</th><th>Bingo 1 repesca</th></tr></thead><tbody><tr><td><strong>300</strong></td><td>12 de 25</td><td><strong>5</strong></td><td>60</td><td><strong>240</strong></td><td>0</td></tr><tr><td><strong>270</strong></td><td>10 de 25 y 1 de 20</td><td><strong>3</strong> (2 en el de 20)</td><td>32</td><td>238</td><td>2</td></tr><tr><td><strong>270</strong>, corte más duro</td><td>10 de 25 y 1 de 20</td><td><strong>5</strong> (4 en el de 20)</td><td>54</td><td>216</td><td>24</td></tr><tr><td><strong>240</strong></td><td>9 de 25 y 1 de 15</td><td><strong>2</strong></td><td>20</td><td>220</td><td>20</td></tr></tbody></table>
+<p><strong>Cinco rojas por caja es lo que hace falta en el peor caso</strong>, que es que Luz Roja no elimine prácticamente a nadie y lleguen los 300. <strong>No es un límite físico:</strong> si Coordinación quiere un corte más duro puede cargar más de cinco. Es una decisión suya, y queda en acta.</p>
+<h3>Las cargas se preparan el día 20</h3>
+<blockquote class="aviso"><p>🚨 <strong>Entre que cierra Luz Roja y empieza Selección no hay tiempo de contar y cargar seis cajas desde cero.</strong></p></blockquote>
+<p>Por eso Mesa prepara el <strong>día 20 tres juegos de cargas</strong> —las tres de la tabla de arriba— y el día 21 <strong>solo elige cuál usa</strong>.</p>
+<p>Si el número real cae entre dos escenarios, <strong>no se rehace la carga: se ajustan solo las rojas</strong> de las cajas ya preparadas, que es cuestión de segundos porque las bolas de color no se tocan. Mesa dice cuántas se añaden o se quitan por caja y <strong>cada árbitro lo verifica en la suya antes de convocar</strong>.</p>
+<h2>3.3 Comprobación previa</h2>
+<ul>
+<li>6 cajas opacas <strong>estables y equivalentes</strong>, cada una con su recipiente de usadas vacío.</li>
+<li><strong>150 bolas</strong> base más reserva.</li>
+<li>Cada árbitro <strong>verifica su carga antes de convocar</strong>: total de bolas, número de rojas, otras y recipiente vacío.</li>
+<li>Mesa ha generado las listas y las asignaciones de grupo.</li>
+</ul>
+<h2>3.4 Secuencia</h2>
+<p>Los once grupos se atienden en <strong>dos tandas de cajas</strong> (seis grupos y cinco), con una sola reposición entre tandas.</p>
+<ol>
+<li>Mesa genera listas y cargas por grupo. Cada árbitro verifica la suya.</li>
+<li>La pantalla y Presentación anuncian los grupos de la tanda. <strong>A9 y A10 los preparan ordenadamente.</strong></li>
+<li>Cada árbitro autoriza los turnos de su puesto, de uno en uno.</li>
+<li>Canta el resultado, <strong>envía la propuesta de baja si sale roja</strong> y deposita la bola en usadas.</li>
+<li>La persona sale a clasificados o a eliminados y libera el puesto.</li>
+<li>A9 y A10 preparan mientras tanto los grupos siguientes.</li>
+<li><strong>Balance del grupo</strong> (apartado 1.4) y recarga.</li>
+<li>Al terminar todos los grupos, Mesa cierra clasificados y eliminados y <strong>calcula la recuperación necesaria hasta 240</strong>.</li>
+</ol>
+<blockquote><p>Si una confirmación digital queda pendiente, el árbitro <strong>conserva el registro y pide apoyo</strong>. No duplica la operación.</p></blockquote>
+<h2>3.5 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Formación y registro de los 11 grupos</td><td>5 min</td></tr><tr><td>Explicación</td><td>3 min</td></tr><tr><td>Extracción, tanda 1 (6 grupos)</td><td>3 min</td></tr><tr><td>Recarga entre tandas</td><td>1 min</td></tr><tr><td>Extracción, tanda 2 (5 grupos)</td><td>2 min</td></tr><tr><td>Bajas y salida</td><td>2 min</td></tr><tr><td><strong>Total</strong></td><td><strong>16 min</strong></td></tr></tbody></table>
+</section>
+
+<section class="ficha" id="p03" data-num="3" data-nombre="Campo de Batalla">
+<header class="tit"><span class="num">3</span><h1>Campo de Batalla</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 4 · Frontón de 30 × 10 m, en dos mitades de 15 × 10</dd><dt><strong>Hora</strong></dt><dd>10:54 – 11:43</dd><dt><strong>Entran</strong></dt><dd>240</dd><dt><strong>Clasifican</strong></dt><dd>120</dd><dt><strong>Formato</strong></dt><dd>4 partidos de 30 contra 30</dd><dt><strong>Material clave</strong></dt><dd>Lona de 8 × 2 m · 59 o 61 pelotas blandas grandes</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>No es balón prisionero.</strong> Nadie elimina a nadie con un impacto. Se gana por <strong>recuento de pelotas</strong>.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Que al sonar la bocina tu mitad del frontón tenga <strong>menos pelotas</strong> que la del rival.</p>
+<h2>1.2 El campo</h2>
+<ul>
+<li>Una <strong>lona de 8 × 2 m</strong> divide el frontón, <strong>sin huecos inferiores ni laterales</strong>.</li>
+<li>Dos mitades de <strong>15 × 10 m</strong>, treinta personas en cada una.</li>
+<li>Las pelotas <strong>empiezan todas en el suelo</strong>, repartidas <strong>30 en un lado y 29 en el otro</strong>, asignadas <strong>por sorteo</strong>.</li>
+<li>Separación de público de dos metros donde corresponda al vallado.</li>
+</ul>
+<h2>1.3 Cómo se juega</h2>
+<ol>
+<li>Se puede <strong>recoger, conservar y lanzar</strong> las pelotas de la propia mitad.</li>
+<li><strong>Solo se lanza por encima de la lona.</strong> Nadie puede tocarla.</li>
+<li>Los recipientes son <strong>para transporte o recogida entre partidos</strong>, nunca punto de salida de pelotas durante el juego.</li>
+</ol>
+<h2>1.4 La duración está decidida de antemano</h2>
+<ul>
+<li>Entre <strong>61 y 120 segundos</strong>, asignada en el cuadro interno antes de empezar.</li>
+<li><strong>Oculta a jugadores y público.</strong></li>
+<li><strong>No se cambia según el marcador.</strong></li>
+<li>Final <strong>automático por bocina, sin cuenta atrás</strong>.</li>
+</ul>
+<blockquote class="aviso"><p>🚨 <strong>El árbitro que lleva el tiempo y hace sonar la bocina está de espaldas, sin ver el partido.</strong> Así nadie puede decir que la bocina cayó en un momento interesado.  🚨 <strong>Los árbitros que sí ven el partido graban con su móvil</strong>, para resolver sin discusión si alguien ha lanzado después de la bocina.</p></blockquote>
+<h2>1.5 Prohibido</h2>
+<table><thead><tr><th>Conducta</th><th>Consecuencia</th></tr></thead><tbody><tr><td>Patear la pelota, cruzar a la otra mitad, usar bolsas o ropa como recipiente</td><td>Corrección inmediata</td></tr><tr><td>Lanzar deliberadamente contra el público o contra personas</td><td>Corrección inmediata y Coordinación</td></tr><tr><td>Tocar la lona</td><td>Corrección inmediata</td></tr><tr><td><strong>Lanzar deliberadamente pelotas fuera del terreno</strong></td><td><strong>Advertencia al equipo. A la tercera confirmada, el equipo queda eliminado y gana el rival</strong></td></tr></tbody></table>
+<p>Un rebote o una salida accidental <strong>no son advertencia</strong>. Coordinación confirma el tercer aviso antes de anunciarlo.</p>
+<h2>1.6 El cierre</h2>
+<ol>
+<li><strong>Al sonar la bocina se prohíbe lanzar o desplazar.</strong> Las pelotas soltadas antes terminan su trayectoria; las soltadas <strong>desde la señal son tardías</strong>.</li>
+<li>Orden <strong>«Pelotas al suelo»</strong>: depositar suavemente las que se sostengan.</li>
+<li>Orden <strong>«A las paredes»</strong>: dejar libres lona y alambrado, sin mover material.</li>
+<li>Se cuenta con el <strong>espacio despejado</strong>.</li>
+</ol>
+<h2>1.7 Recuento y resultado</h2>
+<ul>
+<li>Se cuentan las físicas de A y de B y <strong>se excluyen solo las que están fuera</strong>.</li>
+<li>Una pelota que toca pared o lona <strong>pero permanece dentro, cuenta</strong>. Una sobre la línea central <strong>cuenta en la mitad donde reposa</strong>.</li>
+<li><strong>Físicas A + físicas B + excluidas = la carga del partido.</strong> Si falta una, <strong>se busca</strong>: no se sortea una discrepancia.</li>
+<li><strong>Resultado corregido = pelotas físicas + 3 por cada pelota tardía confirmada.</strong></li>
+<li><strong>Gana el menor resultado corregido.</strong></li>
+</ul>
+<p>Una acción <strong>no se duplica</strong> aunque la observen dos árbitros. La pelota <strong>cuenta donde termina</strong> y no se recoloca. El depósito autorizado no penaliza.</p>
+<p><strong>Ejemplo:</strong> A tiene 26 físicas, B tiene 27 y hay 6 excluidas (suma 59). Si A lanzó una tarde, termina con <strong>29</strong> y pierde ante <strong>27</strong>.</p>
+<h3>Por qué la penalización es de tres y no de una</h3>
+<p>La pelota que sale tarde de tu mano <strong>cae en el campo del rival</strong>: en el recuento físico tú tienes una menos y él una más. Si eso quedara así, <strong>lanzar después de la bocina sería rentable</strong>: ganarías una pelota de ventaja justo cuando ya nadie puede responderte.</p>
+<p>Con la penalización de tres, esa jugada <strong>te deja dos peor</strong> que no haber lanzado: te quitas una física pero te suman tres. Por eso el número es tres, y por eso el árbitro que lleva el tiempo está de espaldas y los demás graban: <strong>si no se puede demostrar quién lanzó tarde, la regla no sirve de nada</strong>.</p>
+<h2>1.8 Empate</h2>
+<ol>
+<li><strong>Una única prórroga</strong> con los mismos equipos, pelotas repuestas y <strong>nuevo sorteo de cargas 30 y 29</strong>. Duración oculta de <strong>45 a 75 segundos</strong>.</li>
+<li>Se reinician el recuento y las penalizaciones numéricas. <strong>Las advertencias por conducta se mantienen</strong>, incluido el acumulado por lanzar fuera.</li>
+<li><strong>No se cambia de rival.</strong></li>
+<li>Si continúa el empate: <strong>dos tarjetas ocultas</strong> de reverso igual, <strong>logo clasifica y símbolo elimina</strong>, mezcladas en bolsa opaca. Extrae primero el portavoz del equipo que empezó la prórroga con 29 pelotas. <strong>No hay segunda prórroga.</strong></li>
+</ol>
+<hr/>
+<p><strong>La puede dar el speaker por megafonía o el árbitro a su grupo</strong>, lo que mejor venga ese momento del día; <strong>Coordinación lo canta por radio antes de abrir la prueba</strong> para que no quede en el aire. Lo normal es el speaker. El guion es el mismo en los dos casos —el de aquí abajo— y está también en el <strong>Manual del Speaker</strong>.</p>
+<blockquote><p><em>«Esto no va de daros con la pelota. Aquí nadie elimina a nadie.»</em>  <em>«Esa lona divide el campo en dos. Al sonar la bocina, gana el equipo que tenga <strong>menos pelotas</strong> en su lado. Así de simple: cuantas menos tengáis vosotros, mejor.»</em>  <em>«Las pelotas se lanzan <strong>por encima de la lona</strong>. La lona no se toca, no se patea, no se cruza, y no se guardan pelotas en la ropa.»</em>  <em>«Ojo con esto: si lanzáis una pelota fuera del campo a propósito, es advertencia para todo el equipo. A la tercera, os vais todos.»</em>  <em>«El final no lo sabéis. No hay cuenta atrás. Suena la bocina y se acabó.»</em>  <em>«Y mucho ojo con la última: <strong>cada pelota que salga de vuestra mano después de la bocina cuenta como tres pelotas más en vuestro campo</strong>. Os la quitáis de encima, sí, pero os cuesta tres. Sale muchísimo más barato quedársela en la mano.»</em>  <em>«Las que ya estén en el aire cuando suene, esas valen y caen donde caigan.»</em>  <em>«Cuando suene: "pelotas al suelo", las dejáis con cuidado, y después "a las paredes" y os apartáis. Contamos con el campo despejado.»</em>  <em>«Gana el equipo entero y pierde el equipo entero. Aquí no hay nada individual.»</em>  <em>«Lo que yo diga en este campo es lo que vale. Si no estáis de acuerdo, no se discute aquí: se reclama en la mesa de Coordinación. ¿Alguna duda?»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 y A2</strong></td><td>Mitad A. <strong>A1 cuenta, A2 verifica</strong></td></tr><tr><td><strong>A3 y A4</strong></td><td>Mitad B. <strong>A3 cuenta, A4 verifica</strong></td></tr><tr><td><strong>A5 y A6</strong></td><td>Puerta del frontón y entrada individual</td></tr><tr><td><strong>A7</strong></td><td>Recibe clasificados</td></tr><tr><td><strong>A8</strong></td><td>Recibe eliminados</td></tr><tr><td><strong>A9</strong></td><td>Público</td></tr><tr><td><strong>A10 y A11</strong></td><td>Exterior y material</td></tr><tr><td><strong>A12</strong></td><td>Acceso general</td></tr></tbody></table>
+<p><strong>El árbitro del tiempo se coloca de espaldas.</strong> Los árbitros que observan el partido graban con el móvil.</p>
+<h2>3.2 Comprobación previa</h2>
+<ul>
+<li><strong>Lona de 8 × 2 anclada, sin huecos inferiores ni laterales.</strong></li>
+<li>Las dos mitades de 15 × 10 marcadas.</li>
+<li><strong>59 o 61 pelotas contadas</strong> y repartidas en el suelo (30 y 29, por sorteo).</li>
+<li>Temporizador móvil <strong>con pausa y alarma</strong>, y la duración del partido <strong>programada y registrada antes de empezar</strong>.</li>
+<li><strong>La bocina se oye igual en las dos mitades.</strong> Si el altavoz único de Z4 no lo garantiza, se amplifica la alarma del móvil arbitral y se comprueba antes de abrir.</li>
+<li>Móviles de los árbitros <strong>con batería para grabar</strong>.</li>
+<li>Las convocatorias se hacen <strong>por megafonía y guía presencial</strong>: la LED está en Z2 y desde Z4 no se ve.</li>
+</ul>
+<h2>3.3 Convocatoria</h2>
+<p>Antes de cada partido, la aplicación <strong>sortea sesenta entre los pendientes</strong> y forma dos equipos de treinta. La pantalla y Presentación indican dorsal y mitad; <strong>A5 y A6 comprueban el acceso sin cruces</strong>. Una ausencia la resuelve Mesa con <strong>sustitución aleatoria autorizada</strong>. <strong>Quienes ya jugaron quedan excluidos de los siguientes sorteos de esta prueba.</strong></p>
+<h2>3.4 Secuencia del partido</h2>
+<ol>
+<li>Confirmar 30 por mitad, pelotas en el suelo, distribución 30 y 29 y acceso libre. Sortear qué equipo recibe cada carga.</li>
+<li>El árbitro responsable <strong>programa la duración asignada</strong> en su móvil. Queda registrada y oculta.</li>
+<li>Probar que <strong>la alarma se oye igual en ambas mitades</strong>. El móvil debe poder pausar conservando el tiempo restante.</li>
+<li><strong>Inicio común.</strong></li>
+<li>A10 y A11 localizan las pelotas exteriores <strong>sin interferir</strong> y las recuperan <strong>con el juego parado</strong>. <strong>El público no las devuelve.</strong></li>
+<li>A la bocina: «Pelotas al suelo» y «A las paredes».</li>
+<li><strong>Recuento</strong> (apartado 1.7) y registro en la aplicación.</li>
+<li>Validados los resultados, A7 y A8 reciben los grupos; A5 y A6 separan salida y siguiente entrada.</li>
+<li>Con el terreno vacío, material revisado y cargas repuestas, se sortea el próximo partido. <strong>Las pelotas dañadas se sustituyen entre fases</strong>, nunca durante el juego.</li>
+</ol>
+<h2>3.5 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Sin temporizador fiable o sin señal común</td><td><strong>Detener</strong></td></tr><tr><td>El estado no se puede restituir</td><td>Coordinación autoriza repetición con la carga completa y <strong>usa un tiempo de reserva del cuadro interno</strong>, dejándolo anotado</td></tr><tr><td>Discrepancia en el recuento</td><td><strong>Buscar la pelota.</strong> No se sortea</td></tr><tr><td>Tercera advertencia por lanzar fuera</td><td><strong>Coordinación la confirma antes del anuncio</strong></td></tr></tbody></table>
+<h2>3.6 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Explicación</td><td>5 min</td></tr><tr><td>Sorteo y entrada de 60, por partido</td><td>4 min × 4</td></tr><tr><td>Partidos (duraciones del cuadro interno)</td><td>≈ 6 min en total</td></tr><tr><td>Recuento, por partido</td><td>1,5 min × 4</td></tr><tr><td>Cambio entre encuentros</td><td>2 min × 3</td></tr><tr><td>Última salida</td><td>2 min</td></tr><tr><td><strong>Total</strong></td><td><strong>49 min</strong></td></tr></tbody></table>
+<p>Cada empate puede añadir <strong>hasta 6 minutos</strong> de reposición, prórroga, recuento y eventual tarjetas. <strong>No está incluido en esa base.</strong></p>
+<h2>3.7 Al cerrar la prueba</h2>
+<p><strong>A10 y A11 cuentan y trasladan las pelotas a las dos zonas de Pistolas Ciegas</strong> y confirman la entrega por radio. Es el único traspaso de material entre pruebas de toda la jornada.</p>
+</section>
+
+<section class="ficha" id="p04" data-num="4" data-nombre="Pistolas Ciegas">
+<header class="tit"><span class="num">4</span><h1>Pistolas Ciegas</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 4 · Frontón, <strong>dos zonas simultáneas</strong> de 15 × 10 m</dd><dt><strong>Hora</strong></dt><dd>11:43 – 12:45</dd><dt><strong>Entran</strong></dt><dd>120</dd><dt><strong>Clasifican</strong></dt><dd><strong>Variable.</strong> Estimación de trabajo: unos 100</dd><dt><strong>Formato</strong></dt><dd>8 grupos de 15 · 4 bloques de dos grupos simultáneos</dd><dt><strong>Duración por grupo</strong></dt><dd><strong>120 segundos efectivos</strong> o <strong>4 salidas</strong>, lo que ocurra antes</dd><dt><strong>Material clave</strong></dt><dd>Las pelotas de Campo de Batalla · 20 por zona · 2 vendas opacas + repuesto · 60 juegos de cascabeles</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>El que lanza es del staff y va vendado.</strong> Los participantes no lanzan, no recogen y no tocan ninguna pelota en toda la prueba. Solo caminan.</p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>Esta prueba tampoco tiene un número de eliminados.</strong> Depende de lo que acierte una persona vendada, y eso no está medido. Lo que salga lo absorbe el bingo 2, que tiene objetivo fijo en 160.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Sobrevivir los 120 segundos sin recibir un impacto directo.</p>
+<h2>1.2 El recorrido</h2>
+<ul>
+<li>En cada zona hay un <strong>sendero rectangular cerrado, marcado en el suelo, de un solo sentido</strong>.</li>
+<li>Se recorre <strong>andando</strong>, en el sentido marcado, todo el tiempo.</li>
+<li>En el centro hay un <strong>puesto de lanzamiento</strong> donde está el lanzador del staff. Ese puesto <strong>no se pisa</strong>.</li>
+</ul>
+<h2>1.3 El lanzador</h2>
+<ul>
+<li>Es <strong>personal del staff</strong>, con <strong>venda o máscara que le impide ver</strong>.</li>
+<li><strong>Puede girar sobre sí mismo, pero no desplazarse</strong> ni salir de su puesto.</li>
+<li>Se guía <strong>por el sonido de los cascabeles</strong> que todos los participantes llevan en <strong>los dos zapatos</strong>.</li>
+<li>Lanza <strong>con la mano</strong>, de forma controlada, <strong>a cuerpo o piernas</strong>. Nunca a la cabeza ni al cuello.</li>
+</ul>
+<h2>1.4 Qué elimina</h2>
+<table><thead><tr><th>Causa</th><th>Detalle</th></tr></thead><tbody><tr><td><strong>Impacto directo</strong></td><td>La pelota golpea a un activo: ropa, zapatos, manos y cabeza incluidos</td></tr><tr><td><strong>Atrapar la pelota con las manos</strong></td><td><strong>También elimina.</strong> No es una salvación, es una eliminación</td></tr><tr><td><strong>Correr</strong></td><td>El sendero se recorre andando</td></tr><tr><td><strong>Cambiar de sentido o salir del sendero</strong></td><td>Eliminación</td></tr><tr><td><strong>Entrar al puesto central</strong></td><td>Eliminación</td></tr><tr><td><strong>Bloquear a otro participante</strong></td><td>Eliminación</td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>Los rebotes NO eliminan.</strong> Una pelota que ya ha tocado el suelo, la pared, otro material o a otra persona <strong>no elimina a nadie</strong>. Solo cuenta el <strong>primer</strong> contacto de cada lanzamiento.</p></blockquote>
+<p><strong>Pararse a propósito</strong> sin que sea para esquivar: <strong>advertencia</strong>. A la segunda, eliminación. Las paradas por seguridad o por orden del árbitro no se penalizan.</p>
+<h2>1.5 El doble impacto</h2>
+<p>Si <strong>la misma pelota golpea directamente a dos personas a la vez</strong>, salen las dos. Si eso ocurre cuando ya había tres salidas, <strong>el grupo cierra con cinco</strong>. Es el único caso en que un grupo pasa de cuatro.</p>
+<p>Si el árbitro distingue que fueron <strong>dos contactos sucesivos</strong> y no simultáneos, solo vale <strong>el primero</strong>: el segundo ya es rebote.</p>
+<h2>1.6 Las pelotas no son de los participantes</h2>
+<p><strong>Nadie recoge, guarda ni devuelve una pelota.</strong> Ni la suya, ni la que le pase por al lado. El staff las recoge <strong>entre grupos, con el juego parado</strong>, nunca durante los 120 segundos.</p>
+<h2>1.7 El eliminado</h2>
+<p>Levanta la mano, <strong>deja el sendero hacia el exterior</strong> y sigue la ruta que le marque el árbitro hasta la salida. <strong>No se queda quieto dentro del sendero</strong> y <strong>no sale cruzando la otra zona</strong>.</p>
+<hr/>
+<p><strong>La puede dar el speaker por megafonía o tú a tu grupo.</strong> Las dos valen, y el guion es el mismo: el de aquí abajo, que está también en el <strong>Manual del Speaker</strong>. Lo normal es que la dé el speaker; <strong>si el día se mueve</strong> —se va el sonido, vais con retraso, tu grupo entra tarde— <strong>la das tú</strong>. <strong>Coordinación canta por radio quién la da antes de abrir la prueba</strong>: es lo único que no se improvisa, porque si no, o no la da nadie o la dan los dos. Por megafonía se dice <strong>una sola vez</strong>, antes de que entre el primer grupo y con los ocho escuchando.</p>
+<p>Aquí hay un motivo de peso para que la des tú: <strong>tu grupo ya está con los cascabeles puestos y fuera del sendero</strong>, que es el único momento en que de verdad escuchan.</p>
+<p><strong>Si la ha dado el speaker</strong>, con tu grupo ya calzado y fuera del sendero, y en veinte segundos solo recuerdas esto: <em>«La que bota antes ya no elimina. Si la cogéis con la mano, fuera. Y las pelotas no se tocan. Si digo ALTO, todo el mundo quieto.»</em></p>
+<blockquote><p><em>«Esto es muy sencillo de entender y muy difícil de hacer.»</em>  <em>«Veis esa línea del suelo. Es un circuito cerrado y se recorre <strong>andando</strong>, siempre en este sentido. No se corre, no se da la vuelta y no se sale.»</em>  <em>«En el centro va a haber una persona nuestra <strong>con los ojos tapados</strong>, que no ve absolutamente nada. Lanza pelotas. Y os encuentra por el ruido de los cascabeles que lleváis en los zapatos.»</em>  <em>«Si una pelota os da directamente, estáis eliminados. En cualquier parte del cuerpo.»</em>  <em>«Y atención a esto: <strong>si la cogéis con las manos, también estáis eliminados</strong>. No intentéis pararla. Apartaos.»</em>  <em>«Si la pelota ha botado antes, en el suelo, en la pared o en otro, <strong>ya no elimina</strong>. Esa no os puede hacer nada.»</em>  <em>«Las pelotas no se tocan. No se recogen, no se devuelven, no se apartan con el pie. Dejadlas donde caigan.»</em>  <em>«La ronda dura dos minutos, pero puede acabar antes.»</em>  <em>«Si os eliminan: <strong>levantáis la mano</strong>, salís del circuito hacia fuera y seguís por donde yo os diga. No os quedéis parados dentro.»</em>  <em>«Una cosa más, y es por seguridad: si yo digo <strong>ALTO</strong>, todo el mundo se queda quieto donde esté. Incluido el que lanza.»</em>  <em>«Lo que yo diga en esta zona es lo que vale. Si no estáis de acuerdo, no se discute aquí: se reclama en la mesa de Coordinación. ¿Alguna duda?»</em></p></blockquote>
+<p><strong>Si alguien pregunta cuánta gente sale:</strong> <em>«Depende de vosotros y de él. Eso no se dice.»</em></p>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 y A2</strong></td><td><strong>Lanzadores</strong>, uno por zona. Vendados, en el puesto central</td></tr><tr><td><strong>A3 y A4</strong></td><td><strong>Árbitros de zona.</strong> Llevan el reloj, <strong>cuentan la cadencia</strong> y cantan las eliminaciones</td></tr><tr><td><strong>A5 y A6</strong></td><td>Recogen y reponen pelotas <strong>entre grupos</strong>, nunca durante el juego</td></tr><tr><td><strong>A7 y A8</strong></td><td>Preparan los grupos siguientes y <strong>colocan los cascabeles fuera del campo</strong></td></tr><tr><td><strong>A9</strong></td><td>Recibe a los que salen y confirma estados en la aplicación</td></tr><tr><td><strong>A10</strong></td><td>Público</td></tr><tr><td><strong>A11</strong></td><td>Puerta de Zona 4 y control de paso en las retiradas</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr></tbody></table>
+<h2>3.2 La cadencia: un lanzamiento cada 7 segundos</h2>
+<blockquote class="aviso"><p>🚨 <strong>Es obligatoria, y no es una cuestión de ritmo sino de equidad.</strong></p></blockquote>
+<p>Un lanzamiento cada <strong>7 segundos</strong> son unos <strong>17 lanzamientos</strong> por grupo. <strong>Igual en las dos zonas y en los ocho grupos.</strong></p>
+<p>Las dos zonas corren en paralelo y a la vista una de otra. Si un lanzador va cada cinco segundos hace 24 lanzamientos y el otro, más tranquilo, hace 12. <strong>Esos dos grupos no han jugado a lo mismo</strong>, y esta prueba elimina. Multiplicado por ocho grupos y dos personas que se cansan a lo largo de una hora, el último grupo no jugaría la misma prueba que el primero.</p>
+<p><strong>No se varía la cadencia para forzar ni para evitar salidas.</strong> Si un lanzador necesita parar —se desorienta, se cansa, se le mueve la venda— <strong>se pausa la zona y se para el reloj</strong>. No se compensa lanzando más rápido después.</p>
+<p>A3 y A4 cuentan la cadencia además del tiempo, y avisan si las dos zonas se descompensan.</p>
+<h2>3.3 Veinte pelotas por zona, sin reposición</h2>
+<p>Con 17 lanzamientos por grupo y <strong>20 pelotas en el recipiente</strong>, al lanzador le sobran tres. <strong>A5 y A6 no entran a reponer durante los 120 segundos.</strong></p>
+<p>Es la configuración más segura que hay: <strong>nadie se mueve dentro de la zona mientras hay una persona vendada lanzando</strong>. Recogen y reponen entre grupos, con el juego parado.</p>
+<h2>3.4 Comprobación previa</h2>
+<ul>
+<li>Sendero rectangular marcado <strong>con cinta apta para el pavimento</strong>, cerrado y con el sentido señalizado.</li>
+<li>Entre sendero, puesto del lanzador y ruta de retirada hay espacio <strong>sin cruce de trayectorias</strong>.</li>
+<li><strong>20 pelotas por recipiente</strong>, contadas.</li>
+<li>Dos vendas o máscaras opacas <strong>más repuesto</strong>. Comprobar que no dejan ver por abajo.</li>
+<li>Dos cronómetros <strong>con pausa</strong>.</li>
+<li><strong>Cascabeles firmes y sonoros en los dos zapatos</strong> de cada participante. Se comprueba uno por uno antes de entrar: un cascabel flojo es una persona invisible.</li>
+<li><strong>El grupo siguiente espera fuera ya con los cascabeles puestos.</strong> Ahí está el tiempo de esta prueba.</li>
+</ul>
+<blockquote class="aviso"><p>⚠️ <strong>Contar el inventario real de cascabeles antes del día 21.</strong> Hacen falta <strong>60 juegos</strong> para tener 30 personas jugando y 30 preparándose. Con solo 30 juegos, cada uno de los tres cambios de bloque se alarga por la recolocación.</p></blockquote>
+<h2>3.5 Órdenes de voz</h2>
+<table><thead><tr><th>Orden</th><th>Qué significa</th></tr></thead><tbody><tr><td><strong>INICIO zona uno / zona dos</strong></td><td>Arranca esa zona y su reloj</td></tr><tr><td><strong>PAUSA zona uno / zona dos</strong></td><td>Se para esa zona y su reloj. El lanzador deja de lanzar</td></tr><tr><td><strong>REANUDAMOS zona uno / zona dos</strong></td><td>Continúa con el tiempo que quedaba</td></tr><tr><td><strong>FIN zona uno / zona dos</strong></td><td>Cierra el grupo de esa zona</td></tr><tr><td><strong>ALTO GENERAL</strong></td><td><strong>Las dos zonas.</strong> Todo el mundo quieto, los dos relojes parados</td></tr></tbody></table>
+<p><strong>Siempre nombrando la zona.</strong> Una orden sin zona para las dos o ninguna.</p>
+<h2>3.6 Secuencia del bloque</h2>
+<ol>
+<li>A7 y A8 forman los dos grupos de 15 fuera del frontón y <strong>les colocan los cascabeles</strong>.</li>
+<li>A3 y A4 comprueban dorsales, cascabeles y posiciones iniciales en el sendero.</li>
+<li>A1 y A2 se vendan <strong>en su puesto</strong>, ya colocados. Se comprueba que no ven.</li>
+<li><strong>INICIO</strong> de cada zona, con su cronómetro.</li>
+<li>Lanzamiento cada 7 segundos. A3 y A4 cantan los impactos directos y las infracciones.</li>
+<li>El eliminado levanta la mano y sale. <strong>Si la ruta obliga a cruzar el sendero o la zona de lanzamiento, el árbitro pausa su zona</strong>; si afecta a las dos, <strong>ALTO GENERAL</strong>.</li>
+<li>A los 120 segundos efectivos o a la cuarta salida: <strong>FIN</strong>. <strong>El lanzador se detiene en el acto.</strong></li>
+<li>Una zona que acaba antes <strong>espera en silencio</strong> si su salida puede afectar a la otra.</li>
+<li>Con el juego parado, A5 y A6 recogen y dejan <strong>20 pelotas</strong> por recipiente. A9 cierra los estados en la aplicación.</li>
+<li>Entra el bloque siguiente, que ya esperaba con los cascabeles puestos.</li>
+</ol>
+<blockquote><p><strong>Una pelota soltada antes de la señal puede completar su trayectoria.</strong> El árbitro puede validar ese impacto si el grupo todavía estaba por debajo de cuatro salidas. Si un impacto ya cerró el grupo, <strong>los posteriores no eliminan</strong>.</p></blockquote>
+<h2>3.7 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Venda que se mueve o deja ver</td><td><strong>Parar la zona</strong> y recolocar antes de seguir</td></tr><tr><td>Cascabel suelto o mudo</td><td>Parar y sustituir. <strong>Un participante sin sonido no es jugable</strong></td></tr><tr><td>Ruido que tapa los cascabeles</td><td><strong>Público en silencio.</strong> Si no se consigue, se pausa</td></tr><tr><td>Golpe que requiera atención</td><td><strong>ALTO GENERAL</strong> y protocolo sanitario</td></tr><tr><td>Pérdida de control del reloj</td><td>Parar y reconstruir el tiempo antes de reanudar</td></tr></tbody></table>
+<p><strong>La preparación del grupo siguiente se hace siempre fuera del campo.</strong></p>
+<h2>3.8 Lo que hay que medir antes</h2>
+<blockquote class="aviso"><p>⚠️ <strong>La tasa de acierto de una persona vendada lanzando a quince que caminan no está medida</strong>, y el resultado de la prueba depende enteramente de ella.</p></blockquote>
+<table><thead><tr><th>Si acierta</th><th>En 17 lanzamientos</th><th>Por grupo</th><th>Total 8 grupos</th></tr></thead><tbody><tr><td>1 de cada 10</td><td>1,7</td><td>~2</td><td>14</td></tr><tr><td>1 de cada 7</td><td>2,4</td><td>~2,5</td><td><strong>20 (estimación de trabajo)</strong></td></tr><tr><td>1 de cada 5</td><td>3,4</td><td>~3,5</td><td>27</td></tr><tr><td>1 de cada 3</td><td>5,7</td><td>tope 4</td><td>32</td></tr></tbody></table>
+<p>Quince minutos de ensayo —una persona vendada, cascabeles en cinco o seis compañeros caminando en círculo, veinte lanzamientos contados— dan el número con el que ajustar la cadencia. <strong>No es crítico acertar:</strong> el bingo 2 tiene objetivo fijo en 160 y absorbe lo que salga.</p>
+<h2>3.9 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Explicación</td><td>5 min</td></tr><tr><td>Juego: 4 bloques × 120 s</td><td>8 min</td></tr><tr><td>3 cambios de bloque</td><td>9 min</td></tr><tr><td>Cierre</td><td>4 min</td></tr><tr><td>Retiradas</td><td>10 min</td></tr><tr><td>Regreso de activos</td><td>4 min</td></tr><tr><td><strong>Bloque propio</strong></td><td><strong>40 min</strong></td></tr></tbody></table>
+<p>El horario reserva de 11:43 a 12:45, que son <strong>62 minutos</strong>. Hay <strong>22 minutos de holgura</strong>: son los que compran un lanzador que necesite parar, o un cambio de bloque lento por cascabeles. <strong>No se usan para alargar la prueba.</strong></p>
+<p>Mesa cierra supervivientes y convoca el bingo 2 para completar 160. <strong>No se fuerza una eliminación porque el bloque vaya retrasado.</strong></p>
+</section>
+
+<section class="ficha" id="p05" data-num="5" data-nombre="Tiro al Saco">
+<header class="tit"><span class="num">5</span><h1>Tiro al Saco</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd>14:30 – 15:25</dd><dt><strong>Entran</strong></dt><dd>160</dd><dt><strong>Clasifican</strong></dt><dd><strong>80.</strong> Una persona por duelo</dd><dt><strong>Formato</strong></dt><dd><strong>80 duelos individuales</strong> en <strong>6 puestos</strong> independientes</dd><dt><strong>Distancia</strong></dt><dd><strong>4 metros</strong> en los seis tableros</dd><dt><strong>Material clave</strong></dt><dd>6 tableros · <strong>48 sacos</strong> (8 por tablero, 4 de cada color) + reserva</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Las parejas las eligen ellos.</strong> No hay sorteo. Quien se queda sin pareja, lo empareja Mesa con otro suelto.</p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>El horario de toda la tarde se apoya en que un duelo dure dos minutos.</strong> No se consigue pidiéndolo: se consigue quitando del duelo lo que lo frena. Está en el apartado 3.2 y es de obligado cumplimiento.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Meter más sacos por el agujero que tu rival. <strong>Cuatro sacos cada uno.</strong></p>
+<h2>1.2 Cómo se juega</h2>
+<ol>
+<li>Los dos se colocan <strong>detrás de la línea de tiro</strong>, a 4 metros del borde delantero del tablero.</li>
+<li>Cada uno tiene <strong>4 sacos de su color</strong>.</li>
+<li><strong>Empieza siempre el color rojo.</strong> Cada uno elige color <strong>antes de saber cuál de los dos empieza</strong>, así que la ventaja del primer tiro se reparte a ciegas.</li>
+<li><strong>Se lanza alternando</strong>, un saco cada uno, <strong>siempre con autorización del árbitro</strong>.</li>
+<li>Se completan <strong>los ocho tiros seguidos</strong>. El árbitro canta el valor de cada tiro en voz alta según va pasando.</li>
+<li><strong>Gana quien sume más puntos.</strong></li>
+</ol>
+<h2>1.3 Cuánto vale cada saco</h2>
+<table><thead><tr><th>Situación del saco</th><th>Puntos</th><th>Detalle</th></tr></thead><tbody><tr><td><strong>Dentro del agujero</strong></td><td><strong>3 puntos</strong></td><td>Entra directo <strong>o lo empuja dentro un lanzamiento posterior</strong></td></tr><tr><td><strong>Sobre el tablero</strong></td><td><strong>1 punto</strong></td><td>Reposa entero sobre la madera sin tocar el suelo</td></tr><tr><td><strong>Colgando del agujero</strong></td><td><strong>1 punto</strong></td><td>Cuenta como saco en el tablero, salvo que caiga dentro antes de acabar la ronda</td></tr><tr><td><strong>Colgando del borde</strong>, sin tocar el suelo</td><td><strong>1 punto</strong></td><td>Vale mientras ninguna parte de la tela toque el suelo</td></tr><tr><td><strong>Tocando el suelo</strong></td><td><strong>0 puntos</strong></td><td>Si cae, rebota hacia el tablero o cuelga rozando el suelo, queda anulado</td></tr><tr><td><strong>Lanzamiento con falta</strong></td><td><strong>0 puntos</strong></td><td>Pisar la línea frontal o tardar <strong>más de 20 segundos</strong> en lanzar</td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>El recuento se hace al acabar los ocho tiros, por cómo queda el tablero.</strong> No es la suma de lo que el árbitro fue cantando: un saco que entra empujado por otro <strong>pasa a valer 3</strong>, y uno que es desplazado al suelo <strong>pierde su punto</strong>. El árbitro canta cada tiro para que nadie se pierda, pero <strong>lo que decide el duelo es la posición final</strong>.</p></blockquote>
+<h2>1.4 Qué consume el intento</h2>
+<ul>
+<li><strong>Rebasar la línea al soltar.</strong></li>
+<li><strong>Tardar más de 20 segundos en lanzar.</strong></li>
+<li><strong>Lanzar fuera de turno.</strong></li>
+<li><strong>Lanzar sin permiso del árbitro.</strong></li>
+</ul>
+<p>En los cuatro casos el saco <strong>vale 0</strong> y <strong>el intento se da por gastado</strong>.</p>
+<h2>1.5 No se retira saco entre tiros</h2>
+<blockquote class="aviso"><p>🚨 <strong>Los ocho sacos se quedan donde caen hasta el final del duelo.</strong> No se retira nada entre tiro y tiro.</p></blockquote>
+<p>Y por eso el tablero se cuenta <strong>una sola vez, al final</strong>: mover un saco del rival con el tuyo es parte del juego, no una incidencia.</p>
+<h2>1.6 Se completan los cuatro</h2>
+<p><strong>Aunque el duelo ya esté decidido, se lanzan los cuatro sacos de cada uno</strong>, incluidos los nulos. No se cierra antes por ventaja.</p>
+<h2>1.7 Empate</h2>
+<ol>
+<li><strong>Hasta tres rondas</strong> adicionales de <strong>un tiro por persona</strong>.</li>
+<li><strong>Los dos completan su intento antes de decidir.</strong> Empieza quien fue segundo en el duelo principal, y después se alterna.</li>
+<li><strong>Cada ronda cuenta por separado</strong>, no se suma al duelo principal.</li>
+<li><strong>Gana el desempate quien sume más puntos en una ronda.</strong></li>
+<li>Si persiste: <strong>tarjetas Omega</strong>, con sorteo de quién elige primero y revelación conjunta.</li>
+</ol>
+<hr/>
+<p><strong>La puede dar el speaker por megafonía o tú a tu grupo.</strong> Las dos valen, y el guion es el mismo: el de aquí abajo, que está también en el <strong>Manual del Speaker</strong>. Lo normal es que la dé el speaker; <strong>si el día se mueve</strong> —se va el sonido, vais con retraso, tu grupo entra tarde— <strong>la das tú</strong>. <strong>Coordinación canta por radio quién la da antes de abrir la prueba</strong>: es lo único que no se improvisa, porque si no, o no la da nadie o la dan los dos. Por megafonía se dice <strong>una sola vez</strong>, antes de abrir los seis puestos.</p>
+<p><strong>Si vais con retraso, dala tú</strong>: aquí la explicación de puesto va <strong>en paralelo</strong> al juego —se la das a la pareja siguiente mientras la anterior remata su duelo—, así que no cuesta minutos de horario. Por megafonía sí los cuesta.</p>
+<p><strong>Si la ha dado el speaker</strong>, a cada pareja, fuera del tablero, y en quince segundos solo recuerdas esto: <em>«Cuatro sacos cada uno, por turnos. Encima vale 1, dentro vale 3, el que toca el suelo no vale nada. Se cuenta al final, con el tablero como quede. No piséis la línea y no recojáis nada.»</em></p>
+<blockquote><p><em>«Cuatro sacos cada uno. Lanzáis por turnos, y los ocho seguidos.»</em>  <em>«Esto va por puntos: <strong>un saco que se queda encima del tablero vale 1 punto, y un saco que pasa por el agujero vale 3</strong>. El que toca el suelo no vale nada, aunque acabe encima del tablero.»</em>  <em>«No piséis la línea al soltar. Si la pisáis, ese saco no cuenta y lo habéis gastado. Y tenéis veinte segundos para lanzar.»</em>  <em>«Lanzáis solo cuando se os diga. Y <strong>no recojáis nada</strong>: los sacos se quedan donde caen y los retiramos al final.»</em>  <em>«Contamos <strong>al terminar los ocho</strong>, con el tablero como quede. Si vuestro saco mete dentro uno del otro, ese saco le vale 3 a él. Jugad con eso.»</em>  <em>«Se tiran los cuatro, aunque esté ganado. <strong>Gana el que tenga más puntos.</strong>»</em>  <em>«Lo que yo diga en este puesto es lo que vale. Si no estáis de acuerdo, no se discute aquí: se reclama en la mesa de Coordinación. ¿Vamos?»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 a A6</strong></td><td><strong>Un árbitro por puesto.</strong> Autoriza el tiro, canta su valor, cuenta el tablero al acabar, resuelve el duelo, propone la baja del perdedor y da paso a la pareja siguiente</td></tr><tr><td><strong>A7 y A8</strong></td><td><strong>Volantes.</strong> No están fijos: apoyan el recuento y resuelven dudas en el puesto que lo pida</td></tr><tr><td><strong>A9</strong></td><td>Llama parejas y mantiene <strong>seis preparadas</strong> fuera de los pasillos</td></tr><tr><td><strong>A10</strong></td><td>Orienta salidas y público</td></tr><tr><td><strong>A11</strong></td><td>Material e incidencias</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr></tbody></table>
+<p><strong>El árbitro se coloca en lateral, a media distancia entre la línea y el tablero</strong>, de forma que ve la línea de tiro y el agujero a la vez. Los dos volantes son los que compensan no tener una segunda persona fija por puesto: cubren el recuento, que es el momento delicado.</p>
+<h2>3.2 Las cuatro reglas del duelo de dos minutos</h2>
+<ol>
+<li><strong>No se retira saco entre tiros.</strong> Los ocho tiros alternos se lanzan seguidos y los ocho sacos se retiran al final. Bloquear el tablero tras cada tiro cuesta unos <strong>treinta segundos por duelo</strong>, el 25 % del tiempo.</li>
+<li><strong>Verificación de dorsales y elección de color fuera del tablero</strong>, mientras la pareja anterior remata su duelo. <strong>No hay sorteo de inicio que hacer: empieza el rojo.</strong></li>
+<li><strong>El registro en la aplicación se hace con la siguiente pareja ya lanzando.</strong> No se para el puesto para teclear.</li>
+<li><strong>Los desempates salen del reloj de dos minutos</strong> y van contra la reserva de cinco minutos del bloque.</li>
+</ol>
+<p>Con esas cuatro reglas el reparto sale a <strong>1 minuto 56 segundos</strong>: 20 s de colocación, 56 s de los ocho tiros, 20 s de recuento y anuncio y 20 s de relevo.</p>
+<blockquote class="hecho"><p>✅ <strong>Cronometrado antes del día 21.</strong> El duelo de dos minutos deja de ser una estimación: el horario de la tarde se apoya en un dato medido.</p></blockquote>
+<h2>3.3 Comprobación previa</h2>
+<ul>
+<li><strong>Seis tableros equivalentes</strong>: misma estabilidad, mismo agujero, misma superficie.</li>
+<li><strong>4 metros exactos</strong> entre línea y borde delantero, <strong>medidos con metro en los seis puestos</strong>. Si un puesto está a 3,80 m, ese duelo no es el mismo juego.</li>
+<li><strong>48 sacos en uso</strong>, ocho por tablero y cuatro de cada color, más reserva.</li>
+<li>Los <strong>pasillos de tiro y recogida no invaden</strong> a los puestos de al lado.</li>
+<li>Aplicación, fichas y elementos de sorteo.</li>
+</ul>
+<blockquote class="hecho"><p>✅ <strong>Material completo.</strong> Los seis tableros y los 48 sacos están, con su reserva.</p></blockquote>
+<h2>3.4 Servicio continuo</h2>
+<p><strong>Los seis tableros avanzan de manera independiente.</strong> Al quedar uno libre entra su siguiente pareja, <strong>sin esperar a que terminen los otros cinco</strong>. Mesa conserva un orden de duelos.</p>
+<ol>
+<li>Verificar dorsales, <strong>repartir colores a ciegas</strong> y recordar reglas, <strong>fuera del tablero</strong>. Empieza el rojo.</li>
+<li>El árbitro confirma zona libre y autoriza el primer tiro.</li>
+<li><strong>Ocho tiros alternos seguidos.</strong> El árbitro canta el valor de cada tiro en voz alta.</li>
+<li>Completar cuatro por persona, incluidos los nulos. <strong>No cerrar antes por ventaja.</strong></li>
+<li><strong>Contar el tablero una sola vez, con los ocho sacos ya lanzados.</strong> Resolver el empate si lo hay, registrar el resultado y <strong>proponer la baja del perdedor</strong> desde el móvil. A10 guía las salidas.</li>
+<li><strong>Retirar los ocho sacos</strong>, confirmar puesto vacío y recibir inmediatamente a la siguiente pareja.</li>
+</ol>
+<h2>3.5 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Interferencia externa o fallo del material</td><td><strong>Se repite solo el tiro afectado</strong></td></tr><tr><td>Alguien recogiendo en zona de tiro</td><td><strong>No se lanza.</strong> El árbitro no autoriza</td></tr><tr><td>Tablero desnivelado o agujero distinto</td><td>Se sustituye antes de seguir. <strong>No se cambia la distancia de un solo puesto</strong></td></tr><tr><td>Varios desempates a la vez</td><td>A7 y A8 se reparten los puestos afectados</td></tr></tbody></table>
+<h2>3.6 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Preparación, verificación y explicación</td><td>12 min</td></tr><tr><td>Servicio del puesto más cargado: 15 duelos a 2 min 10 s</td><td>33 min</td></tr><tr><td>Reserva de desempates</td><td>5 min</td></tr><tr><td>Cierre</td><td>5 min</td></tr><tr><td><strong>Total del bloque</strong></td><td><strong>55 min</strong></td></tr></tbody></table>
+<p>Los 80 duelos entre seis puestos dan 13 por puesto, pero <strong>se reserva por el puesto más cargado —quince—</strong> porque el reparto nunca sale exacto y los desempates desequilibran.</p>
+<p>Mesa valida <strong>80 resultados y 160 dorsales únicos</strong>. El cierre ordinario deja <strong>80 ganadores y 80 eliminados</strong>, y entrega los 80 clasificados a La Ruleta.</p>
+<blockquote><p>Si el día 21 el duelo se va a 2 min 30 s, el bloque sube a 63 minutos y <strong>sigue cabiendo</strong>. Si sale a 3 minutos, sube a 73 y hay que bajar la entrada de esta prueba a 120 participantes, con el bingo 2 ajustado a ese número.</p></blockquote>
+</section>
+
+<section class="ficha" id="p06" data-num="6" data-nombre="La Ruleta">
+<header class="tit"><span class="num">6</span><h1>La Ruleta</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd>15:25 – 16:05</dd><dt><strong>Entran</strong></dt><dd>80</dd><dt><strong>Clasifican</strong></dt><dd><strong>40.</strong> Cada duelo clasifica 10 y elimina 10</dd><dt><strong>Formato</strong></dt><dd><strong>8 equipos de 10 · 4 duelos consecutivos</strong></dd><dt><strong>Enfrentamientos</strong></dt><dd><strong>1 vs 8 · 2 vs 7 · 3 vs 6 · 4 vs 5</strong></dd><dt><strong>Material clave</strong></dt><dd>Ruleta de 12 casillas · 8 carteles de equipo · <strong>los 6 minijuegos montados</strong></dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Aquí no se elimina a nadie individualmente. El equipo que pierde se va completo.</strong></p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>Los equipos los forma la aplicación.</strong> No los eligen ellos. <strong>A cada uno se le asigna un número y se va al sector de ese número</strong> a esperar su turno. <strong>El capitán tampoco existe en esta prueba</strong>: solo hay un portavoz para los sorteos y validaciones.</p></blockquote>
+<blockquote class="aviso"><p>🚨 Con cuatro duelos solo saldrán cuatro de los seis minijuegos, pero <strong>los seis tienen que poder salir.</strong> El sorteo es en directo y no se sabe cuáles van a caer.  <strong>Montados desde el principio: Cronómetro y Encestar.</strong> Los otros cuatro —Apalabrados, Dardos, Anillos a conos y Espalda con espalda— van <strong>preparados para montarse en el acto</strong>, con su material agrupado y a mano. A5 y A6 lo montan en cuanto gira la ruleta.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Ganar el duelo que te toque. <strong>La ruleta decide a qué se juega, no quién gana.</strong></p>
+<h2>1.2 Cómo se forma todo</h2>
+<ol>
+<li>Mesa lanza el reparto sobre los 80 activos y <strong>la pantalla indica a cada dorsal su número de equipo</strong>.</li>
+<li>Cada jugador se coloca <strong>detrás del cartel numerado</strong> que le ha tocado.</li>
+<li>Los árbitros comprueban que <strong>hay diez por cartel</strong> antes de abrir el primer duelo.</li>
+<li>Los enfrentamientos son fijos: <strong>1 vs 8, 2 vs 7, 3 vs 6, 4 vs 5</strong>. Si Coordinación lo indica, se sortean en la aplicación.</li>
+</ol>
+<h2>1.3 La ruleta</h2>
+<ul>
+<li><strong>Doce casillas: dos por cada uno de los seis minijuegos.</strong></li>
+<li><strong>Un único giro válido para los dos equipos</strong>, hecho por el árbitro de la ruleta.</li>
+<li>Si el puntero queda <strong>entre casillas</strong> o hay interferencia, <strong>el árbitro invalida y repite</strong>.</li>
+<li><strong>No se repite nunca por el resultado obtenido.</strong></li>
+</ul>
+<h2>1.4 Los seis minijuegos</h2>
+<table><thead><tr><th>Minijuego</th><th>Fase principal</th><th>Gana</th></tr></thead><tbody><tr><td><strong>Cronómetro</strong></td><td>Diez intervalos acumulados por equipo</td><td>El tiempo más cercano a 60 s <strong>sin pasarse</strong>. Si ambos se pasan, el menor exceso</td></tr><tr><td><strong>Apalabrados</strong></td><td>Hasta dos palabras de diez letras en dos minutos</td><td>El primero en completar dos palabras</td></tr><tr><td><strong>Dardos</strong></td><td>Diez lanzamientos por equipo, alternando</td><td>La suma mayor</td></tr><tr><td><strong>Anillos a conos</strong></td><td>Veinte tiros por equipo, dos por persona</td><td>La puntuación mayor</td></tr><tr><td><strong>Espalda con espalda</strong></td><td>Cinco parejas, hasta dos minutos</td><td>El primero con cinco cruces válidos</td></tr><tr><td><strong>Encestar</strong></td><td>Dos minutos en simultáneo</td><td>El mayor total de canastas</td></tr></tbody></table>
+<h2>1.5 Reglas comunes a los seis</h2>
+<ul>
+<li><strong>No se permiten móviles, relojes, pistas externas, sabotaje ni cambio de jugadores durante un reto.</strong></li>
+<li><strong>El público observa sin dar soluciones ni señales de tiempo.</strong></li>
+<li>Una pausa por fallo ajeno a los equipos <strong>detiene los dos puestos</strong> cuando afecta a la igualdad.</li>
+<li>Cada duelo tiene <strong>una sola fase adicional de juego</strong> si hay empate. Si sigue la igualdad: <strong>tarjetas Omega</strong>, y <strong>el equipo del logo clasifica</strong>.</li>
+</ul>
+<h2>1.6 Cronómetro</h2>
+<p>Dos dispositivos equivalentes, <strong>pantalla tapada</strong> y acumulado a cero. Cada integrante, en orden fijo, pulsa una vez para arrancar y otra para detener. Entre jugadores el cronómetro <strong>permanece parado y conserva el acumulado</strong>.</p>
+<blockquote class="aviso"><p>🚨 <strong>No se descubre la pantalla hasta que los dos equipos han terminado sus diez turnos.</strong></p></blockquote>
+<p>No valen señales del público, consultar otro reloj ni que alguien haga el turno de otro. Un error técnico o un reinicio accidental <strong>invalida esa serie</strong>; Coordinación decide si la información revelada obliga a repetir las dos.</p>
+<p><strong>Empate:</strong> una única serie nueva de diez turnos, acumulado a cero.</p>
+<h2>1.7 Apalabrados</h2>
+<p>Diez letras por equipo, <strong>una por jugador</strong>. Gana quien complete <strong>dos palabras</strong> primero.</p>
+<ul>
+<li>Los jugadores <strong>miran al público</strong> y las letras se leen <strong>de izquierda a derecha desde el público</strong>.</li>
+<li>Se preparan <strong>cuatro bolsas opacas</strong> con palabras distintas, más una quinta de reserva técnica.</li>
+<li>Cada equipo nombra portavoz. <strong>Se sortea quién elige primero</strong>; el rival elige entre las tres restantes.</li>
+<li>Para validar, los diez <strong>muestran su letra y se quedan inmóviles</strong> cuando el portavoz dice <strong>«Palabra»</strong>. Lo que cuenta es <strong>el instante de la solicitud</strong>, no el de la verificación.</li>
+<li>Si la palabra es incorrecta, el árbitro dice <strong>«No es correcta»</strong> y nada más. <strong>El reloj continúa.</strong></li>
+</ul>
+<table><thead><tr><th>Situación</th><th>Decisión</th></tr></thead><tbody><tr><td>Un equipo completa dos palabras primero</td><td>Gana al confirmar la segunda</td></tr><tr><td>Solo un equipo completa una palabra</td><td>Gana ese equipo</td></tr><tr><td>Ambos completan una</td><td>Gana <strong>quien solicitó primero</strong> su validación correcta</td></tr><tr><td>No se distingue el orden</td><td>Desempate con dos palabras nuevas, una por equipo</td></tr><tr><td>Ninguno completa ninguna</td><td><strong>Prórroga inmediata</strong> con las mismas letras, hasta 2 min más</td></tr></tbody></table>
+<p><strong>Las fichas de vocales van sin tildes ni diéresis.</strong> Si sale otra palabra española de diez letras con exactamente las mismas piezas, se guarda la posición y el tiempo, se pausa y se comprueba en el diccionario de referencia: <strong>si es válida, se admite</strong>.</p>
+<h2>1.8 Dardos</h2>
+<p>Una sola diana con la puntuación impresa, <strong>dardos magnéticos</strong> y línea común <strong>a cuatro metros</strong>. Diez tiros por equipo, uno por integrante, <strong>alternando A y B</strong>. Gana la suma mayor.</p>
+<p>El árbitro <strong>registra la zona antes de mover el dardo</strong> y <strong>anota cada tiro en el momento</strong>. <strong>El valor queda fijado ahí</strong>: si después otro dardo mueve a ese, el valor anotado no cambia. Fallar, rebasar la línea o lanzar fuera de turno vale cero. Los dardos se recogen <strong>tras los primeros diez tiros totales</strong>, cinco de cada equipo.</p>
+<p><strong>Empate:</strong> cinco jugadores distintos por equipo, un tiro cada uno, misma alternancia.</p>
+<h2>1.9 Anillos a conos</h2>
+<p><strong>Cinco conos por equipo</strong>, mismo orden y separación, línea <strong>a dos metros</strong> del borde delantero de la fila más próxima. Cada integrante lanza <strong>dos anillos</strong>: veinte por equipo. Se anota el orden antes de empezar y <strong>cuando un jugador tira sus dos anillos pasa al otro lado de los conos</strong>.</p>
+<ul>
+<li>Un anillo que <strong>rodea el cono y queda asentado en su base</strong> suma uno. Apoyado sin rodear, o fuera, vale cero. Se puntúa <strong>tras estabilizarse</strong>.</li>
+<li>Línea rebasada al soltar, turno indebido o tiro extra: <strong>cero</strong>.</li>
+<li><strong>No se decide al acabar primero, sino con igual número de intentos.</strong></li>
+</ul>
+<p><strong>Empate:</strong> cinco integrantes distintos, un anillo cada uno.</p>
+<h2>1.10 Espalda con espalda</h2>
+<p>Cinco parejas por equipo. Dos carriles equivalentes de <strong>seis metros</strong>, con zona de carga y línea de meta. Cada pareja transporta <strong>de lado</strong> una pelota entre sus espaldas, <strong>con los brazos cruzados por delante</strong>.</p>
+<ul>
+<li>Las manos solo pueden colocar la pelota <strong>en la zona de carga</strong>.</li>
+<li><strong>Hay una pareja en recorrido por equipo.</strong></li>
+<li>El cruce vale cuando <strong>los dos tienen ambos pies al otro lado</strong> y <strong>todavía llevan la pelota entre las espaldas</strong>.</li>
+<li>Si la pelota cae antes, alguien la sujeta con las manos o la pareja sale del carril, <strong>el intento falla</strong>: pasan al final de su fila y sale la siguiente. <strong>Los cruces válidos anteriores se conservan.</strong></li>
+<li>Gana el primer equipo con <strong>cinco cruces válidos</strong>. Si se agotan los dos minutos, el que más tenga.</li>
+</ul>
+<p><strong>Empate:</strong> una pareja por equipo, primer cruce válido en 60 segundos.</p>
+<h2>1.11 Encestar</h2>
+<p>Un módulo doble de canastas, <strong>un aro por equipo</strong>, filas paralelas de diez y pelotas de minibásquet. <strong>Dos minutos en simultáneo.</strong></p>
+<p>El primero de cada fila tira, recupera o recibe la pelota del retorno, <strong>la pasa al siguiente y vuelve al final</strong>. Cada pelota que atraviesa el aro <strong>desde arriba</strong> suma uno. Línea rebasada, turno indebido o tiro desde fuera del puesto no cuentan. Las pelotas soltadas <strong>antes de la señal</strong> pueden completar trayectoria y puntuar.</p>
+<p><strong>Empate:</strong> repetición de sesenta segundos, marcadores a cero.</p>
+<hr/>
+<p>Tiene dos partes. La <strong>general</strong>, al formar los equipos, la puede dar <strong>el speaker por megafonía</strong> (lo normal, y la tiene escrita en su manual) <strong>o el árbitro</strong>. La <strong>del minijuego</strong> la da <strong>siempre el árbitro, después del giro</strong>, porque hasta ese momento nadie sabe a qué se juega: esa no puede ir por megafonía ni adelantada, y en el manual del speaker se le avisa de que ahí se para.</p>
+<h2>2.1 General, al formar los equipos</h2>
+<blockquote><p><em>«Mirad la pantalla: ahí tenéis vuestro número de equipo. Poneos detrás de vuestro cartel. Diez por cartel.»</em>  <em>«A partir de ahora <strong>no jugáis vosotros: juega vuestro equipo</strong>. El que gana el duelo sigue entero. El que lo pierde, se va entero. Aquí no hay nada individual.»</em>  <em>«Esa ruleta decide <strong>a qué vais a jugar</strong>. Hay seis juegos distintos. <strong>No sabéis a cuál jugaréis hasta que gire.</strong>»</em>  <em>«Nada de móviles, nada de relojes y nada de ayudas de fuera. Y al público: podéis animar, <strong>pero no ayudar</strong>.»</em>  <em>«Si hay empate, hay un solo desempate de juego. Si sigue, se resuelve con tarjetas.»</em></p></blockquote>
+<h2>2.2 Al abrir cada duelo, tras el giro</h2>
+<p><strong>Cada minijuego tiene su guion, y es el que se dice.</strong> Los seis siguen el mismo esqueleto —<strong>objetivo, turnos, faltas, autorización</strong>— y ninguno pasa de un minuto, pero el árbitro no improvisa el relleno: lee el que le ha tocado. El reglamento completo está en el apartado 1 de esta ficha, no en la megafonía.</p>
+<p>Todos terminan igual: <em><strong>«Yo autorizo cada turno. ¿Alguna duda? Empezamos.»</strong></em></p>
+<h3>Si sale Cronómetro</h3>
+<blockquote><p><em>«Ha salido <strong>Cronómetro</strong>. Ganáis si vuestro equipo se queda <strong>lo más cerca posible de sesenta segundos, sin pasaros</strong>. El que se pasa, pierde contra el que no. Si os pasáis los dos, gana el que se pase menos.»</em>  <em>«Los diez vais a pulsar, <strong>uno detrás de otro y en el orden que fijemos ahora</strong>. Cada uno pulsa una vez para arrancar y otra para parar. <strong>El tiempo se va sumando</strong> y el siguiente arranca donde lo dejó el anterior.»</em>  <em>«La pantalla está tapada y <strong>no se destapa hasta que los dos equipos hayáis terminado los diez turnos</strong>. Nadie va a saber cómo va.»</em>  <em>«Faltas: mirar un reloj, hacer el turno de otro o aceptar que os canten el tiempo desde fuera. <strong>Eso invalida vuestra serie entera</strong>, no un turno.»</em></p></blockquote>
+<h3>Si sale Apalabrados</h3>
+<blockquote><p><em>«Ha salido <strong>Apalabrados</strong>. Cada uno lleva <strong>una letra</strong>. Entre los diez formáis una palabra de diez letras. <strong>Gana el primer equipo que complete dos palabras.</strong>»</em>  <em>«Tenéis <strong>dos minutos</strong>. Miráis al público: la palabra se lee <strong>de izquierda a derecha desde donde está el público</strong>, no desde donde estáis vosotros.»</em>  <em>«Cuando la tengáis, <strong>vuestro portavoz dice "Palabra"</strong>, y en ese momento <strong>os quedáis todos quietos enseñando vuestra letra</strong>. Lo que vale es el instante en que lo pide, no lo que tarde yo en comprobarlo.»</em>  <em>«Si no es correcta, yo digo <strong>"No es correcta"</strong> y nada más. No os digo qué letra falla. <strong>Y el reloj no se para.</strong>»</em>  <em>«Las vocales van <strong>sin tilde</strong>. Si os sale otra palabra distinta que también use exactamente esas diez letras, la comprobamos y, si existe, <strong>os la doy por buena</strong>.»</em></p></blockquote>
+<h3>Si sale Dardos</h3>
+<blockquote><p><em>«Ha salido <strong>Dardos</strong>. <strong>Gana la suma más alta.</strong> Diez tiros por equipo, <strong>uno por persona</strong>, alternando un equipo y otro.»</em>  <em>«Se tira desde esta línea, a <strong>cuatro metros</strong>. Son dardos magnéticos: <strong>no vale recolocar nada.</strong>»</em>  <em>«Yo canto y <strong>anoto vuestra puntuación en cuanto cae el dardo</strong>. A partir de ahí es vuestra: si luego otro dardo lo mueve, <strong>vuestros puntos no cambian</strong>.»</em>  <em>«Faltas: pisar la línea, tirar fuera de turno o fallar la diana. <strong>Cero, y el tiro está gastado.</strong>»</em></p></blockquote>
+<h3>Si sale Anillos a conos</h3>
+<blockquote><p><em>«Ha salido <strong>Anillos a conos</strong>. <strong>Gana la puntuación más alta.</strong> Cada uno tira <strong>dos anillos</strong>: veinte por equipo.»</em>  <em>«Se tira desde la línea, a <strong>dos metros del primer cono</strong>. En cuanto tiréis vuestros dos, <strong>pasáis al otro lado de los conos</strong> y dejáis sitio al siguiente.»</em>  <em>«Suma <strong>solo el anillo que rodea el cono y se queda asentado en la base</strong>. Apoyado encima sin rodearlo, no. Y se cuenta <strong>cuando se queda quieto</strong>, no cuando cae.»</em>  <em>«Faltas: pisar la línea al soltar, tirar fuera de turno o tirar de más. <strong>Cero.</strong>»</em>  <em>«Aquí <strong>no gana el que acabe antes</strong>: los dos equipos tiráis los mismos veinte.»</em></p></blockquote>
+<h3>Si sale Espalda con espalda</h3>
+<blockquote><p><em>«Ha salido <strong>Espalda con espalda</strong>. Formáis <strong>cinco parejas</strong>. <strong>Gana el primer equipo con cinco cruces válidos</strong>, y si se acaban los dos minutos, el que más lleve.»</em>  <em>«La pelota va <strong>entre vuestras espaldas</strong>, os movéis <strong>de lado</strong> y lleváis <strong>los brazos cruzados por delante</strong>. Las manos <strong>solo</strong> tocan la pelota en la zona de carga.»</em>  <em>«<strong>Sale una pareja cada vez.</strong> El cruce vale cuando <strong>los dos tenéis los dos pies al otro lado y la pelota sigue entre las espaldas</strong>.»</em>  <em>«Si se os cae, la sujetáis con la mano o os salís del carril, <strong>ese intento no vale</strong>: volvéis al final de la fila y sale la siguiente pareja. <strong>Los cruces que ya llevéis no se pierden.</strong>»</em></p></blockquote>
+<h3>Si sale Encestar</h3>
+<blockquote><p><em>«Ha salido <strong>Encestar</strong>. <strong>Gana el que meta más canastas en dos minutos.</strong> Los dos equipos jugáis a la vez, cada uno en su aro.»</em>  <em>«En fila. El primero tira, <strong>recoge su pelota o la que le llegue, se la pasa al siguiente y se va al final</strong>. Y así sin parar hasta que suene.»</em>  <em>«Suma <strong>cada pelota que entra por arriba del aro</strong>.»</em>  <em>«Faltas: pisar la línea, tirar fuera de turno o tirar desde fuera de vuestro puesto. <strong>No cuenta.</strong>»</em>  <em>«Si soltáis la pelota <strong>antes de la señal final</strong>, esa sí cuenta aunque entre después.»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1</strong></td><td>Arbitra el <strong>equipo A</strong></td></tr><tr><td><strong>A2</strong></td><td>Arbitra el <strong>equipo B</strong></td></tr><tr><td><strong>A3</strong></td><td><strong>Reloj común</strong> y registro de finalizaciones</td></tr><tr><td><strong>A4</strong></td><td><strong>Gira y valida la ruleta</strong></td></tr><tr><td><strong>A5 y A6</strong></td><td>Preparan el material del minijuego siguiente</td></tr><tr><td><strong>A7 y A8</strong></td><td>Convocan y ordenan los equipos</td></tr><tr><td><strong>A9</strong></td><td>Recibe las salidas</td></tr><tr><td><strong>A10 y A11</strong></td><td>Público y apoyo</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr></tbody></table>
+<p><strong>El árbitro no abandona su equipo para comprobar otro puesto.</strong></p>
+<h2>3.2 Comprobación previa</h2>
+<ul>
+<li><strong>Cronómetro y Encestar montados.</strong> Los otros cuatro, <strong>preparados para montar en el acto</strong>: material agrupado, completo y junto al puesto. A5 y A6 saben cuál es el suyo.</li>
+<li><strong>Ocho carteles de equipo</strong> numerados y visibles.</li>
+<li><strong>Dos cronómetros ocultos</strong>, con pantalla tapada.</li>
+<li><strong>106 fichas de letras + 20 reescribibles de reserva</strong>, cinco envases opacos y dos recipientes para letras usadas.</li>
+<li>Diana con puntuación impresa y <strong>dardos magnéticos</strong>.</li>
+<li><strong>10 conos y 40 anillos</strong> más reserva.</li>
+<li>Pelotas de Campo de Batalla para los dos carriles de espalda con espalda.</li>
+<li><strong>Módulo doble de canastas</strong> y pelotas de minibásquet.</li>
+<li>Tarjetas Omega.</li>
+</ul>
+<h2>3.3 Ciclo del duelo</h2>
+<ol>
+<li>A7 y A8 sitúan a los dos equipos del duelo. A1 y A2 <strong>comprueban diez dorsales por equipo</strong>.</li>
+<li><strong>A4 gira la ruleta.</strong> Si queda entre casillas, invalida y repite.</li>
+<li>A1 o A2 dan la explicación del minijuego: <strong>objetivo, intentos, faltas</strong>.</li>
+<li><strong>Inicio común.</strong> A1 y A2 observan de forma independiente, cada uno a su equipo. A3 lleva el reloj.</li>
+<li>Al resolverse, <strong>se envía el resultado por aplicación</strong>.</li>
+<li><strong>Coordinación confirma la baja del equipo perdedor ANTES del anuncio y de la salida.</strong></li>
+<li>A9 recibe a los diez que salen. A5 y A6 <strong>ya están montando el material del duelo siguiente</strong>.</li>
+<li>Se mantiene al duelo siguiente identificado <strong>sin empezar otro giro</strong>.</li>
+</ol>
+<h2>3.4 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Puntero entre casillas o interferencia</td><td><strong>Invalidar y repetir el giro</strong></td></tr><tr><td>Fallo de material o reloj que afecta a la igualdad</td><td><strong>Pausar los dos equipos</strong> y preservar aciertos, tiempos y elecciones</td></tr><tr><td>Información revelada que no se puede neutralizar</td><td>Coordinación autoriza repetir <strong>con material nuevo</strong> y registra el motivo</td></tr><tr><td>Letra defectuosa o entrega incorrecta</td><td>Retirar el conjunto afectado y entregar <strong>el de reserva</strong></td></tr><tr><td>Ayuda del público</td><td>Aviso. Si se repite, Coordinación resuelve</td></tr></tbody></table>
+<h2>3.5 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Apertura y formación de los ocho equipos</td><td>8 min</td></tr><tr><td>Cuatro duelos a 6 min</td><td>24 min</td></tr><tr><td>Reserva compartida de desempates</td><td>5 min</td></tr><tr><td>Cierre</td><td>3 min</td></tr><tr><td><strong>Total del bloque</strong></td><td><strong>40 min</strong></td></tr></tbody></table>
+<blockquote class="aviso"><p>⚠️ <strong>Si varios duelos consumen una fase adicional, el bloque se pasa de la reserva.</strong> Aun así, <strong>se completa el desempate previsto antes de cerrar el resultado</strong>: no se resuelve con tarjetas antes de tiempo por ir con prisa.</p></blockquote>
+<h2>3.6 Banco interno de Apalabrados</h2>
+<blockquote><p><strong>Uso reservado a arbitraje.</strong> Las vocales se imprimen <strong>sin tildes</strong>.</p></blockquote>
+<p>Palabras de juego, en este orden: <strong>VIDEOJUEGO, COMPETIDOR, BALONCESTO y AEROPUERTO</strong>. Reserva técnica: <strong>SERVILLETA</strong>. En duelos posteriores se sigue el orden del banco y <strong>se excluyen las palabras ya vistas</strong> por los jugadores de ese duelo.</p>
+<table><thead><tr><th>Nº</th><th>Solución</th><th>Letras mezcladas</th></tr></thead><tbody><tr><td>01</td><td>VIDEOJUEGO</td><td>E I V O G U J E D O</td></tr><tr><td>02</td><td>COMPETIDOR</td><td>C O D R M O E I T P</td></tr><tr><td>03</td><td>BALONCESTO</td><td>T O B E C A N S L O</td></tr><tr><td>04</td><td>AEROPUERTO</td><td>R E R T U A O P O E</td></tr><tr><td>05</td><td>SERVILLETA</td><td>R E I L T E V S L A</td></tr><tr><td>06</td><td>ASTRONAUTA</td><td>T A N A O S A T U R</td></tr><tr><td>07</td><td>DINOSAURIO</td><td>S O U I A I R D N O</td></tr><tr><td>08</td><td>DROMEDARIO</td><td>A D M I O D R R O E</td></tr><tr><td>09</td><td>AGRICULTOR</td><td>O C G L R U A R I T</td></tr><tr><td>10</td><td>ENFERMERIA</td><td>N R I E R A E M F E</td></tr><tr><td>11</td><td>ARQUITECTO</td><td>U I O T C T A E R Q</td></tr><tr><td>12</td><td>CONDUCTORA</td><td>R N O O U D C C T A</td></tr><tr><td>13</td><td>CAMPAMENTO</td><td>T N M A O C P A E M</td></tr><tr><td>14</td><td>TELESCOPIO</td><td>L P S E I O T C O E</td></tr><tr><td>15</td><td>TERMOMETRO</td><td>R M T T E O O E R M</td></tr><tr><td>16</td><td>FOTOGRAFIA</td><td>O F I R O A G A T F</td></tr><tr><td>17</td><td>ABECEDARIO</td><td>E A O A E R C I D B</td></tr><tr><td>18</td><td>SUSTANTIVO</td><td>S O S T V N I U A T</td></tr><tr><td>19</td><td>TARTAMUDEZ</td><td>E T U R A M D A Z T</td></tr><tr><td>20</td><td>TRIUNFADOR</td><td>D I O T F R N A R U</td></tr><tr><td>21</td><td>FUTBOLISTA</td><td>T A L O B I F U S T</td></tr><tr><td>22</td><td>DOCUMENTAL</td><td>T C E U M L O A N D</td></tr><tr><td>23</td><td>SENDERISMO</td><td>R M O E S S E N I D</td></tr><tr><td>24</td><td>ARCHIVADOR</td><td>A V R D O A I H R C</td></tr><tr><td>25</td><td>AVENTURERO</td><td>O E N A E U R V T R</td></tr><tr><td>26</td><td>MADRIGUERA</td><td>E D G R A M A R I U</td></tr></tbody></table>
+</section>
+
+<section class="ficha" id="p07" data-num="7" data-nombre="Batalla Naval">
+<header class="tit"><span class="num">7</span><h1>Batalla Naval</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 3 · Campo de baloncesto</dd><dt><strong>Hora</strong></dt><dd>16:12 – 17:36</dd><dt><strong>Entran</strong></dt><dd>60</dd><dt><strong>Clasifican</strong></dt><dd><strong>30.</strong> El equipo ganador al completo</dd><dt><strong>Formato</strong></dt><dd><strong>4 equipos de 15 · 2 partidas consecutivas</strong></dd><dt><strong>Flota</strong></dt><dd><strong>7 barcos</strong>: 2 de tres casillas, 3 de dos y 2 de una. <strong>14 personas</strong></dd><dt><strong>Material clave</strong></dt><dd>2 lonas de 5 × 2 m con cuadrícula de 8 × 8 · <strong>+4 lonas de suelo</strong> · carpa dividida · 2 cascos de cancelación de ruido</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Los participantes son los barcos.</strong> El que dispara es el capitán, desde la carpa, y no ve el campo.</p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>Los equipos los forma la aplicación. El capitán lo eligen ellos.</strong> El capitán es uno de los quince; los otros catorce se reparten en los siete barcos.</p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>A un hundido no lo eliminan.</strong> Sale del campo pero <strong>sigue siendo de su equipo y clasifica si su equipo gana.</strong></p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p><strong>Hundir la flota rival completa antes de que hundan la tuya.</strong></p>
+<h2>1.2 El tablero</h2>
+<ul>
+<li>Cada flota ocupa una cuadrícula de <strong>8 × 8</strong>, de <strong>A a H</strong> y de <strong>1 a 8</strong>.</li>
+<li>Los barcos son <strong>rectos</strong>, en horizontal o vertical.</li>
+<li><strong>Pueden quedar pegados entre sí.</strong></li>
+<li><strong>Cada casilla admite un solo barco.</strong></li>
+<li>Los dos equipos colocan su flota <strong>en paralelo</strong>, con <strong>cinco minutos como máximo</strong> para colocarla y verificarla contra el mapa digital.</li>
+</ul>
+<h2>1.3 La flota</h2>
+<table><thead><tr><th>Barcos</th><th>Casillas</th><th>Personas</th></tr></thead><tbody><tr><td>2</td><td>3 cada uno</td><td>6</td></tr><tr><td>3</td><td>2 cada uno</td><td>6</td></tr><tr><td>2</td><td>1 cada uno</td><td>2</td></tr><tr><td><strong>7 barcos</strong></td><td><strong>14 casillas</strong></td><td><strong>14 personas</strong></td></tr></tbody></table>
+<p>La decimoquinta persona del equipo es <strong>el capitán</strong>, que está en la carpa.</p>
+<h2>1.4 Los turnos</h2>
+<ol>
+<li>Mesa <strong>sortea el primer turno</strong> desde el Panel Central.</li>
+<li>Tras cada disparo del rival, el capitán tiene <strong>10 segundos de preparación</strong> con el tablero <strong>bloqueado</strong>. <strong>Esos diez segundos son los que le dan al staff tiempo de marcar la casilla en la lona.</strong></li>
+<li>Después se abren <strong>10 segundos para elegir</strong> casilla, con aviso naranja en el último tercio.</li>
+<li><strong>Se alterna siempre, aunque se acierte.</strong> No hay disparos encadenados.</li>
+<li>Si se agota el tiempo sin confirmar, <strong>la aplicación cierra el turno</strong> y pasa al rival.</li>
+<li>No hay saldo acumulado ni cupo de disparos: se juega <strong>hasta hundir una flota completa</strong>.</li>
+</ol>
+<h2>1.5 Tocado y hundido</h2>
+<ul>
+<li><strong>Tocado: la persona permanece en su casilla.</strong> No se mueve, no sale, no avisa.</li>
+<li><strong>Hundido: salen juntos</strong> los integrantes de ese barco, acompañados por el staff, al sector de espera de su equipo.</li>
+<li><strong>Un hundido sigue perteneciendo a su equipo y clasifica si su equipo gana.</strong></li>
+</ul>
+<h2>1.6 Las marcas de la lona</h2>
+<table><thead><tr><th>Marca</th><th>Significa</th></tr></thead><tbody><tr><td><strong>Círculo verde</strong></td><td>Agua</td></tr><tr><td><strong>Círculo rojo</strong></td><td>Tocado</td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>Un barco hundido se marca con círculos rojos, como cualquier otro impacto. NO hay marca especial de hundido.</strong> Si se pusiera una marca distinta, el rival sabría qué barco ha caído y deduciría dónde están los demás.</p></blockquote>
+<p><strong>La partida sigue mientras el personal marca las casillas.</strong> Si una retirada interfiere con el juego, se pide <strong>pausa</strong>.</p>
+<h2>1.7 Gana</h2>
+<p><strong>El equipo que hunde primero la flota rival completa.</strong> Los máximos por flota son <strong>siete barcos y catorce impactos válidos</strong>.</p>
+<hr/>
+<p>Son dos explicaciones distintas: una a los <strong>barcos</strong> y otra, aparte, al <strong>capitán</strong>. La de los barcos la puede dar <strong>el speaker por megafonía</strong> (lo normal, y la tiene escrita en su manual) <strong>o el árbitro de cada barco</strong>. La del capitán <strong>va siempre aparte</strong>: se la da su supervisor, en su puesto y en privado, porque lleva cascos y no debe oír lo mismo que su barco.</p>
+<h2>2.1 A los catorce barcos</h2>
+<blockquote><p><em>«Desde este momento vosotros no sois jugadores: <strong>sois un barco</strong>. Y los barcos no se mueven.»</em>  <em>«Vuestro capitán está en esa carpa, no os ve y no os oye. Vosotros a él tampoco.»</em>  <em>«Si os tocan, <strong>os quedáis exactamente donde estáis</strong>. No os movéis, no salís y no hacéis gestos. Un tocado que se mueve le está diciendo al rival dónde está el resto de su barco.»</em>  <em>«Cuando hundan vuestro barco entero, salís <strong>todos los de ese barco juntos</strong>, con nosotros, a la zona de vuestro equipo.»</em>  <em>«Y oídme bien esto, porque es importante: <strong>que os hundan no es que os eliminen</strong>. Si vuestro equipo gana la partida, <strong>clasificáis igual</strong>, estéis hundidos o no. Así que desde fuera, seguid animando.»</em>  <em>«Nada de gritar coordenadas. Ni vosotros ni el público. El que lo haga, perjudica a su propio equipo.»</em>  <em>«Lo que diga el árbitro de este tablero es lo que vale. ¿Alguna duda?»</em></p></blockquote>
+<h2>2.2 Al capitán, en privado, en su puesto</h2>
+<blockquote><p><em>«Tú disparas y tú decides. No vas a poder consultar con nadie.»</em>  <em>«Llevas cascos: no vas a oír nada de fuera, y eso es a propósito. <strong>No te hace falta oír: todo te lo dice la pantalla.</strong> Te avisa de que es tu turno, te pone la cuenta atrás y te avisa de la pausa. <strong>Mírala a ella, no a mí.</strong>»</em>  <em>«Yo estoy detrás por si algo falla. Si tengo que pararte, <strong>me vas a ver delante de la pantalla</strong>: hasta entonces, no me busques.»</em>  <em>«Tras cada disparo del rival tienes <strong>diez segundos para pensar</strong> con el tablero bloqueado, y después <strong>diez para elegir</strong>. Si no confirmas, pierdes el turno.»</em>  <em>«Se alterna siempre, aunque aciertes.»</em>  <em>«Verde es agua, roja es tocado. <strong>No vas a ver ninguna marca de hundido</strong>: tendrás que llevar tú la cuenta.»</em>  <em>«Gana el primero que hunda la flota entera del otro. Suerte.»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 y A2</strong></td><td><strong>Tablero A</strong>, con su móvil de lona asignado</td></tr><tr><td><strong>A3 y A4</strong></td><td><strong>Tablero B</strong>, con su móvil de lona asignado</td></tr><tr><td><strong>A5 y A6</strong></td><td>Guían las retiradas de los barcos hundidos</td></tr><tr><td><strong>A7 y A8</strong></td><td><strong>Supervisan a los capitanes</strong> en sus puestos privados</td></tr><tr><td><strong>A9</strong></td><td>Acceso al juego</td></tr><tr><td><strong>A10</strong></td><td>Público</td></tr><tr><td><strong>A11</strong></td><td>Apoyo</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr></tbody></table>
+<h2>3.2 Los dos enlaces son distintos</h2>
+<table><thead><tr><th>Tablero</th><th>Enlace</th></tr></thead><tbody><tr><td><strong>A</strong></td><td><code>infomegawg.github.io/JUEGOS/lona.html?lado=A</code></td></tr><tr><td><strong>B</strong></td><td><code>infomegawg.github.io/JUEGOS/lona.html?lado=B</code></td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>Se entregan por separado a cada una de las dos personas, no al grupo.</strong> Si los dos móviles abren el mismo enlace, <strong>uno de los dos tableros se marca al revés durante toda la partida</strong> y la partida es impugnable.</p></blockquote>
+<h2>3.3 Aislamiento de los capitanes</h2>
+<ul>
+<li><strong>La carpa va dividida por el centro:</strong> los dos capitanes <strong>no se ven ni se oyen</strong>.</li>
+<li><strong>Cascos de cancelación de ruido</strong>, para que nadie pueda gritarles coordenadas desde fuera.</li>
+<li><strong>El público se queda fuera de la cancha</strong>, en el perímetro o viendo la LED de Zona 2. <strong>Dentro de la cancha solo jugadores y staff.</strong></li>
+</ul>
+<blockquote class="aviso"><p>🚨 <strong>Con los cascos puestos el capitán no va a oír a su supervisor, y no hace falta que lo oiga.</strong> La aplicación le marca en pantalla el turno, la cuenta atrás y la pausa. A7 y A8 <strong>se lo enseñan antes de empezar</strong>, con la partida de prueba abierta, y le dicen una sola cosa: <strong>que la pantalla manda</strong>.  Lo único que se acuerda con él es <strong>cómo se le para</strong>: el supervisor se pone delante de la pantalla. No hay más señales que aprender.</p></blockquote>
+<h2>3.4 Comprobación del sistema antes de jugar</h2>
+<ol>
+<li>La privacidad de los capitanes y <strong>que ven y entienden lo que les dice la aplicación</strong>: turno, cuenta atrás y pausa.</li>
+<li>El <strong>bloqueo de casillas</strong> usadas o fuera del mapa.</li>
+<li>La <strong>alternancia de turnos incluso tras un acierto</strong>.</li>
+<li>Que el tablero queda bloqueado <strong>10 segundos</strong> entre jugadas y después abre <strong>10 segundos</strong> para elegir, con aviso naranja en el último tercio.</li>
+<li>Que el <strong>sorteo del primer turno</strong> se lanza desde el Panel Central y se anima en las dos pantallas de capitán y en la de espectadores.</li>
+<li>Que <strong>las dos pantallas de lona reciben cada disparo al instante</strong>.</li>
+<li>La correspondencia entre agua, tocado y hundido y <strong>el mapa físico</strong>.</li>
+<li>Que <strong>la pausa conserva el estado y los recuentos</strong>.</li>
+</ol>
+<h2>3.5 Secuencia de la partida</h2>
+<ol>
+<li>Confirmar mapas, rutas e identidad de los capitanes. <strong>Mesa lanza el sorteo del primer turno.</strong></li>
+<li>El capitán de turno elige casilla. La aplicación resuelve <strong>agua, tocado o hundido</strong>.</li>
+<li><strong>El staff traslada a la lona la marca que muestra el móvil</strong>: círculo verde agua, círculo rojo tocado.</li>
+<li>Si hay hundido, A5 o A6 <strong>acompañan al barco entero</strong> al sector de espera de su equipo.</li>
+<li>Arranca automáticamente la preparación del rival.</li>
+<li>La partida acaba <strong>en cuanto se hunde una flota completa</strong>.</li>
+<li>Se reúne al equipo ganador <strong>al completo</strong>: capitán e integrantes de barcos hundidos incluidos.</li>
+<li><strong>Mesa confirma la baja del equipo perdedor en el Panel Central.</strong> Los perdedores entregan el dorsal y pasan al público.</li>
+<li>Antes de la segunda partida: <strong>despejar los dos tableros, restablecer los mapas y verificar las flotas nuevas</strong>.</li>
+</ol>
+<h2>3.6 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Discrepancia entre el mapa físico y el digital</td><td><strong>Pausar y conservar el registro.</strong> Contrastar las dos cuadrículas <strong>antes de autorizar otro disparo</strong></td></tr><tr><td>Indicación externa a un capitán</td><td>Pausar. Coordinación valora si hay ventaja</td></tr><tr><td>Estado no reconstruible con fiabilidad</td><td><strong>Coordinación decide si se repite la partida</strong></td></tr><tr><td>Retirada que interfiere con el juego</td><td><strong>Pausa de la partida</strong>, no se juega por encima</td></tr></tbody></table>
+<p><strong>La pantalla de cierre registra los disparos, el tiempo total y los segundos por tiro de cada equipo.</strong> Organización consulta esos datos al terminar para medir el ritmo real.</p>
+<h2>3.7 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Formación de equipos</td><td>5 min</td></tr><tr><td>Explicación</td><td>5 min</td></tr><tr><td>Colocación y verificación de la primera partida</td><td>5 min</td></tr><tr><td><strong>Primera partida</strong></td><td><strong>23 min</strong></td></tr><tr><td>Cambio de campo</td><td>4 min</td></tr><tr><td>Colocación y verificación de la segunda partida</td><td>5 min</td></tr><tr><td><strong>Segunda partida</strong></td><td><strong>23 min</strong></td></tr><tr><td>Pausas</td><td>6 min</td></tr><tr><td>Confirmación y salida</td><td>4 min</td></tr><tr><td>Traslado de participantes</td><td>4 min</td></tr><tr><td><strong>Total de la fase</strong></td><td><strong>84 min</strong></td></tr></tbody></table>
+<blockquote class="aviso"><p>⚠️ <strong>La reserva de 23 minutos por partida sale de una simulación, no de una medición.</strong> En el ensayo completo hay que registrar en la pantalla de cierre el tiempo total, los disparos y los segundos por tiro de cada equipo, y confirmar con ese dato. Si una partida se va por encima de 23 minutos, <strong>hay hasta 20 minutos en juego</strong>.</p></blockquote>
+<h2>3.8 Pendiente de decisión</h2>
+<blockquote class="aviso"><p>⚠️ <strong>Los capitanes escriben en el sistema con una cuenta de mando y son participantes.</strong> Hoy, para disparar, el capitán necesita permisos completos sobre la base de datos. Está pendiente decidir si se crea una cuenta limitada para ellos o si se asume, con el supervisor delante todo el rato. <strong>No se deja el dispositivo del capitán desatendido en ningún momento.</strong></p></blockquote>
+</section>
+
+<section class="ficha" id="p08" data-num="8" data-nombre="Las Canicas">
+<header class="tit"><span class="num">8</span><h1>El Juego de las Canicas</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd>17:36 – 18:04</dd><dt><strong>Entran</strong></dt><dd>30</dd><dt><strong>Clasifican</strong></dt><dd><strong>15.</strong> Una persona por duelo</dd><dt><strong>Formato</strong></dt><dd><strong>15 duelos simultáneos</strong>, todos en el mismo bloque</dd><dt><strong>Distancia</strong></dt><dd><strong>2 metros</strong> desde la línea de tiro al borde más cercano de la boca del vaso</dd><dt><strong>Material clave</strong></dt><dd>15 vasos estables · 120 canicas de dos colores · <strong>2 cm de arena</strong> por vaso</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Las parejas las eligen ellos.</strong> No hay sorteo. <strong>Se les pide que busquen pareja y se coloquen en uno de los quince números marcados en el campo.</strong> Quien quede suelto, lo empareja Mesa o el staff con otro suelto.</p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>Los quince duelos se abren a la vez.</strong> Esta prueba no es por tandas.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Meter más canicas en el vaso que tu rival. <strong>Cuatro canicas cada uno.</strong></p>
+<h2>1.2 Cómo se juega</h2>
+<ol>
+<li><strong>El staff recorre los puestos repartiendo el kit.</strong> La pareja no se mueve a buscarlo.</li>
+<li>Cada jugador recibe <strong>cuatro canicas de un color distinto</strong> al del rival.</li>
+<li>El árbitro comprueba distancia, vaso, canicas y dorsales, y <strong>sortea el primer turno</strong>.</li>
+<li>Se lanza <strong>alternando</strong>, desde detrás de la línea, <strong>siempre con autorización del árbitro</strong>.</li>
+<li><strong>Gana quien emboque más canicas.</strong></li>
+</ol>
+<h2>1.3 Cómo se lanza</h2>
+<p><strong>Con la mano, sin carrera y por debajo del hombro.</strong></p>
+<h2>1.4 Qué es acierto</h2>
+<p>La canica <strong>entra por la boca del vaso y queda dentro al estabilizarse</strong>, unos tres segundos.</p>
+<ul>
+<li>Puede entrar <strong>directa o botando en el suelo</strong>. Las dos valen.</li>
+<li><strong>Rozar el borde y salir vale cero.</strong></li>
+<li><strong>Cada tiro aporta como máximo un acierto.</strong></li>
+</ul>
+<h2>1.5 Un acierto cantado no se borra</h2>
+<blockquote class="aviso"><p>🚨 <strong>Las canicas que ya puntuaron pueden quedarse en el vaso. Si un tiro posterior las desplaza y las saca, el acierto anterior NO se borra.</strong></p></blockquote>
+<p><strong>El resultado se lleva por los cuatro tiros de cada jugador, no por un recuento final del contenido del vaso.</strong> El árbitro anuncia y anota en el momento, y eso es lo que cuenta.</p>
+<h2>1.6 Qué consume el intento</h2>
+<ul>
+<li><strong>Pisar o rebasar la línea al soltar.</strong></li>
+<li><strong>Lanzar fuera de turno.</strong></li>
+<li><strong>Lanzar antes de que el árbitro autorice.</strong></li>
+</ul>
+<p>En los tres casos vale <strong>cero</strong> y el intento se da por gastado.</p>
+<h2>1.7 Durante un lanzamiento autorizado no se recoge nada del suelo</h2>
+<p>Ni el que lanza, ni el rival, ni nadie.</p>
+<h2>1.8 Empate</h2>
+<ol>
+<li><strong>Hasta tres rondas</strong> de <strong>un lanzamiento por persona</strong>, una por vez y con igualdad de intentos.</li>
+<li><strong>Se alterna quién inicia cada ronda</strong> y se valora <strong>solo esa ronda</strong>.</li>
+<li>Se pueden reutilizar canicas equivalentes.</li>
+<li>Si siguen iguales: <strong>tarjetas Omega</strong>. Quien empezó el duelo elige una tarjeta oculta y el rival se queda la otra; se muestran y se registra.</li>
+</ol>
+<hr/>
+<p><strong>La puede dar el speaker por megafonía o el árbitro a su grupo</strong>, lo que mejor venga ese momento del día; <strong>Coordinación lo canta por radio antes de abrir la prueba</strong> para que no quede en el aire. Lo normal es el speaker. El guion es el mismo en los dos casos —el de aquí abajo— y está también en el <strong>Manual del Speaker</strong>. Por megafonía va <strong>una sola vez para los quince puestos</strong>, y cada árbitro la remata en el suyo en diez segundos.</p>
+<blockquote><p><em>«Elegid pareja y <strong>poneos en cualquiera de los números que veis marcados en el campo</strong>. El que se quede sin pareja, que levante la mano y le buscamos una.»</em>  <em>«<strong>No os mováis de ahí: nuestro personal va a ir pasando puesto por puesto a daros el material.</strong>»</em></p></blockquote>
+<p><strong>Y cuando ya tienen el kit delante:</strong></p>
+<blockquote><p><em>«Cuatro canicas cada uno, <strong>un color por jugador</strong>. Se lanza <strong>con la mano, sin carrera y por debajo del hombro</strong>. Por turnos.»</em>  <em>«Vale si la canica entra y <strong>se queda dentro</strong>. Puede entrar directa o botando, las dos cosas valen. Si roza el borde y sale, cero.»</em>  <em>«Ojo con esto: si una canica vuestra que ya ha contado la saca otra después, <strong>vuestro punto no se pierde</strong>. Lo que ha cantado el árbitro, cantado está.»</em>  <em>«No piséis la línea al soltar. Y no lancéis hasta que el árbitro os lo diga: aquí hay quince puestos a la vez y vuestro árbitro lleva dos.»</em>  <em>«Mientras alguien lanza, <strong>nadie recoge nada del suelo</strong>.»</em>  <em>«Lo que diga vuestro árbitro es lo que vale. Si no estáis de acuerdo, se reclama en la mesa de Coordinación. Suerte.»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 a A7</strong></td><td><strong>Dos puestos cada uno</strong></td></tr><tr><td><strong>A8</strong></td><td><strong>El puesto quince</strong></td></tr><tr><td><strong>A9 y A10</strong></td><td><strong>Entrega de kits</strong>, recorriendo los quince puestos</td></tr><tr><td><strong>A10</strong></td><td>Material y resultados, <strong>una vez repartidos los kits</strong></td></tr><tr><td><strong>A11</strong></td><td>Ordena grupos y público</td></tr><tr><td><strong>A12</strong></td><td>Acceso general</td></tr><tr><td><strong>Mesa</strong></td><td>Registra las parejas, asigna puestos y conserva resultados</td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>Un árbitro con dos puestos autoriza un tiro a la vez y alterna la atención.</strong> Los participantes <strong>no lanzan por su cuenta</strong> mientras observa la otra pareja. Es la regla que hace posible que quince duelos corran a la vez con ocho árbitros.</p></blockquote>
+<h2>3.2 Comprobación previa</h2>
+<ul>
+<li><strong>Quince vasos estables</strong>, todos con <strong>igual abertura y dificultad</strong>. Un vaso distinto es un duelo distinto.</li>
+<li><strong>2 centímetros de arena</strong> o material equivalente en cada vaso.</li>
+<li><strong>Dos metros</strong> medidos desde la línea de tiro hasta <strong>la proyección vertical del borde más cercano de la boca</strong>.</li>
+<li><strong>120 canicas de dos colores</strong> más reserva, repartidas en <strong>quince kits</strong> de ocho.</li>
+<li>Quince <strong>carteles numerados</strong> y bases equivalentes sobre el césped.</li>
+</ul>
+<h2>3.3 Secuencia</h2>
+<ol>
+<li>Mesa verifica <strong>30 dorsales</strong>. Registra <strong>las parejas y el puesto que ellos mismos eligen</strong>. A los sobrantes los empareja el staff entre sí.</li>
+<li><strong>A9 y A10 entregan vaso y ocho canicas</strong> por pareja, <strong>puesto por puesto</strong>, y anotan la entrega.</li>
+<li>El árbitro comprueba distancias, vaso, canicas y dorsales. <strong>Sortea el primer turno.</strong></li>
+<li>Ocho tiros alternos, <strong>con autorización tiro a tiro</strong>.</li>
+<li>El árbitro <strong>anuncia y anota cada acierto en el momento</strong>.</li>
+<li>Suma, resuelve el empate si lo hay, <strong>comunica el resultado y propone la baja del perdedor</strong> desde el móvil.</li>
+<li>A9 y A10 <strong>recuperan vaso y ocho canicas por kit</strong> o anotan los faltantes, <strong>sin mezclar material de un puesto todavía activo</strong>.</li>
+<li>Mesa verifica <strong>quince resultados y quince bajas confirmadas</strong>. Los quince clasificados pasan a espera de Trivial.</li>
+</ol>
+<h2>3.4 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Alguien ajeno mueve el vaso o interfiere</td><td><strong>Detener, restituir y repetir solo el tiro afectado</strong></td></tr><tr><td>El propio jugador desplaza o manipula material</td><td>El intento <strong>no obtiene ventaja</strong>. Coordinación resuelve la conducta</td></tr><tr><td>Vaso inestable o distinto a los demás</td><td><strong>Se sustituye por otro equivalente</strong> antes de continuar. <strong>No se cambia la distancia solo para una pareja</strong></td></tr><tr><td>Hace falta retirar material para observar</td><td>Se <strong>bloquean lanzamientos</strong> y se conserva el registro</td></tr></tbody></table>
+<blockquote class="aviso"><p>⚠️ <strong>Con quince duelos simultáneos puede haber varios desempates a la vez.</strong> Hay que prever <strong>tarjetas Omega disponibles por árbitro</strong>, o un reparto que no obligue a detener las demás pistas mientras uno busca las tarjetas.</p></blockquote>
+<h2>3.5 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Sorteo y reparto de kits</td><td>5 min</td></tr><tr><td>Explicación</td><td>4 min</td></tr><tr><td>Tiros y revisión</td><td>6 min</td></tr><tr><td>Desempates</td><td>Hasta 5 min</td></tr><tr><td>Registro y devolución</td><td>4 min</td></tr><tr><td>Bloque propio</td><td>24 min</td></tr><tr><td>Regreso de participantes desde Zona 3</td><td>4 min</td></tr><tr><td><strong>Total de la fase</strong></td><td><strong>28 min</strong></td></tr></tbody></table>
+<p><strong>Gana quien más canicas emboca</strong>, sin esperar a que se cumpla una duración fija y sin recortar los intentos por horario.**</p>
+</section>
+
+<section class="ficha" id="p09" data-num="9" data-nombre="Omega Trivial">
+<header class="tit"><span class="num">9</span><h1>Omega Trivial</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd>18:04 – 19:06</dd><dt><strong>Entran</strong></dt><dd>15</dd><dt><strong>Clasifican</strong></dt><dd><strong>5.</strong> Solo el equipo ganador</dd><dt><strong>Formato</strong></dt><dd><strong>3 equipos de 5, que forman ellos</strong></dd><dt><strong>Partida</strong></dt><dd><strong>30 preguntas en 6 ciclos de 5</strong>, una por categoría</dd><dt><strong>Material clave</strong></dt><dd>3 pulsadores · 3 juegos de aislamiento auditivo · LED · micrófono · <strong>banco de 126 preguntas</strong></dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Cada equipo asigna un representante distinto a cada una de las cinco categorías.</strong> Cuando sale su categoría, ese representante compite <strong>solo</strong>: sin consultar a nadie y sin portavoz que responda por él.</p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>Las cinco categorías salen siempre en el mismo orden</strong> dentro de cada ciclo, así que cada representante sabe cuándo le toca.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Tener más aciertos que los otros dos equipos al terminar las treinta preguntas, <strong>o llegar antes a dieciséis</strong>.</p>
+<p>Un acierto suma uno. <strong>Fallar no resta.</strong></p>
+<h2>1.2 Los representantes</h2>
+<ul>
+<li>Cada equipo reparte sus cinco integrantes, <strong>uno por categoría</strong>. Todos tienen representación.</li>
+<li><strong>El staff carga en la aplicación qué dorsal responde en cada categoría</strong>, antes de empezar. Se mete en el panel del Trivial, caja <strong>«Representantes»</strong>: una rejilla de <strong>cinco categorías por tres equipos</strong>, quince dorsales. Avisa si se repite uno.</li>
+<li>Cuando aparece una categoría, compiten <strong>los tres representantes de esa categoría</strong>, uno por equipo.</li>
+<li><strong>No hay consultas de compañeros.</strong> Los demás esperan en una zona supervisada, <strong>sin gestos ni comunicación</strong>.</li>
+<li>Los tres representantes activos juegan <strong>con los oídos tapados</strong>.</li>
+</ul>
+<h2>1.3 El reloj de cada pregunta</h2>
+<ul>
+<li><strong>30 segundos efectivos</strong> por pregunta.</li>
+<li><strong>Se pausa mientras se resuelve un turno de respuesta</strong>, y se reanuda con el tiempo que quedaba.</li>
+<li>Treinta segundos de presupuesto <strong>no son treinta segundos de reloj de pared</strong>.</li>
+</ul>
+<h2>1.4 Las opciones aparecen tarde</h2>
+<table><thead><tr><th>Momento</th><th>Qué se ve</th></tr></thead><tbody><tr><td>Primeros <strong>10 segundos efectivos</strong></td><td><strong>Solo el enunciado</strong></td></tr><tr><td>Los <strong>20 restantes</strong></td><td>Enunciado <strong>y opciones</strong></td></tr></tbody></table>
+<p>Quien responde en los primeros diez segundos lo hace <strong>sin opciones</strong>. Es el premio de pulsar pronto, y el riesgo.</p>
+<h2>1.5 La pulsación y la cola</h2>
+<ol>
+<li><strong>La primera pulsación válida pausa el reloj</strong> y abre una <strong>ventana de 2,5 segundos</strong>.</li>
+<li>Las pulsaciones de esa ventana <strong>quedan en cola por orden de llegada</strong>: ese es el orden en que responderán si el primero falla.</li>
+<li><strong>La pantalla muestra el orden y la diferencia en milésimas.</strong></li>
+<li>Al cerrarse la ventana <strong>la cola queda fija</strong>. Pasada la ventana ya no se entra en ella.</li>
+</ol>
+<h2>1.6 El turno de respuesta</h2>
+<ul>
+<li>Presentación entrega <strong>el micrófono</strong> al representante autorizado.</li>
+<li>Tiene <strong>unos 10 segundos</strong> para completar la respuesta.</li>
+<li><strong>Una sola respuesta.</strong> No se pueden dar varias alternativas ni cambiar después de que se valide.</li>
+<li>Puede responder <strong>sin opciones</strong> si todavía no han salido, o <strong>con la opción elegida</strong> si ya están visibles.</li>
+</ul>
+<h2>1.7 Cómo termina una pregunta</h2>
+<table><thead><tr><th>Caso</th><th>Qué pasa</th></tr></thead><tbody><tr><td><strong>Acierto</strong></td><td>Un punto y <strong>la pregunta se cierra</strong></td></tr><tr><td><strong>Fallo, renuncia o se agota el turno</strong></td><td>Ese representante <strong>queda bloqueado para esa pregunta</strong> y pasa el siguiente de la cola</td></tr><tr><td><strong>Cola vacía</strong></td><td>Se habilita a quienes aún pueden responder y <strong>se reanuda el reloj</strong></td></tr><tr><td><strong>Se agota el tiempo efectivo</strong></td><td>La pregunta termina sin punto</td></tr><tr><td><strong>Todos los habilitados han fallado</strong></td><td>La pregunta termina sin punto</td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>Cada representante tiene una sola oportunidad por pregunta.</strong></p></blockquote>
+<h2>1.8 Desempate</h2>
+<p><strong>Lo encadena la aplicación sola.</strong> No hay que arbitrarlo a mano:</p>
+<ol>
+<li>Tras las treinta preguntas, detecta el empate en cabeza y abre una <strong>ronda de cinco preguntas nuevas, una por categoría, con marcador propio</strong>. Participan <strong>solo los equipos empatados</strong>; los pulsadores de los demás <strong>quedan desactivados</strong>.</li>
+<li>Al cerrar la ronda, gana el líder único.</li>
+<li>Si el empate persiste, abre <strong>muerte súbita</strong> y <strong>sortea la categoría de cada pregunta</strong>. Gana <strong>el primer acierto válido</strong>.</li>
+<li>Si se agotan las cinco de muerte súbita sin un solo acierto, <strong>lo único que se resuelve a mano</strong>: arbitraje sortea una tarjeta por equipo empatado, con <strong>un solo logo Omega</strong>. Se revelan a la vez y clasifica el del logo.</li>
+</ol>
+<hr/>
+<p>Va en dos partes, y no las dice la misma persona. Es la prueba con más reglas del día: hay que decirlas bien una vez y no repetirlas por megafonía después.</p>
+<p><strong>Por megafonía o el árbitro principal</strong>, al llegar los quince. Si lo dice el speaker, va <strong>antes</strong> de su presentación del Trivial; así está marcado en su manual:</p>
+<blockquote><p><em>«Sois quince. Formad <strong>tres equipos de cinco</strong>. Si no os ponéis de acuerdo, lo decidimos nosotros.»</em></p></blockquote>
+<p><strong>Coordinación o el árbitro principal de la prueba</strong>, ya con los equipos hechos:</p>
+<blockquote><p><em>«Este juego se llama <strong>Omega Trivial</strong>: aquí se responden preguntas. Hay cinco categorías. Cada equipo tiene que poner <strong>una persona distinta en cada categoría</strong>. Los cinco vais a jugar, nadie se queda de reserva.»</em>  <em>«Cuando salga tu categoría, <strong>juegas tú solo</strong>. Tus compañeros no te pueden ayudar, no te pueden hablar y no te pueden hacer gestos. Y los tres que estáis jugando lleváis <strong>los oídos tapados</strong>.»</em>  <em>«Las categorías van siempre en el mismo orden, así que sabéis cuándo os toca.»</em>  <em>«Cada pregunta dura treinta segundos. Y atención: <strong>los diez primeros segundos solo veis la pregunta. Las opciones aparecen después</strong>. Si pulsáis pronto, respondéis sin opciones.»</em>  <em>«El primero que pulsa responde. Los que pulsan justo detrás <strong>se quedan en una cola</strong>, y la pantalla os enseña el orden y las milésimas. Si el primero falla, responde el siguiente de la cola.»</em>  <em>«Cuando os den el micrófono, <strong>respondéis</strong>. No vamos a esperar más que unos segundos. <strong>Una respuesta. Una sola.</strong> No vale decir dos y quedarse con la buena.»</em>  <em>«Acertar suma uno. Fallar no resta, pero <strong>os quedáis fuera de esa pregunta</strong>. Y si falláis, <strong>los otros dos siguen jugándosela</strong>.»</em>  <em>«Gana el que llegue a dieciséis, o el que tenga más al acabar las treinta. <strong>Solo clasifica un equipo</strong>: los otros dos se van enteros.»</em>  <em>«Al público: una respuesta desde la grada <strong>anula la pregunta</strong>. Lo decimos una vez.»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 a A3</strong></td><td><strong>Un representante activo cada uno.</strong> Vigilan el aislamiento</td></tr><tr><td><strong>A4 a A6</strong></td><td>Supervisan <strong>los equipos en espera</strong></td></tr><tr><td><strong>A7</strong></td><td><strong>Opera preguntas, pulsadores y reloj</strong></td></tr><tr><td><strong>A8</strong></td><td><strong>Arbitra designaciones y participaciones.</strong> Lleva el acta de papel</td></tr><tr><td><strong>A9</strong></td><td>Prepara cambios</td></tr><tr><td><strong>A10 y A11</strong></td><td>Público y apoyo</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr></tbody></table>
+<p><strong>A8 carga en la aplicación quién representa a cada equipo en cada categoría</strong>, en la caja «Representantes» del panel, <strong>antes de lanzar la primera pregunta</strong>. Si hay una baja, <strong>cambia ahí el dorsal antes de que el nuevo representante juegue</strong>: el cambio sale en la pantalla en la siguiente categoría, sin parar el juego.</p>
+<p><strong>Cuando la pantalla anuncia la categoría, debajo salen los tres dorsales que tienen que ponerse</strong>, uno por equipo y cada uno en su color. Es lo que evita los quince segundos de «¿a quién le toca?» en cada pregunta. A7 los tiene también <strong>bajo cada pulsador</strong> mientras se juega, para saber a quién darle el micrófono.</p>
+<h2>3.2 Comprobación previa</h2>
+<ul>
+<li><strong>Los quince representantes cargados</strong> en el panel, <strong>sin dorsales repetidos</strong>.</li>
+<li><strong>Tres pulsadores identificados</strong> y probados.</li>
+<li><strong>Tres juegos de aislamiento auditivo</strong>, probados con los dispositivos reales.</li>
+<li>Pantalla LED y micrófono.</li>
+<li><strong>Las señales visuales</strong> de inicio, equipo autorizado, bloqueo, pausa y final, <strong>ensayadas</strong>.</li>
+<li><strong>La pantalla muestra el reloj a participantes y público. Las soluciones quedan reservadas al operador.</strong></li>
+</ul>
+<blockquote class="hecho"><p>✅ <strong>Banco definitivo cargado el 14 de noviembre: 126 preguntas.</strong> Cada una con ID, enunciado, opciones, solución y variantes aceptables, y marcada como ordinaria, extra o reserva: 30 para la fase ordinaria, 5 para la ronda extra y el resto para muerte súbita y para sustituir preguntas anuladas. Fuente única: <code>MANUALES/Omega Trivial - Banco de preguntas.docx</code>. Las reservas están repartidas de forma desigual entre categorías (Historia es la más corta), cosa a vigilar si se anulan varias preguntas seguidas de la misma categoría.</p></blockquote>
+<h2>3.3 Secuencia de una pregunta</h2>
+<ol>
+<li>Antes de abrirla, <strong>confirmar categoría, representantes, aislamiento y pulsadores</strong>.</li>
+<li>La pregunta aparece <strong>simultáneamente para los tres</strong>. Arranca el presupuesto de 30 segundos efectivos y se habilitan los pulsadores.</li>
+<li>Primera pulsación válida: <strong>se pausa el reloj</strong> y se abre la ventana de 2,5 s.</li>
+<li>Presentación entrega el micrófono al autorizado. <strong>El reloj sigue pausado</strong> mientras se resuelve el turno.</li>
+<li>Se evalúa <strong>su primera respuesta completa</strong>.</li>
+<li>Acierto: punto y cierre. Fallo: bloqueado para esa pregunta, pasa el siguiente de la cola.</li>
+<li><strong>Las opciones salen al llegar a 10 segundos efectivos consumidos</strong>, descontando las pausas. Así no aparecen mientras otro está respondiendo.</li>
+<li><strong>A7 y A8 concilian ID, punto y totales antes de la siguiente.</strong> Si alguien llega a 16, termina el juego. Si no, rotan los representantes de la categoría siguiente.</li>
+</ol>
+<h2>3.4 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td>Prioridad no verificable, fallo de pulsador, reloj, pantalla o aislamiento</td><td><strong>Pausar y conservar acta</strong></td></tr><tr><td>Pregunta comprometida</td><td><strong>Anularla, revertir su punto si lo hubo y sustituirla por otra nueva de la misma categoría.</strong> Las anuladas quedan fuera del cupo</td></tr><tr><td>Respuesta del público o solución mostrada antes de tiempo</td><td>Revisión y <strong>sustitución si hay ventaja</strong></td></tr><tr><td>Fallan las opciones diferidas</td><td><strong>Detener</strong> y resolver de forma igual para todos</td></tr><tr><td>Molestar o ayudar indebidamente</td><td>Retirada de la zona bajo supervisión. Coordinación decide la sanción <strong>antes de proclamar</strong>. <strong>No se reactiva a un expulsado por victoria del equipo</strong></td></tr></tbody></table>
+<p>Hay que <strong>mantener representantes alternativos autorizados</strong> por si una retirada deja una categoría vacía.</p>
+<h2>3.5 El cierre: esta prueba no está conectada al Panel</h2>
+<blockquote class="aviso"><p>🚨 <strong>La aplicación de Trivial no está conectada al Panel Central.</strong></p></blockquote>
+<ol>
+<li>La aplicación determina <strong>el resultado de juego</strong>.</li>
+<li><strong>Mesa comprueba el ganador y da de baja en bloque a cada uno de los dos equipos perdedores</strong> ya registrados, <strong>no dorsal a dorsal</strong>.</li>
+<li>Comprueba <strong>10 eliminados y 5 clasificados</strong> y <strong>cierra la prueba antes de disolver los equipos</strong>.</li>
+</ol>
+<h2>3.6 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Apertura</td><td>9 min</td></tr><tr><td>Reloj de las treinta preguntas</td><td>Hasta 15 min</td></tr><tr><td>Respuestas: tres turnos de unos 10 s por pregunta</td><td>Hasta 15 min</td></tr><tr><td>Rotaciones y registro</td><td>6 min</td></tr><tr><td>Cierre</td><td>4 min</td></tr><tr><td>Desempate completo</td><td>13 min</td></tr><tr><td><strong>Total</strong></td><td><strong>62 min</strong></td></tr></tbody></table>
+<p>La reserva de desempate prevé <strong>hasta diez preguntas adicionales</strong>, sus cambios de categoría y el eventual sorteo Omega. <strong>La prueba puede acabar antes por dieciséis aciertos.</strong></p>
+</section>
+
+<section class="ficha" id="p10" data-num="10" data-nombre="Equilibrio Fatal">
+<header class="tit"><span class="num">10</span><h1>Equilibrio Fatal</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd>19:06 – 19:44</dd><dt><strong>Entran</strong></dt><dd>5</dd><dt><strong>Clasifican</strong></dt><dd><strong>2</strong></dd><dt><strong>Formato</strong></dt><dd><strong>5 puestos individuales simultáneos</strong></dd><dt><strong>Juego principal</strong></dt><dd><strong>20 minutos</strong> · prórroga de 5 si hay empate por una plaza</dd><dt><strong>Material clave</strong></dt><dd>5 mecanismos de equilibrio a 74 cm · 5 cuerdas sin enganches · <strong>5 cajas opacas</strong> · <strong>35 cubos</strong> de 10 × 10 × 10 cm</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>La solución es JUGADOR</strong>, de abajo arriba: <strong>J U G A D O R</strong>. <strong>Reservada a arbitraje.</strong> Todos reciben las mismas letras y no la conocen al empezar.</p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>La única respuesta autorizada del árbitro es «La palabra no es correcta».</strong> Nunca una letra, nunca un «casi», nunca una orientación.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Montar una torre de <strong>siete cubos</strong> sobre una plataforma en equilibrio, con la palabra correcta, <strong>y volver con ella en pie al punto de salida</strong>.</p>
+<h2>1.2 El montaje</h2>
+<ul>
+<li>La plataforma se mantiene en equilibrio <strong>con una cuerda</strong>, a <strong>74 centímetros</strong> de altura.</li>
+<li>Los cubos salen del <strong>punto de salida, a cinco metros</strong>.</li>
+<li><strong>Un cubo por viaje.</strong> Siempre.</li>
+<li>Las letras vienen en una <strong>caja opaca</strong> que se abre al empezar.</li>
+<li>Hay <strong>un frente de lectura común</strong> definido antes de jugar.</li>
+</ul>
+<h2>1.3 La cuerda</h2>
+<p><strong>Se sujeta con la mano.</strong> No se puede:</p>
+<ul>
+<li><strong>Atarla.</strong></li>
+<li><strong>Pisarla.</strong></li>
+<li><strong>Bloquear el mecanismo</strong> de ninguna otra forma.</li>
+</ul>
+<h2>1.4 La caída</h2>
+<blockquote class="aviso"><p>🚨 <strong>Si la torre cae, total o parcialmente, TODOS los cubos vuelven al origen</strong>, incluidos los que seguían en la plataforma.</p></blockquote>
+<ul>
+<li>La recogida puede hacerse <strong>agrupada</strong>.</li>
+<li>La reconstrucción, otra vez <strong>de uno en uno</strong>.</li>
+<li><strong>El reloj no se para.</strong> Las caídas propias nunca paran el reloj.</li>
+</ul>
+<h2>1.5 Colocar el séptimo no basta</h2>
+<p><strong>Hay que regresar por completo al punto de salida</strong>, con <strong>la cuerda sujeta</strong> y <strong>la torre en pie</strong>. Si cae durante el regreso, <strong>reinicio total</strong>.</p>
+<p><strong>El orden lo da la llegada observada por el árbitro</strong>, no la recepción en la aplicación.</p>
+<h2>1.6 Se permite rectificar</h2>
+<p>Se puede recolocar la torre <strong>manteniendo la sujeción de la cuerda y sin ayuda externa</strong>.</p>
+<p>Un cubo que sale del pasillo <strong>requiere permiso para recogerlo</strong>. Un transporte irregular <strong>se corrige sin conservar ventaja</strong>.</p>
+<h2>1.7 Qué pasa al sonar el final</h2>
+<ol>
+<li>Se detienen desplazamientos y cubos, <strong>manteniendo la cuerda</strong> para poder registrar.</li>
+<li><strong>Las plazas ya obtenidas por regreso válido se conservan.</strong> El árbitro <strong>carga en su móvil, dorsal a dorsal, cuántas letras correctas lleva cada uno habiendo vuelto a la base</strong>.</li>
+<li>Para las pendientes se comparan <strong>las letras consecutivas correctas desde la base</strong> de la torre que esté en pie al cierre. La primera incorrecta, ausente o ilegible <strong>detiene la cuenta</strong>.</li>
+<li>Una torre correcta de siete <strong>cuenta siete aunque el regreso siga pendiente</strong> — pero la clasificación directa por llegada exige el regreso completo.</li>
+</ol>
+<h2>1.8 La prórroga</h2>
+<p><strong>Cinco minutos</strong>, solo entre quienes estén <strong>empatados por una plaza pendiente</strong>.</p>
+<ul>
+<li>Con <strong>el reloj parado</strong>, el staff reconstruye para cada uno <strong>su máximo de cubos correctos con viajes completos</strong>.</li>
+<li>Si alguien <strong>llegó a montar correctamente los siete y solo le faltó el regreso, se le restituyen los siete</strong>.</li>
+<li>Todos reinician <strong>junto a la plataforma</strong> y vuelven a la base de salida con la cuerda sujeta.</li>
+<li>Rigen las mismas reglas de caída, cuerda y viaje.</li>
+<li>Clasifican primero <strong>las finalizaciones válidas por orden</strong>; al final se usa el recuento para las plazas que queden.</li>
+</ul>
+<p>Si persiste el empate: <strong>tarjetas</strong>, con tantos logos como plazas dentro del grupo empatado, una tarjeta por participante, mezcladas y extraídas <strong>sin devolución, por orden de dorsal</strong>.</p>
+<p><strong>Llegadas simultáneas</strong> cuyo orden no se distinga: se sortea <strong>solo la plaza afectada</strong> entre quienes terminaron a la vez. <strong>Sus finalizaciones prevalecen frente a las incompletas</strong> y no se les exige reconstruir nada.</p>
+<hr/>
+<p>Son cinco personas, pero <strong>interesa que vaya por megafonía, para que lo oiga también el público</strong>, con las cajas todavía cerradas. Lo normal es que la dé <strong>el speaker</strong>; si ese momento pide otra cosa, <strong>la puede dar el árbitro a los cinco</strong>. El guion es el mismo, el de aquí abajo, y está también en el <strong>Manual del Speaker</strong>.</p>
+<blockquote><p><em>«Quedan dos plazas. Sois cinco.»</em>  <em>«En esa caja tenéis siete cubos con letras. Forman una palabra. <strong>Vosotros no sabéis cuál es</strong> y yo no os la voy a decir.»</em>  <em>«Tenéis que montarlos en esa plataforma, <strong>de abajo arriba</strong> —repito, <strong>de abajo… a arriba</strong>— en el orden correcto. La plataforma se aguanta con la cuerda, y la cuerda <strong>se sujeta con la mano</strong>: no se ata, no se pisa y no se bloquea el mecanismo.»</em>  <em>«<strong>Un cubo por viaje.</strong> Siempre. Desde aquí hasta allí, uno.»</em>  <em>«Si se os cae la torre, <strong>todos los cubos vuelven aquí</strong>, también los que estaban todavía arriba. Y el reloj sigue corriendo.»</em>  <em>«Y esto es lo que más gente falla: <strong>poner el séptimo no es terminar</strong>. Para terminar tenéis que <strong>volver hasta aquí</strong>, con la cuerda en la mano y la torre en pie. Si se cae por el camino, empezáis de nuevo.»</em>  <em>«Si creéis que la tenéis, me avisáis. Y yo solo os voy a poder decir una cosa: <strong>"la palabra no es correcta"</strong>. No os voy a decir qué letra está mal, ni si vais cerca. Esa es la única respuesta que tengo.»</em>  <em>«Veinte minutos. Clasifican los dos primeros que vuelvan con la palabra en pie.»</em>  <em>«Al público: el que dé una pista, deja fuera a su amigo. ¿Alguna duda? Abrid las cajas cuando yo diga.»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 a A5</strong></td><td><strong>Un puesto cada uno.</strong> Arbitran, registran el máximo y validan el regreso</td></tr><tr><td><strong>A6 y A7</strong></td><td>Perímetro</td></tr><tr><td><strong>A8 a A11</strong></td><td>Observación de apoyo, material y movimientos</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr><tr><td><strong>Audiovisual</strong></td><td>Opera el <strong>reloj común</strong></td></tr></tbody></table>
+<h2>3.2 Comprobación previa</h2>
+<ul>
+<li><strong>Cinco mecanismos equivalentes</strong>, plataformas a <strong>74 cm</strong>.</li>
+<li><strong>Cuerdas sin enganches.</strong></li>
+<li><strong>Cinco cajas opacas</strong> con las mismas siete letras.</li>
+<li><strong>35 cubos</strong> de 10 × 10 × 10 cm.</li>
+<li><strong>Pasillos laterales separados</strong> y puntos de salida marcados.</li>
+<li><strong>Frente de lectura común definido.</strong></li>
+</ul>
+<blockquote class="aviso"><p>🚨 <strong>Probar los cinco mecanismos con las torres completas antes de admitir jugadores.</strong> Un mecanismo más duro que otro decide la prueba.</p></blockquote>
+<h2>3.3 Secuencia</h2>
+<ol>
+<li>Confirmar dorsales y <strong>sortear puestos</strong>.</li>
+<li>Explicar <strong>sin enseñar la solución</strong>. Esperar el listo de los cinco <strong>con las cajas cerradas</strong>.</li>
+<li><strong>Inicio común</strong> y reloj de veinte minutos.</li>
+<li>Abrir las cajas, deducir la palabra y ordenar las letras en el origen.</li>
+<li>Transporte <strong>de uno en uno</strong>, cuerda sujeta.</li>
+<li>Cuando alguien solicita validación: si no es correcta, <strong>«La palabra no es correcta»</strong> y nada más.</li>
+<li>El árbitro <strong>registra el instante del regreso válido</strong> y Mesa confirma la plaza.</li>
+<li><strong>Con dos plazas válidas, termina la prueba.</strong></li>
+</ol>
+<blockquote><p><strong>Una clasificación confirmada permanece aunque la torre caiga después</strong> de autorizar la retirada.</p></blockquote>
+<h2>3.4 El registro del mejor avance</h2>
+<p>Cada árbitro registra, para su puesto:</p>
+<ul>
+<li>El <strong>máximo de cubos correctos consecutivos desde la base</strong> cuyos viajes se completaron con regreso a la base de salida.</li>
+<li><strong>Si llegó a estar montada correctamente la torre de siete</strong> con el regreso final pendiente.</li>
+</ul>
+<p><strong>Se conserva ese máximo aunque después caiga la torre.</strong> El dato queda <strong>reservado a arbitraje</strong> y es lo que se usa en la prórroga.</p>
+<h2>3.5 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td><strong>Caída propia</strong></td><td><strong>No para el reloj.</strong> Nunca</td></tr><tr><td>Fallo de mecanismo o interferencia externa</td><td><strong>Pausa común</strong>, guardar estados y restituir <strong>sin progreso</strong> antes de reanudar</td></tr><tr><td>Cubo fuera del pasillo</td><td><strong>Permiso del árbitro</strong> para recogerlo</td></tr><tr><td>Transporte irregular</td><td>Se corrige <strong>sin conservar ventaja</strong></td></tr></tbody></table>
+<p><strong>El apoyo de material no construye ni ordena durante el juego.</strong> Nadie del staff toca una torre.</p>
+<h2>3.6 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Explicación</td><td>5 min</td></tr><tr><td>Juego principal</td><td>20 min</td></tr><tr><td>Recuento y restitución</td><td>3 min</td></tr><tr><td>Prórroga</td><td>5 min</td></tr><tr><td>Tarjetas</td><td>3 min</td></tr><tr><td>Salida</td><td>2 min</td></tr><tr><td><strong>Total</strong></td><td><strong>38 min</strong></td></tr></tbody></table>
+<p><strong>Puede terminar antes en cuanto se cubren las dos plazas.</strong> Los dos clasificados pasan directamente a la Gran Final.</p>
+</section>
+
+<section class="ficha" id="p11" data-num="11" data-nombre="La Gran Final">
+<header class="tit"><span class="num">11</span><h1>Gran Final de Piedra, Papel o Tijera</h1></header>
+<dl class="pares"><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Hora</strong></dt><dd><strong>20:00 – 20:45</strong> (45 minutos reservados) · <strong>no empieza antes de las 20:00</strong></dd><dt><strong>Entran</strong></dt><dd>2 finalistas</dd><dt><strong>Gana</strong></dt><dd><strong>1 persona · 1.000 euros</strong></dd><dt><strong>Lote</strong></dt><dd><strong>48 tarjetas. Solo una abre la caja</strong></dd><dt><strong>Material clave</strong></dt><dd>Caja con teclado · <strong>llave física de la caja</strong> · <strong>sobre cerrado con la combinación verificada</strong> · urna opaca · 48 tarjetas · recipiente de usadas · cheque · batería · acceso de servicio custodiado</dd></dl>
+<blockquote class="aviso"><p>🚨 <strong>Ganar una ronda de gestos no gana la final: da derecho a probar una tarjeta.</strong></p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>La ceremonia no tiene hora fija.</strong> Se prepara <strong>en cuanto hay ganador</strong>. Si la final acaba a las 20:11, la ceremonia es a las 20:21.</p></blockquote>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p>Abrir la caja. Para probar una tarjeta hay que <strong>ganar una ronda de piedra, papel o tijera</strong>.</p>
+<h2>1.2 Los gestos</h2>
+<table><thead><tr><th>Gesto</th><th>Cómo es</th><th>Gana a</th></tr></thead><tbody><tr><td><strong>Piedra</strong></td><td>Puño cerrado</td><td>Tijera</td></tr><tr><td><strong>Tijera</strong></td><td>Índice y corazón</td><td>Papel</td></tr><tr><td><strong>Papel</strong></td><td>Mano abierta</td><td>Piedra</td></tr></tbody></table>
+<h2>1.3 La elección a la espalda</h2>
+<blockquote class="aviso"><p>🚨 <strong>Los dos eligen la figura con una mano detrás de la espalda.</strong> Su árbitro la ve y <strong>confirma visualmente la elección antes de mostrarla, sin decir cuál es</strong>.</p></blockquote>
+<ul>
+<li><strong>Un único árbitro</strong> dice <strong>«Piedra, papel, tijera, YA»</strong>.</li>
+<li>Los dos <strong>forman el gesto detrás de la espalda durante el canto</strong>, y su árbitro lo ve antes del YA.</li>
+<li>Los dos llevan la mano al frente <strong>en YA</strong>, <strong>con el mismo gesto que el árbitro les ha visto detrás</strong>.</li>
+<li>Ambos árbitros comprueban que <strong>el gesto mostrado coincide con el elegido</strong>.</li>
+</ul>
+<p><strong>Si un árbitro pierde de vista la mano</strong> y no puede verificar la continuidad, <strong>la ronda se repite sin aviso</strong>, salvo que haya evidencia de infracción.</p>
+<blockquote class="aviso"><p>🚨 <strong>No se decide a favor de quien mostró antes.</strong></p></blockquote>
+<h2>1.4 Empate de gesto</h2>
+<p>Mismo gesto: <strong>empate y nueva elección detrás de la espalda. Sin tarjeta.</strong></p>
+<p><strong>Cambiar de gesto confirmado es infracción. A la tercera, queda eliminado.</strong></p>
+<h2>1.5 La extracción</h2>
+<ol>
+<li>El ganador validado extrae <strong>una sola tarjeta</strong>, <strong>sin mirar</strong> y sin distinguir códigos.</li>
+<li>El árbitro de urna <strong>mezcla las restantes</strong>. El rival <strong>espera fuera de la mesa</strong>.</li>
+<li>El árbitro de caja comprueba la tarjeta y autoriza introducir <strong>exclusivamente ese código</strong>, <strong>ceros iniciales incluidos</strong>.</li>
+<li><strong>Un error de tecleo se corrige con la misma tarjeta, sin otra extracción.</strong></li>
+<li>Código correctamente rechazado: se retira la usada, se registra el ID y las restantes, y <strong>se juega otra ronda</strong>.</li>
+</ol>
+<h2>1.6 Las rachas</h2>
+<blockquote class="aviso"><p>🚨 <strong>Una misma persona puede ganar varias rondas seguidas y probar varias tarjetas seguidas. Los intentos no se alternan.</strong></p></blockquote>
+<p>Y por tanto: <strong>no se exige el mismo número de intentos a cada finalista.</strong> La tarjeta buena puede salir en el intento 1 o en el 48.</p>
+<h2>1.7 El control del lote</h2>
+<p><strong>Disponibles + usadas + pendiente = lote inicial.</strong> Se comprueba en cada intento.</p>
+<ul>
+<li>Una fila del acta <strong>por cada tarjeta nueva</strong>.</li>
+<li><strong>Los empates y las correcciones de tecleo no crean otro intento.</strong></li>
+<li>El ID de registro <strong>se asigna sin marcar previamente el reverso</strong>.</li>
+</ul>
+<h2>1.8 Infracciones</h2>
+<p><strong>Cambiar la figura a la espalda o al mostrar, retrasarse para observar, mirar la urna, manipular una tarjeta, introducir un código no autorizado o interferir:</strong></p>
+<table><thead><tr><th>Vez</th><th>Consecuencia</th></tr></thead><tbody><tr><td><strong>Primera comprobada</strong></td><td><strong>Aviso formal</strong> y <strong>anulación de la acción afectada</strong>. El aviso permanece durante toda la final</td></tr><tr><td><strong>Tercera del mismo finalista</strong>, aunque sean infracciones distintas</td><td><strong>Eliminación y victoria del rival</strong>, tras confirmarlo Coordinación</td></tr></tbody></table>
+<p><strong>Una duda sin evidencia o un fallo técnico no es aviso.</strong></p>
+<h2>1.9 La final no acaba hasta que la caja se abre</h2>
+<blockquote class="aviso"><p>🚨 <strong>No existe el escenario de "final sin ganador".</strong> La tarjeta válida <strong>está dentro de la urna</strong>, así que la final sigue intento tras intento hasta que sale. Si quedan 47 usadas y ninguna ha abierto, <strong>la que queda es la ganadora</strong>.</p></blockquote>
+<h3>Gana quien saca la tarjeta válida, no quien consigue que la caja suene</h3>
+<p><strong>Organización conoce la combinación que abre la caja</strong>, y la lleva en un <strong>sobre cerrado en poder de Coordinación</strong>. Eso es lo que convierte a esta prueba en una prueba y no en una apuesta sobre un aparato: <strong>lo que decide al ganador es el código que lleva escrita la tarjeta, no el comportamiento del teclado.</strong></p>
+<p>De ahí salen las tres únicas situaciones posibles:</p>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td><strong>Tarjeta válida y la caja abre</strong></td><td>Ganador. Es el caso normal</td></tr><tr><td><strong>Tarjeta válida y el teclado no responde, se bloquea o se queda sin batería</strong></td><td><strong>Ese finalista ya ha ganado.</strong> Coordinación abre el sobre, comprueba que el código de la tarjeta es el válido, y <strong>la caja se abre con la llave física delante del público</strong>. La ceremonia sigue igual</td></tr><tr><td><strong>La caja abre con una tarjeta que no es la válida</strong></td><td><strong>Fallo del aparato, no victoria.</strong> Se cierra la caja, se anula ese intento y <strong>de ahí en adelante la validación la hace Mesa comparando el código de la tarjeta con el del sobre</strong>, abriendo con la llave</td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>La llave y el sobre no se guardan en el almacén: están en la mesa de la final, con Coordinación, desde el primer intento.</strong> Buscarlos delante de dos finalistas y de todo el público es exactamente lo que no puede pasar.</p></blockquote>
+<h3>Lo que no se hace nunca</h3>
+<ul>
+<li><strong>No se simula un intento ganador.</strong> Si se abre con llave, se dice en voz alta que se abre con llave y por qué.</li>
+<li><strong>No se sortea el premio</strong> ni gana nadie "por defecto".</li>
+<li><strong>No se cambia el lote a mitad de final.</strong> El recuento <em>disponibles + usadas + pendiente = lote inicial</em> es lo que demuestra que la ganadora sigue dentro.</li>
+</ul>
+<h3>Victoria por descalificación</h3>
+<p>Es el único caso en el que no hay tarjeta ganadora extraída. Mesa registra el motivo y organización <strong>abre con la llave</strong> para la entrega, <strong>diciendo que se abre con la llave</strong>.</p>
+<hr/>
+<p>Son dos personas, y la explicación la puede dar <strong>el speaker por megafonía</strong> —con el público escuchando, que es lo que convierte esto en el momento del día— <strong>o el árbitro, a los dos finalistas de cerca</strong>. Las dos valen y el guion es el mismo, el de aquí abajo, que está también en el <strong>Manual del Speaker</strong>. <strong>Coordinación decide y lo dice antes de empezar.</strong></p>
+<p><strong>Si va por megafonía</strong>, el árbitro solo les confirma de cerca, antes del primer «YA», que lo han entendido: <em>«Figura con la mano detrás de la espalda, yo la confirmo, y no se cambia. ¿Entendido los dos?»</em></p>
+<blockquote><p><em>«Enhorabuena. Quedáis vosotros dos, y hay mil euros en esa caja.»</em>  <em>«Esto no se gana a piedra, papel o tijera. <strong>Se gana abriendo la caja.</strong> Ganar una ronda solo os da derecho a <strong>probar una tarjeta</strong>.»</em>  <em>«Hay cuarenta y ocho tarjetas en la urna. <strong>Una sola abre.</strong> Las otras cuarenta y siete, no.»</em>  <em>«Elegís la figura <strong>con la mano detrás de la espalda</strong>. Vuestro árbitro la ve y la confirma, pero no dice cuál es. Cuando las dos estén fijadas, uno de nosotros dirá "Piedra, papel, tijera, YA", y la sacáis al frente <strong>sin cambiarla</strong>.»</em>  <em>«Cambiar la figura es una infracción. Primera vez, aviso y se anula la jugada. <strong>A la tercera, os vais y gana el otro.</strong> Lo digo ahora y no lo voy a repetir.»</em>  <em>«Si sacáis la misma figura, es empate: se repite, y <strong>no hay tarjeta</strong>.»</em>  <em>«El que gane saca <strong>una tarjeta, sin mirar</strong>, y la prueba en la caja. Si os equivocáis al teclear, podéis repetir <strong>con esa misma tarjeta</strong>: no se saca otra.»</em>  <em>«Y esto importa: <strong>se puede ganar muchas veces seguidas</strong>. Si uno encadena cinco rondas, prueba cinco tarjetas seguidas. Aquí no se turna nada.»</em>  <em>«Puede caer la primera o puede caer la última. <strong>Esto no se acaba hasta que uno de los dos abre esa caja</strong>, así que no hay tiempo límite ni número de rondas: se juega hasta que salga. Suerte a los dos.»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 y A2</strong></td><td><strong>Un finalista cada uno.</strong> Ven la elección a la espalda y verifican que el gesto mostrado coincide</td></tr><tr><td><strong>A3</strong></td><td><strong>Urna.</strong> Extracción y mezcla de las restantes</td></tr><tr><td><strong>A4</strong></td><td><strong>Caja.</strong> Comprueba la tarjeta y autoriza el tecleo</td></tr><tr><td><strong>A5 y A6</strong></td><td>Perímetro</td></tr><tr><td><strong>A7 y A8</strong></td><td><strong>Premio</strong></td></tr><tr><td><strong>A9 a A11</strong></td><td>Apoyos y acompañamiento</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr></tbody></table>
+<h2>3.2 Comprobación previa, en privado</h2>
+<blockquote class="aviso"><p>🚨 <strong>Dos responsables comprueban en privado que una tarjeta abre y que el resto falla.</strong></p></blockquote>
+<ul>
+<li><strong>48 tarjetas</strong>, indistinguibles por el reverso, con <strong>un único código válido</strong>.</li>
+<li><strong>Ceros iniciales y teclas de confirmación</strong> probados.</li>
+<li><strong>Bloqueo tras fallos</strong> y espera necesaria, comprobados.</li>
+<li>Urna opaca, <strong>recipiente separado de usadas</strong>, caja estable, <strong>batería o alimentación</strong>.</li>
+<li><strong>Acceso de servicio custodiado.</strong></li>
+<li>Acta ampliable y <strong>registro de intentos preparado para las 48 tarjetas</strong>.</li>
+<li><strong>Capacidad de la urna verificada</strong> con el lote completo dentro.</li>
+</ul>
+<blockquote class="aviso"><p>🚨 <strong>El código ganador no se distribuye al personal general.</strong></p></blockquote>
+<blockquote class="aviso"><p>🚨 <strong>Durante la final no se añaden ni se cambian tarjetas ni el código.</strong></p></blockquote>
+<h2>3.3 Cómo no alargar cada intento</h2>
+<p>El tiempo de esta prueba <strong>se pierde entre intento e intento, no dentro del intento</strong>. Por eso:</p>
+<ol>
+<li><strong>Urna, caja y recipiente de usadas en la misma mesa.</strong></li>
+<li><strong>A3 con las tarjetas ya mezcladas</strong> antes de que termine la ronda de gestos.</li>
+<li><strong>A4 con el teclado desbloqueado</strong> antes de que termine la ronda de gestos.</li>
+</ol>
+<h2>3.4 Secuencia de un intento</h2>
+<ol>
+<li><strong>Un único árbitro canta «Piedra, papel, tijera, YA».</strong></li>
+<li>Los dos finalistas <strong>forman su gesto a la espalda durante el canto</strong>. A1 y A2 lo confirman visualmente antes del YA.</li>
+<li>Cada árbitro <strong>contrasta el gesto previo con el revelado</strong>.</li>
+<li>Empate de gesto: <strong>se repite, sin tarjeta</strong>.</li>
+<li>Ganador validado: <strong>extrae una tarjeta de la urna sin mirar</strong>. A3 mezcla las restantes.</li>
+<li>A4 comprueba el código y <strong>autoriza teclear exclusivamente ese código</strong>.</li>
+<li><strong>Rechazado:</strong> se retira la usada, se registra ID y restantes, <strong>nueva ronda</strong>.</li>
+<li><strong>Apertura válida:</strong> <strong>parar inmediatamente</strong> y confirmar tarjeta, dorsal y resultado con Mesa.</li>
+</ol>
+<h2>3.5 Tiempo</h2>
+<p>Cada intento —ronda de gestos, extracción y tecleo, <strong>contando los empates de gesto</strong>— se estima en <strong>55 segundos</strong>.</p>
+<table><thead><tr><th>Escenario</th><th>Intentos</th><th>Juego</th><th>Hora de fin</th></tr></thead><tbody><tr><td>Mediana</td><td>24</td><td>22 min</td><td><strong>20:27</strong></td></tr><tr><td>Tres de cada cuatro finales</td><td>36</td><td>33 min</td><td><strong>20:38</strong></td></tr><tr><td><strong>Nueve de cada diez</strong></td><td><strong>44</strong></td><td><strong>40 min</strong></td><td><strong>20:45</strong></td></tr><tr><td>Máximo absoluto</td><td>48</td><td>44 min</td><td><strong>20:49</strong></td></tr></tbody></table>
+<p><strong>Se reservan 45 minutos, de 20:00 a 20:45:</strong> cinco de explicación y cuarenta de juego. Cubre nueve de cada diez finales.</p>
+<blockquote class="aviso"><p>⚠️ <strong>La final no empieza antes de las 20:00 porque esa es la hora anunciada al público.</strong> Eso gasta los minutos que antes sobraban al final del día, y las 48 tarjetas se comen el resto. <strong>Solo si la final va por la mediana (acaba 20:27) el público sale antes de las 21:00</strong>; en tres de cada cuatro finales se sale después. Si a las <strong>20:49</strong> la caja sigue sin abrirse, <strong>Coordinación decide</strong>.</p></blockquote>
+<p><strong>La final continúa hasta que hay ganador. No hay máximo deportivo.</strong></p>
+<h2>3.6 El cierre</h2>
+<p>El público se mantiene <strong>fuera del perímetro y en silencio</strong> durante la elección, la señal y la validación.</p>
+<p>Validada la apertura: <strong>nombre del ganador, cheque, fotografías, entrevista y salida acompañada.</strong></p>
+<p>Se registran también <strong>los avisos, la comprobación previa de gestos y las pausas</strong>.</p>
+</section>
+
+<section class="ficha" id="pb" data-num="EXTRA" data-nombre="Desafío Explosivo">
+<header class="tit"><span class="num">EXTRA</span><h1>Desafío Explosivo</h1></header>
+<blockquote class="aviso"><p>🚨 <strong>ESTA PRUEBA NO ESTÁ EN EL PROGRAMA DEL 21 DE NOVIEMBRE.</strong>  Se mantiene documentada como <strong>plan B</strong>: una prueba de repuesto, lista para montar si otra se cae el mismo día. <strong>No se monta salvo que Coordinación lo ordene expresamente.</strong></p></blockquote>
+<dl class="pares"><dt><strong>Estado</strong></dt><dd><strong>Reserva. Fuera del programa</strong></dd><dt><strong>Zona</strong></dt><dd>Zona 1 · Campo de fútbol</dd><dt><strong>Formato</strong></dt><dd><strong>4 infladores fijos</strong> · grupos de 10</dd><dt><strong>Elimina</strong></dt><dd><strong>1 persona por grupo.</strong> Clasifican 9 de cada 10</dd><dt><strong>Duración</strong></dt><dd><strong>36 minutos</strong> en la configuración de referencia</dd><dt><strong>Material clave</strong></dt><dd>4 infladores estables con conexiones · globos compatibles · reserva · bolsas de restos</dd></dl>
+<hr/>
+<h2>0.1 Qué sustituye y qué no</h2>
+<p>Esta prueba <strong>elimina al 10 %</strong>: nueve de cada diez pasan. Eso define para qué sirve y para qué no.</p>
+<table><thead><tr><th>Si se cae</th><th>¿Sirve Desafío Explosivo?</th></tr></thead><tbody><tr><td><strong>Pistolas Ciegas</strong> (elimina poco y de forma variable)</td><td><strong>Sí.</strong> Es el encaje natural. Mismo perfil de prueba y lo que falte lo ajusta el bingo 2</td></tr><tr><td><strong>Luz Roja</strong> (sin cupo, elimina poco)</td><td><strong>Sí</strong>, con reservas: harían falta 30 grupos para 30 eliminados</td></tr><tr><td><strong>Campo de Batalla</strong> (elimina el 50 %)</td><td><strong>No.</strong> Haría falta montar 120 grupos. Es inviable en tiempo</td></tr><tr><td><strong>Tiro al Saco o La Ruleta</strong> (eliminan el 50 %)</td><td><strong>No</strong>, por lo mismo</td></tr><tr><td><strong>Batalla Naval en adelante</strong></td><td><strong>No.</strong> De ahí abajo los cupos son físicos y no admiten variación</td></tr></tbody></table>
+<blockquote class="aviso"><p>🚨 <strong>Regla para decidir en caliente:</strong> esta prueba solo sustituye a una prueba que elimine poco. <strong>Nunca sustituye a una que elimine la mitad.</strong></p></blockquote>
+<h2>0.2 Cuántos grupos hay que montar</h2>
+<p><strong>Un grupo de diez produce exactamente un eliminado.</strong> Por tanto:</p>
+<blockquote><p><strong>Se montan tantos grupos como eliminados se necesiten.</strong></p></blockquote>
+<p>Mesa calcula el número antes de abrir y <strong>lo fija por escrito</strong>. Con la referencia del manual anterior —200 participantes en 20 grupos de 10— salían 20 eliminados y 180 clasificados, en <strong>cinco bloques de cuatro grupos simultáneos</strong>.</p>
+<h2>0.3 Antes de contar con ella: el material</h2>
+<blockquote class="aviso"><p>🚨 <strong>Se avisó a producción de que esta prueba quedaba fuera, y el material pudo cancelarse.</strong> Antes de incluirla en el plan de contingencia hay que <strong>confirmar que los cuatro infladores, las conexiones y los globos siguen disponibles</strong>.  <strong>Un plan B sin material no es un plan B.</strong> Si el material está cancelado, este documento es papel mojado y hay que decirlo ahora, no el día 21.</p></blockquote>
+<p>Si se mantiene como reserva, va <strong>montada y tapada en Zona 1 desde el montaje de la mañana</strong>: una prueba de repuesto que hay que montar desde cero el mismo día no llega a tiempo.</p>
+<hr/>
+<h2>1.1 Objetivo</h2>
+<p><strong>Que el globo no reviente en tu turno.</strong></p>
+<h2>1.2 El montaje</h2>
+<ul>
+<li><strong>Cuatro infladores con globo, fijos.</strong> No se mueven en toda la prueba.</li>
+<li><strong>El globo también es fijo:</strong> va instalado en el puesto, y se instala <strong>con el puesto parado</strong>.</li>
+<li>Grupos de <strong>diez personas</strong> por puesto.</li>
+</ul>
+<h2>1.3 El recorrido</h2>
+<p>Un <strong>recorrido completo</strong> lleva el mecanismo <strong>desde el inicio hasta el final útil y de vuelta al inicio</strong>. Ida y vuelta: eso es uno.</p>
+<h2>1.4 El turno</h2>
+<ol>
+<li>El <strong>sorteo del grupo</strong> fija quién empieza y <strong>el orden de avance</strong>. Se registra antes de empezar.</li>
+<li>El jugador de turno <strong>toma el mando con autorización del árbitro</strong>.</li>
+<li><strong>Elige él cuántos recorridos completos hace: entre cinco y diez.</strong> Nadie se lo impone.</li>
+<li>Al terminar su último recorrido, <strong>entrega el mando</strong>.</li>
+<li><strong>Solo acciona el jugador del turno.</strong> El siguiente espera fuera del movimiento.</li>
+</ol>
+<h2>1.5 Cuándo empieza y acaba tu turno</h2>
+<blockquote class="aviso"><p>🚨 <strong>El turno empieza cuando tomas el mando con autorización y termina cuando lo toma el siguiente.</strong> No cuando acabas tus recorridos.</p></blockquote>
+<p>Y de ahí la regla que decide la prueba:</p>
+<blockquote class="aviso"><p>🚨 <strong>Una explosión en ese intervalo elimina al jugador que sigue en turno, aunque ya hubiera terminado sus recorridos.</strong></p></blockquote>
+<p><strong>Una explosión antes del mínimo de cinco recorridos también elimina.</strong></p>
+<h2>1.6 La demora deliberada</h2>
+<p>El siguiente jugador <strong>no puede retrasar la toma del mando</strong> especulando con que el globo reviente antes de que le toque.</p>
+<p>Los árbitros <strong>controlan que no haya demora innecesaria</strong> y <strong>pueden sancionar al jugador que demore deliberadamente</strong>.</p>
+<h2>1.7 Una explosión, un eliminado</h2>
+<p><strong>Una explosión válida elimina a una sola persona.</strong> Nunca a dos.</p>
+<p>Con la explosión: <strong>se para el puesto</strong>, se identifica a esa persona y se propone su baja por la aplicación.</p>
+<h2>1.8 Si falta cupo</h2>
+<p>Si tras la explosión <strong>el grupo todavía no ha cubierto los eliminados que le tocaban</strong>, se monta <strong>otro globo</strong> y se mantiene <strong>el orden original del grupo</strong> entre los que siguen activos.</p>
+<p><strong>Cumplido el cupo, se cierra el puesto. No se provoca otra explosión.</strong></p>
+<h2>1.9 Seguridad</h2>
+<blockquote class="aviso"><p>🚨 <strong>La cara se mantiene fuera del mecanismo y fuera del globo.</strong> En todo momento y para todo el mundo, jugador de turno incluido.</p></blockquote>
+<p><strong>Los restos los retira el staff.</strong> Nadie más.</p>
+<hr/>
+<p>La da el árbitro a su grupo de diez, con el globo ya instalado y el puesto parado.</p>
+<blockquote><p><em>«Esto es muy fácil de entender. Hay un globo. Se va inflando. Y en algún momento, revienta.»</em>  <em>«El inflador y el globo <strong>se quedan fijos ahí</strong>. No los tocáis más que con el mando.»</em>  <em>«Jugáis <strong>en el orden del sorteo</strong>. Cada uno, cuando le toca, coge el mando y hace <strong>entre cinco y diez recorridos completos</strong>. Vosotros elegís cuántos. Un recorrido es ir hasta el final y volver.»</em>  <em>«Y ahora lo importante, escuchad bien: <strong>vuestro turno no acaba cuando terminéis vuestros recorridos. Acaba cuando el siguiente coge el mando.</strong> Si el globo revienta en ese momento, el eliminado sois vosotros, aunque ya hubierais acabado.»</em>  <em>«Así que al siguiente: <strong>no te hagas el lento</strong>. Si veo que alguien se demora a propósito para que le explote al de delante, le sanciono. Y lo digo una vez.»</em>  <em>«Si revienta antes de los cinco recorridos, también elimina.»</em>  <em>«De cada diez, <strong>se va uno</strong>. Nueve seguís.»</em>  <em>«Y por seguridad, una sola cosa: <strong>la cara, lejos del globo</strong>. Siempre. También cuando no es vuestro turno.»</em>  <em>«Lo que yo diga en este puesto es lo que vale. Si no estáis de acuerdo, no se discute aquí: se reclama en la mesa de Coordinación. ¿Empezamos?»</em></p></blockquote>
+<hr/>
+<h2>3.1 Puestos</h2>
+<table><thead><tr><th>Puesto</th><th>Función</th></tr></thead><tbody><tr><td><strong>A1 a A4</strong></td><td><strong>Un puesto cada uno.</strong> Arbitran, autorizan la toma de mando, <strong>cuentan recorridos</strong> y proponen la baja</td></tr><tr><td><strong>A5</strong></td><td><strong>Apoyo de arbitraje</strong> y público</td></tr><tr><td><strong>A6 y A7</strong></td><td>Forman los grupos y organizan las salidas</td></tr><tr><td><strong>A8</strong></td><td>Controla el área</td></tr><tr><td><strong>A9 a A11</strong></td><td>Material y preparación, cuando estén disponibles</td></tr><tr><td><strong>A12</strong></td><td>Entrada general</td></tr></tbody></table>
+<h2>3.2 Comprobación previa</h2>
+<ul>
+<li><strong>Cuatro infladores estables</strong>, con conexiones y <strong>globos compatibles</strong>.</li>
+<li><strong>Reserva de globos equivalentes.</strong> En la referencia de 200 participantes se consumen <strong>veinte globos válidos</strong>, más los de demostración, las roturas técnicas y la reserva.</li>
+<li>Marcación, listas, móviles.</li>
+<li><strong>Bolsas de restos y material de limpieza</strong>, por puesto.</li>
+</ul>
+<blockquote class="aviso"><p>🚨 <strong>No se varía el montaje ni el preinflado intencionadamente.</strong> Cuatro puestos con preinflado distinto son cuatro pruebas distintas, y esta prueba elimina.</p></blockquote>
+<h2>3.3 Secuencia del grupo</h2>
+<ol>
+<li><strong>Verificar grupo, dorsales y cupo.</strong> Instalar el globo <strong>con el puesto parado</strong>.</li>
+<li><strong>Sortear el primer jugador y el orden de avance. Registrarlo antes de empezar.</strong></li>
+<li>Autorizar la toma de mando y <strong>contar los recorridos completos</strong>. Solo acciona el jugador del turno; el siguiente espera <strong>fuera del movimiento</strong>.</li>
+<li>Vigilar que <strong>no haya demora deliberada</strong> en la entrega y recogida del mando.</li>
+<li><strong>Con explosión: parar, identificar a una sola persona y proponer su baja</strong> por la aplicación. Guiar la salida y conservar al resto del grupo.</li>
+<li><strong>Retirar los restos y comprobar el equipo.</strong></li>
+<li>Si faltan eliminaciones del cupo: <strong>montar otro globo y mantener el orden original</strong> del grupo entre los que siguen activos.</li>
+<li>Cumplido el cupo, <strong>cerrar el puesto</strong> y confirmar los nueve clasificados del caso ordinario. <strong>No se provoca otra explosión.</strong></li>
+</ol>
+<h2>3.4 Incidencias</h2>
+<table><thead><tr><th>Situación</th><th>Qué se hace</th></tr></thead><tbody><tr><td><strong>Fuga, avería o rotura durante el montaje</strong></td><td><strong>Parar y sustituir el globo.</strong> Mantener el orden original del grupo y <strong>registrar el turno afectado</strong></td></tr><tr><td><strong>Duda sobre a quién corresponde el turno</strong></td><td><strong>Resolver antes de registrar un dorsal.</strong> Nunca al revés</td></tr><tr><td>Recorrido irregular, manipulación o demora deliberada</td><td><strong>Detener y documentar</strong></td></tr><tr><td><strong>Abandono o sanción</strong></td><td>Revisar las eliminaciones pendientes <strong>para no dejar el grupo por debajo de nueve sin decisión de continuidad</strong></td></tr></tbody></table>
+<h2>3.5 Tiempo</h2>
+<table><thead><tr><th>Operación</th><th>Reserva</th></tr></thead><tbody><tr><td>Explicación</td><td>6 min</td></tr><tr><td>5 bloques × 3 min</td><td>15 min</td></tr><tr><td>4 cambios × 3 min</td><td>12 min</td></tr><tr><td>Cierre</td><td>3 min</td></tr><tr><td><strong>Total</strong></td><td><strong>36 min</strong></td></tr></tbody></table>
+<blockquote class="aviso"><p>⚠️ <strong>El tiempo por globo no está medido.</strong> Se ensaya antes de contar con ella, y lo que manda es <strong>el puesto más lento</strong>. Hay que medir turnos, registro, retirada de restos y reposición.</p></blockquote>
+<p><strong>Esta configuración es la de cinco bloques de cuatro grupos.</strong> Si Mesa necesita otro número de eliminados, <strong>recalcula los bloques antes de abrir</strong> y el tiempo cambia en proporción: cada bloque añadido son <strong>tres minutos de juego más tres de cambio</strong>.</p>
+<hr/>
+<p>Si Coordinación decide meter esta prueba en caliente, <strong>en este orden</strong>:</p>
+<ol>
+<li><strong>¿Está el material en el recinto?</strong> Cuatro infladores, conexiones, globos y reserva. Si no, se para aquí.</li>
+<li><strong>¿A qué prueba sustituye?</strong> Tiene que ser una que elimine poco (apartado 0.1).</li>
+<li><strong>¿Cuántos eliminados hacen falta?</strong> Mesa lo fija por escrito. <strong>Tantos grupos como eliminados.</strong></li>
+<li><strong>¿Cuánto tiempo hay?</strong> 36 minutos en la configuración de referencia, más 6 por cada bloque extra.</li>
+<li><strong>¿Afecta a los objetivos fijos de 160 y 60?</strong> Si sí, <strong>ajustar el bingo</strong>, nunca el cupo de la prueba siguiente.</li>
+<li><strong>Avisar a Presentación y a los doce puestos</strong> antes de mover a nadie.</li>
+</ol>
+<p><strong>Lo decide Coordinación y queda en acta, con la hora y el motivo.</strong></p>
+</section>
+
+<button type="button" id="arriba" aria-label="Subir">&#8593;</button>
+
+<script>
+(function () {
+  "use strict";
+  var fichas = Array.prototype.slice.call(document.querySelectorAll(".ficha"));
+  var selector = document.getElementById("selector");
+  var indice = document.getElementById("indice");
+  var cuenta = document.getElementById("cuenta");
+  var q = document.getElementById("q");
+  var arriba = document.getElementById("arriba");
+  var actual = null;
+
+  /* El texto original de cada ficha se guarda antes de resaltar nada, porque
+     resaltar sobre lo ya resaltado rompe el HTML a la segunda busqueda. */
+  var limpio = {};
+  fichas.forEach(function (f) { limpio[f.id] = f.innerHTML; });
+
+  function mostrar(id, sinHash) {
+    var hay = fichas.some(function (f) { return f.id === id; });
+    if (!hay) id = fichas[0].id;
+    fichas.forEach(function (f) { f.classList.toggle("visible", f.id === id); });
+    selector.value = id;
+    Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (c) {
+      c.classList.toggle("activo", c.dataset.ir === id);
+    });
+    actual = id;
+    indice.classList.remove("abierto");
+    if (!sinHash && location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+    /* Al abrir con #p05 el navegador salta al ancla DESPUES de esto, y deja el
+       titulo debajo de la barra. Se vuelve a subir en el frame siguiente. */
+    window.scrollTo(0, 0);
+    requestAnimationFrame(function () { window.scrollTo(0, 0); });
+  }
+
+  /* ---- Buscar dentro de la prueba abierta ---- */
+  function buscar() {
+    var t = (q.value || "").trim();
+    var sec = document.getElementById(actual);
+    sec.innerHTML = limpio[actual];
+    if (t.length < 2) { cuenta.style.display = "none"; return; }
+
+    var re = new RegExp("(" + t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + ")", "gi");
+    var n = 0;
+    (function recorrer(nodo) {
+      for (var i = nodo.childNodes.length - 1; i >= 0; i--) {
+        var h = nodo.childNodes[i];
+        if (h.nodeType === 3) {
+          if (!re.test(h.nodeValue)) continue;
+          var caja = document.createElement("span");
+          caja.innerHTML = h.nodeValue.replace(/[&<>]/g, function (c) {
+            return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c];
+          }).replace(re, "<mark>$1</mark>");
+          n += caja.querySelectorAll("mark").length;
+          h.parentNode.replaceChild(caja, h);
+        } else if (h.nodeType === 1 && h.tagName !== "SCRIPT" && h.tagName !== "STYLE") {
+          recorrer(h);
+        }
+      }
+    })(sec);
+
+    cuenta.style.display = "block";
+    cuenta.textContent = n
+      ? n + (n === 1 ? " coincidencia" : " coincidencias") + " en esta prueba"
+      : "Sin coincidencias aquí. Mira en otra prueba del desplegable.";
+    var primera = sec.querySelector("mark");
+    if (primera) primera.scrollIntoView({ block: "center" });
+  }
+
+  selector.addEventListener("change", function () { q.value = ""; cuenta.style.display = "none"; mostrar(selector.value); });
+  document.getElementById("btn-indice").addEventListener("click", function () { indice.classList.toggle("abierto"); });
+  Array.prototype.forEach.call(document.querySelectorAll(".chip"), function (c) {
+    c.addEventListener("click", function () { q.value = ""; cuenta.style.display = "none"; mostrar(c.dataset.ir); });
+  });
+  document.getElementById("btn-buscar").addEventListener("click", buscar);
+  q.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); buscar(); } });
+  q.addEventListener("search", buscar);
+
+  arriba.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+  window.addEventListener("scroll", function () { arriba.style.display = window.scrollY > 400 ? "block" : "none"; });
+  window.addEventListener("hashchange", function () { mostrar((location.hash || "").replace("#", ""), true); });
+
+  mostrar((location.hash || "").replace("#", ""), true);
+})();
+</script>
+</body>
+</html>

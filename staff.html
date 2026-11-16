@@ -54,9 +54,11 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 /* ===== HEADER ===== */
 .header { background: #000; color: #fff; padding: 12px 14px; }
 .header-top { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-.header-top .quien { font-size: 13px; font-weight: 900; flex: 1; }
+.header-top .quien { font-size: 13px; font-weight: 900; flex: 1 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .header-top .cambiar { background: rgba(255,255,255,0.15); color: #fff; padding: 6px 10px; font-size: 10px; border-radius: 6px; flex-shrink: 0; }
 .header-top .salir { background: rgba(255,59,78,0.22); border: 1px solid rgba(255,59,78,0.5); }
+@media (max-width: 400px) { .header-top .solo-ancho { display: none; } }
 .prueba-actual-heading { text-align: center; font-size: 11px; font-weight: 900; letter-spacing: 2px; opacity: 0.8; margin-bottom: 4px; }
 .header select { font-size: 12px; }
 
@@ -10347,7 +10349,9 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     <div class="quien">👤 <span id="quien-soy">—</span></div>
     <button class="cambiar" onclick="cambiarNombre()">Cambiar</button>
     <a class="cambiar" href="manual-staff.html" target="_blank" rel="noopener"
-       style="text-decoration:none;" title="Manual de instrucciones">📖 Manual</a>
+       style="text-decoration:none;" title="Manual de instrucciones">📖<span class="solo-ancho"> Manual</span></a>
+    <a class="cambiar" id="btn-reglamento" href="reglamento.html" target="_blank" rel="noopener"
+       style="text-decoration:none;" title="Reglamento de la prueba marcada">📋<span class="solo-ancho"> Reglamento</span></a>
     <button class="cambiar salir" onclick="cerrarSesionOmega()"
             title="Cerrar sesión en este móvil">Salir</button>
   </div>
@@ -10719,6 +10723,7 @@ function pintarAvisoPrueba() {
   aviso.style.display = desincronizada ? "block" : "none";
   const donde = document.getElementById("aviso-prueba-panel");
   if (donde && pruebaDelPanel) donde.textContent = pruebaDelPanel;
+  enlazarReglamento();
 }
 
 // Se llama al cambiar el desplegable a mano.
@@ -11767,6 +11772,7 @@ function iniciarApp() {
   selPrueba.value = lsGet("staffPrueba") || "";
   if (!selPrueba.value) selPrueba.selectedIndex = 0;
   lsSet("staffPrueba", pruebaSeleccionada());
+  enlazarReglamento();
   escucharPruebaActual();
   escucharParticipantesStaff();
   escucharEquiposStaffApp();
@@ -11789,6 +11795,40 @@ window.addEventListener("load", () => {
     iniciarApp();
   }
 });
+
+/* ---------- Boton de reglamento ----------
+   Cada prueba del desplegable tiene su ficha en reglamento.html. El enlace se
+   reescribe cada vez que cambia el desplegable, asi que el arbitro pulsa y le
+   sale SU prueba, no un indice. Abre en pestania nueva para no perder lo que
+   tenga a medias en la app. */
+const FICHAS_REGLAMENTO = {
+  "LUZ ROJA LUZ VERDE": "p01",
+  "SELECCIÓN FATAL":    "p02",
+  "CAMPO DE BATALLA":   "p03",
+  "PISTOLA A CIEGAS":   "p04",
+  "TIRO AL SACO":       "p05",
+  "LA RULETA":          "p06",
+  "BATALLA NAVAL":      "p07",
+  "LAS CANICAS":        "p08",
+  "OMEGA TRIVIAL":      "p09",
+  "EQUILIBRIO FATAL":   "p10",
+  "LA GRAN FINAL":      "p11",
+  "DESAFÍO EXPLOSIVO":  "pb"
+};
+
+function enlazarReglamento() {
+  const a = document.getElementById("btn-reglamento");
+  const sel = document.getElementById("prueba-select-staff");
+  if (!a || !sel) return;
+  const id = FICHAS_REGLAMENTO[sel.value];
+  a.href = id ? "reglamento.html#" + id : "reglamento.html";
+  /* El titulo es lo que ve el arbitro al dejar el dedo encima, y en un movil
+     tambien lo lee el lector de pantalla. */
+  a.title = id
+    ? "Reglamento de " + sel.value
+    : "Reglamento de las pruebas";
+}
+
 </script>
 </body>
 </html>
