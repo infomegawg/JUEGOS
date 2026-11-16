@@ -147,6 +147,31 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   font-family: 'Montserrat', sans-serif;
 }
 
+/* ===== OVERLAY PAREJAS =====
+   La misma cortina que la llamada, pero con una rejilla en vez de un numero
+   gigante. El numero de columnas y el tamano los pone el JS segun cuantas
+   parejas haya: seis parejas tienen que leerse desde el fondo del campo. */
+.parejas-grid {
+  display: grid;
+  gap: clamp(10px, 1.6vw, 26px);
+  padding: 0 2vw;
+}
+.pareja-cell {
+  display: flex; align-items: center; justify-content: center;
+  gap: .35em;
+  background: rgba(255,116,33,0.10);
+  border: 2px solid rgba(255,116,33,0.55);
+  border-radius: 16px;
+  padding: clamp(6px,1vw,18px) clamp(12px,1.8vw,34px);
+  font-weight: 900; line-height: 1; color: var(--naranja);
+  text-shadow: 0 0 30px rgba(255,116,33,0.7);
+  animation: pulseNaranja 1s ease-in-out infinite alternate;
+}
+.pareja-sep {
+  font-size: .42em; color: #fff; opacity: .5;
+  font-family: 'Montserrat', sans-serif; letter-spacing: 2px;
+}
+
 /* ===== APAGADO ===== */
 .apagado { display: none; position: fixed; inset: 0; background: #000; z-index: 70; align-items: center; justify-content: center; }
 .apagado.show { display: flex; }
@@ -191,6 +216,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   <div class="call-badge">📢 ATENCIÓN</div>
   <div class="call-num" id="call-num">—</div>
   <div class="call-zona" id="call-zona-txt">—</div>
+</div>
+
+<!-- OVERLAY PAREJAS -->
+<div class="call-overlay" id="parejas-overlay">
+  <div class="call-badge">📢 PAREJAS</div>
+  <div class="parejas-grid" id="parejas-grid"></div>
+  <div class="call-zona" id="parejas-zona">—</div>
 </div>
 
 <!-- APAGADO -->
@@ -636,14 +668,45 @@ function init() {
     if (!doc.exists) return;
     const d = doc.data();
     const overlay = document.getElementById('call-overlay');
-    if (d.activa) {
+    const parejasOverlay = document.getElementById('parejas-overlay');
+    const hayParejas = d.activa && d.tipo === 'parejas' &&
+                       Array.isArray(d.parejas) && d.parejas.length;
+    if (hayParejas) {
+      pintarParejas(d.parejas, d.zona);
+      overlay.classList.remove('show');
+      parejasOverlay.classList.add('show');
+    } else if (d.activa) {
       document.getElementById('call-num').textContent = d.dorsal;
       document.getElementById('call-zona-txt').textContent = 'ACUDE A ' + (d.zona || '');
+      parejasOverlay.classList.remove('show');
       overlay.classList.add('show');
     } else {
       overlay.classList.remove('show');
+      parejasOverlay.classList.remove('show');
     }
   });
+}
+
+/* Reparte las parejas en una rejilla y les da el tamano mas grande que cabe.
+   Se lee desde el fondo del campo: con pocas parejas, letra enorme; con
+   muchas, mas columnas y letra algo menor, pero nunca por debajo de lo que
+   se ve a treinta metros. */
+function pintarParejas(parejas, zona) {
+  const n = parejas.length;
+  const cols = n <= 2 ? 1 : n <= 6 ? 2 : n <= 12 ? 3 : 4;
+  const filas = Math.ceil(n / cols);
+  const grid = document.getElementById('parejas-grid');
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', auto)';
+  // El alto manda: cuantas mas filas, menor la letra.
+  const tam = Math.max(30, Math.min(120, Math.round(330 / Math.max(filas, 1))));
+  grid.style.fontSize = tam + 'px';
+  grid.innerHTML = parejas.map(function (ds) {
+    const a = ds[0], b = ds[1];
+    return '<div class="pareja-cell">' + a +
+           '<span class="pareja-sep">\u00b7</span>' + b + '</div>';
+  }).join('');
+  document.getElementById('parejas-zona').textContent =
+    'ACUDID A ' + (zona || 'LA ZONA DE JUEGO');
 }
 
 function updateClock() {

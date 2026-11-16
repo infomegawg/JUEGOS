@@ -1331,7 +1331,23 @@ function escucharLlamadas() {
   db.collection("llamadas").doc("actual").onSnapshot(doc => {
     if (doc.exists) {
       const d = doc.data();
-      if (d.activa) {
+      if (d.activa && d.tipo === "parejas" && Array.isArray(d.parejas)) {
+        // Con parejas no hay un dorsal unico: se resume y se marcan los dos
+        // de cada pareja en la rejilla.
+        const prev = document.getElementById("call-preview");
+        const n = d.parejas.length;
+        document.getElementById("call-prev-num").textContent =
+          n === 1 ? "1 pareja" : n + " parejas";
+        document.getElementById("call-prev-zona").textContent = d.zona || "";
+        prev.classList.add("show");
+        document.querySelectorAll(".cell.called").forEach(c => c.classList.remove("called"));
+        d.parejas.forEach(function (ds) {
+          (ds || []).forEach(function (dor) {
+            const c = document.getElementById("cell-" + dor);
+            if (c) c.classList.add("called");
+          });
+        });
+      } else if (d.activa) {
         const prev = document.getElementById("call-preview");
         document.getElementById("call-prev-num").textContent = "#" + d.dorsal;
         document.getElementById("call-prev-zona").textContent = d.zona;
@@ -2588,6 +2604,40 @@ function agrupacionesHTML(a) {
   return h + '</div>';
 }
 
+/* Cada cosa que se manda a la LED lleva su propio identificador, y el
+   temporizador que la retira solo la retira si sigue siendo la suya. Sin
+   esto, llamar a un jugador y anunciar las parejas en menos de 14 s hacia
+   que el temporizador de la llamada borrase las parejas de la pantalla a
+   media locucion. */
+let emisionLED = 0;
+
+async function retirarLED(id) {
+  if (id !== emisionLED) return;   // ya hay otra cosa en pantalla
+  try {
+    await db.collection("llamadas").doc("actual").update({ activa: false });
+  } catch (e) { console.error(e); }
+}
+
+/* Pinta parejas en la pantalla grande. Se queda los segundos que dure la
+   locucion mas un margen: la voz y la pantalla van juntas. */
+async function mostrarParejasEnLED(parejas, segundos) {
+  const id = ++emisionLED;
+  try {
+    await db.collection("llamadas").doc("actual").set({
+      tipo: "parejas",
+      parejas: parejas.map(function (ds) { return [Number(ds[0]), Number(ds[1])]; }),
+      zona: "LA ZONA DE JUEGO",
+      activa: true,
+      llamado_en: TS()
+    });
+  } catch (e) {
+    console.error(e);
+    mostrarNotif("Se anuncia por voz, pero la LED no ha recibido las parejas");
+    return;
+  }
+  setTimeout(function () { retirarLED(id); }, segundos * 1000);
+}
+
 /* Las parejas que de verdad se van a anunciar: las de la prueba en curso que
    siguen pendientes. Se filtra igual que la lista de la pantalla, buscador
    incluido, para que "todas" sea exactamente lo que el operador esta viendo. */
@@ -2637,6 +2687,8 @@ function anunciarTodasLasParejas() {
   });
   frases.push("Todas estas parejas", "por favor", "acudir a la zona de juego");
   hablarPorFrases(frases);
+  // La pantalla acompana a la voz: se queda hasta que la locucion termina.
+  mostrarParejasEnLED(parejas, Math.round(frases.length * 1.6) + 6);
   mostrarNotif("Anunciando " + parejas.length + " parejas de una vez");
 }
 
@@ -2650,6 +2702,7 @@ function anunciarParejaPorDatos(dorsales) {
   if (!dorsales || dorsales.length !== 2) return;
   hablarPorFrases(["Pareja", String(dorsales[0]), "y", String(dorsales[1]),
                    "por favor", "acudir a la zona de juego"]);
+  mostrarParejasEnLED([dorsales], 16);
   mostrarNotif("Anunciando la pareja #" + dorsales[0] + " · #" + dorsales[1]);
 }
 
@@ -3420,7 +3473,9 @@ async function llamarJugador() {
   const zona = document.getElementById("call-zona").value;
   if (!dorsal) { mostrarNotif("Introduce un dorsal"); return; }
   try {
+    const emision = ++emisionLED;
     await db.collection("llamadas").doc("actual").set({
+      tipo: "dorsal",
       dorsal: dorsal,
       zona: zona,
       activa: true,
@@ -3445,10 +3500,9 @@ async function llamarJugador() {
       window.speechSynthesis.speak(msg2);
     }
 
-    // Auto-cancelar animación tras ~14s (2 locuciones + pausa + margen)
-    setTimeout(async () => {
-      await db.collection("llamadas").doc("actual").update({ activa: false });
-    }, 14000);
+    // Auto-cancelar animación tras ~14s (2 locuciones + pausa + margen).
+    // Solo se retira si sigue siendo ESTA llamada lo que hay en pantalla.
+    setTimeout(function () { retirarLED(emision); }, 14000);
   } catch(e) { console.error(e); }
 }
 
