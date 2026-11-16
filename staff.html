@@ -125,6 +125,21 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 .pareja-card.jugada { background: #f4f4f4; }
 .pareja-card.jugada .nombre { color: #6b6b6b; }
 .pareja-card .meta { font-size: 11px; color: var(--texto2); margin: 4px 0 8px; }
+/* El numero que dice la megafonia y pinta la pantalla grande. Mismo aspecto
+   que en el Panel para que sea la misma cosa a los ojos de todos. */
+.pareja-card .num {
+  display: inline-block; background: var(--morado); color: #fff;
+  border-radius: 4px; padding: 2px 7px; margin-right: 6px;
+  font-size: 11px; font-weight: 900; letter-spacing: .5px; white-space: nowrap;
+  vertical-align: 2px;
+}
+.pareja-card.jugada .num { background: #6b6b6b; }
+/* Dos parejas con el mismo numero: no puede cantarse asi. */
+.pareja-card .num.choque { background: var(--rojo, #d41230); }
+.pareja-card .choque-aviso {
+  background: #fce8eb; border: 1px solid rgba(212,18,48,.45); border-radius: 8px;
+  padding: 7px 9px; margin-bottom: 8px; font-size: 11px; font-weight: 700; color: #a3001d;
+}
 
 /* ===== EQUIPOS ===== */
 /* ===== PASAR LISTA DE UN EQUIPO =====
@@ -11564,6 +11579,20 @@ function toggleSeleccionNuevaPareja(dorsal) {
   renderGridNuevaPareja();
 }
 
+/* El siguiente numero libre de la prueba en curso, con el mismo criterio
+   que el Panel: el mayor que haya + 1, contando solo las parejas vivas de
+   esa prueba. La numeracion empieza de nuevo en cada prueba. */
+function siguienteNumeroDeParejaStaff() {
+  const prueba = document.getElementById("prueba-select-staff").value;
+  let mayor = 0;
+  Object.values(parejas).forEach(function (pa) {
+    if (!pa || pa.activo === false) return;
+    if ((pa.prueba || '') !== prueba) return;
+    if (typeof pa.numero === "number" && pa.numero > mayor) mayor = pa.numero;
+  });
+  return mayor + 1;
+}
+
 async function guardarNuevaPareja() {
   if (enviando) return;
   const dorsales = Array.from(seleccionNuevaPareja).sort((a, b) => a - b);
@@ -11572,9 +11601,11 @@ async function guardarNuevaPareja() {
   const choque = dorsales.find(d => ocupados[d]);
   if (choque) { toast("El #" + choque + " ya está emparejado en esta prueba"); return; }
   enviando = true;
+  const numero = siguienteNumeroDeParejaStaff();
   try {
     await enviarConColaOffline("parejas", {
       dorsales: dorsales,
+      numero: numero,
       prueba: document.getElementById("prueba-select-staff").value,
       origen: "manual-staff",
       creado_por: staffNombre,
@@ -11584,7 +11615,7 @@ async function guardarNuevaPareja() {
       jugada_en: null,
       cerrada_por: null
     });
-    toast("Pareja #" + dorsales[0] + " · #" + dorsales[1] + " marcada");
+    toast("Pareja " + numero + " marcada: #" + dorsales[0] + " · #" + dorsales[1]);
     cerrarCrearPareja();
   } finally {
     setTimeout(() => { enviando = false; }, 600);
@@ -11594,14 +11625,35 @@ async function guardarNuevaPareja() {
 function renderParejasList() {
   const cont = document.getElementById("parejas-list");
   if (!cont) return;
+  const pruebaAhora = document.getElementById("prueba-select-staff").value;
+
+  /* Mismo orden que la voz y que la pantalla grande: por numero de pareja.
+     Primero las de la prueba que tienes puesta —son las tuyas— y detras las
+     de las demas, que solo estan de consulta. Si no se separasen, una
+     "Pareja 2" de otra prueba se colaria entre tus parejas 1 y 2.
+     Las que no tienen numero (marcadas antes de que existiera) van al final
+     de su grupo, por dorsal, que es como estaban. */
+  const orden = pa => (typeof pa.numero === "number" ? pa.numero : Number.MAX_SAFE_INTEGER);
+  const esDeAhora = pa => ((pa.prueba || '') === pruebaAhora ? 0 : 1);
   const lista = Object.entries(parejas)
     .filter(([, pa]) => pa.activo !== false)
-    .sort((a, b) => (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0]);
+    .sort((a, b) => (esDeAhora(a[1]) - esDeAhora(b[1])) ||
+                    (orden(a[1]) - orden(b[1])) ||
+                    ((a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0]));
+
+  /* Numeros repetidos dentro de una misma prueba: hay que verlos, porque la
+     megafonia los cantaria iguales. Se cuenta por prueba, no en global: la
+     numeracion arranca de cero en cada una. */
+  const vecesNumero = {};
+  lista.forEach(([, pa]) => {
+    if (typeof pa.numero !== "number") return;
+    const k = (pa.prueba || '') + "#" + pa.numero;
+    vecesNumero[k] = (vecesNumero[k] || 0) + 1;
+  });
   if (!lista.length) {
     cont.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:12px;padding:20px;">Aún no hay parejas</div>';
     return;
   }
-  const pruebaAhora = document.getElementById("prueba-select-staff").value;
   cont.innerHTML = lista.map(([id, pa]) => {
     const ds = pa.dorsales || [];
     const esMio = pa.creado_por === staffNombre;
@@ -11637,10 +11689,23 @@ function renderParejasList() {
       }
     }
 
+    const repetido = typeof pa.numero === "number" &&
+                     vecesNumero[(pa.prueba || '') + "#" + pa.numero] > 1;
+    const etiquetaNum = typeof pa.numero === "number"
+      ? '<span class="num' + (repetido ? ' choque' : '') + '"' +
+        (repetido ? ' title="Hay otra pareja con este mismo número en esta prueba"' : '') +
+        '>PAREJA ' + pa.numero + '</span>'
+      : '';
+    const avisoChoque = repetido
+      ? '<div class="choque-aviso">⚠ Hay otra pareja con el número ' + pa.numero +
+        ' en esta prueba. Avisa al Panel Central antes de que las canten.</div>'
+      : '';
+
     return '<div class="pareja-card' + (pa.jugada ? ' jugada' : '') + '">' +
-      '<div class="nombre">#' + ds.join(' · #') + ' ' + sello + '</div>' +
+      '<div class="nombre">' + etiquetaNum + '#' + ds.join(' · #') + ' ' + sello + '</div>' +
       '<div class="meta">' + (pa.prueba || 'sin prueba') + ' · ' + quien +
         (pa.cerrada_por ? ' · cerrada al eliminar al #' + pa.cerrada_por : '') + '</div>' +
+      avisoChoque +
       acciones +
       (pa.jugada || !esMio || enMarcha ? '' :
         '<button class="btn btn-ghost" style="width:100%;padding:8px;font-size:11px;margin-top:6px;" onclick="borrarPareja(\'' + id + '\')">' +
@@ -11860,7 +11925,7 @@ function enlazarReglamento() {
    - Solo se recarga una vez por version, anotado en sessionStorage, para que
      un version.txt mal subido no deje el movil en bucle.
    - La comprobacion no bloquea el arranque: va por detras.  */
-const VERSION_APP = "2026-11-16 18:38";
+const VERSION_APP = "2026-11-16 19:34";
 
 async function comprobarVersion() {
   try {
@@ -11881,6 +11946,9 @@ async function comprobarVersion() {
     /* Sin red o sin fichero: no pasa nada, la app funciona igual. */
   }
 }
+
+
+
 
 </script>
 </body>
