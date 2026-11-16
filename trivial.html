@@ -123,6 +123,49 @@ body.led { overflow: hidden; }
 .centro.con-pregunta .cartel-cat { opacity: 0; }
 .cartel-cat .t1 { font-size: 46px; font-weight: 900; letter-spacing: 10px; color: var(--activo); text-shadow: 0 0 20px var(--activo), 0 0 60px var(--activo); }
 .cartel-cat .t2 { margin-top: 12px; font-size: 16px; letter-spacing: 7px; color: var(--texto2); animation: latido 2.2s ease-in-out infinite; }
+
+/* Los tres dorsales que responden esta categoria, uno por equipo. Se leen
+   desde el fondo: es la unica forma de que los quince sepan a quien le toca
+   sin preguntarselo entre ellos. */
+.repres-led { display: flex; justify-content: center; gap: 26px; margin-top: 22px; }
+.repres-led .r {
+  min-width: 128px; padding: 10px 18px 12px; border-radius: 14px;
+  border: 3px solid var(--eq); background: color-mix(in srgb, var(--eq) 14%, transparent);
+  box-shadow: 0 0 26px color-mix(in srgb, var(--eq) 35%, transparent);
+}
+.repres-led .r .eq {
+  font-family: 'Orbitron', sans-serif; font-size: 13px; font-weight: 900;
+  letter-spacing: 4px; color: var(--eq);
+}
+.repres-led .r .d {
+  font-family: 'Orbitron', sans-serif; font-size: 52px; font-weight: 900;
+  line-height: 1.05; color: #fff; text-shadow: 0 0 22px var(--eq);
+}
+.repres-led .r.vacio .d { font-size: 30px; color: var(--texto2); text-shadow: none; opacity: .5; }
+
+/* La misma informacion en el panel, en pequeño: la rejilla para meterlos y
+   el recordatorio bajo cada pulsador. */
+.rep-grid { display: grid; grid-template-columns: 1.3fr repeat(3, 1fr); gap: 6px; align-items: center; }
+.rep-grid .cab {
+  font-family: 'Orbitron', sans-serif; font-size: 10px; font-weight: 900;
+  letter-spacing: 2px; text-align: center; padding-bottom: 4px;
+}
+.rep-grid .cat {
+  font-size: 11px; letter-spacing: 1px; color: var(--texto2);
+  padding-right: 6px; text-align: right;
+}
+.rep-grid input {
+  width: 100%; padding: 7px 4px; text-align: center; border-radius: 7px;
+  border: 2px solid #32224a; background: #0d0518; color: #fff;
+  font-family: 'Orbitron', sans-serif; font-size: 15px; font-weight: 900;
+}
+.rep-grid input:focus { outline: none; border-color: #b061ff; }
+.rep-grid input.choca { border-color: #ff1f3d; background: #2a0510; }
+.puls .rep {
+  margin-top: 6px; font-family: 'Orbitron', sans-serif; font-size: 17px;
+  font-weight: 900; color: #fff; letter-spacing: 1px;
+}
+.puls .rep.sin { color: #6b5a85; font-size: 12px; font-weight: 400; letter-spacing: 0; }
 @keyframes latido { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
 
 /* ---------- PREGUNTA ---------- */
@@ -496,6 +539,7 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
       <div class="cartel-cat" id="led-cartel-cat">
         <div class="t1" id="led-cat-nombre">DEPORTES</div>
         <div class="t2" id="led-cat-sub">PREPARAD A VUESTRO REPRESENTANTE</div>
+        <div class="repres-led" id="led-repres"></div>
       </div>
 
       <div class="bloque-preg" id="led-bloque">
@@ -631,6 +675,20 @@ body.pausado .panel-wrap { outline: 3px solid #ffb020; outline-offset: -3px; }
       </div>
 
       <div class="caja">
+        <h2>Representantes</h2>
+        <div class="rep-grid" id="rep-grid"></div>
+        <div id="rep-aviso"></div>
+        <div class="fila" style="margin-top:10px">
+          <button class="btn" onclick="rellenarRepresEjemplo()">Dorsales de ejemplo</button>
+          <button class="btn rojo" onclick="vaciarRepres()">Vaciar</button>
+        </div>
+        <div class="mini">Los equipos reparten a sus cinco entre las cinco categorías y tú los metes aquí.
+          Cuando la pantalla anuncie la categoría, saldrán debajo <b>los tres dorsales que tienen que ponerse</b>,
+          y los verás también bajo cada pulsador mientras se juega la pregunta. Se guardan solos en este ordenador.
+          Si repites un dorsal, el recuadro se pone rojo: dentro de un equipo cada uno lleva <b>una</b> categoría.</div>
+      </div>
+
+      <div class="caja">
         <h2>Marcador</h2>
         <div class="marcador-panel" id="marcador-panel"></div>
         <div class="mini">Gana quien más aciertos tenga tras las 30 preguntas, o el primero que llegue a 16.
@@ -684,6 +742,48 @@ const EQUIPOS = [
   { nombre: "EQUIPO B", color: "#00e0ff" },
   { nombre: "EQUIPO C", color: "#ffb020" }
 ];
+
+/* REPRES[equipo][categoria] = dorsal, como texto porque es lo que escribe
+   una persona en una casilla. Van dorsales de ejemplo para poder ensayar hoy
+   mismo; el dia 21 se sustituyen por los de verdad al formar los equipos. */
+const REPRES_EJEMPLO = [
+  ["12",  "47",  "103", "158", "221"],
+  ["35",  "76",  "119", "184", "240"],
+  ["8",   "61",  "130", "197", "266"]
+];
+let REPRES = REPRES_EJEMPLO.map(f => f.slice());
+
+function leerRepres() {
+  try {
+    const g = JSON.parse(localStorage.getItem("trivial_representantes") || "null");
+    if (Array.isArray(g) && g.length === 3 && g.every(f => Array.isArray(f) && f.length === 5)) {
+      REPRES = g.map(f => f.map(x => String(x == null ? "" : x)));
+    }
+  } catch (e) {}
+}
+function escribirRepres() {
+  try { localStorage.setItem("trivial_representantes", JSON.stringify(REPRES)); }
+  catch (e) {}
+}
+
+/* Los tres dorsales de una categoria, en orden de equipo. */
+function represDe(ci) {
+  return EQUIPOS.map((eq, i) => (REPRES[i] && REPRES[i][ci] || "").trim());
+}
+
+/* Un dorsal no puede estar dos veces: ni repetido dentro de un equipo (cada
+   uno lleva una categoria) ni en dos equipos a la vez (es una sola persona).
+   Devuelve las casillas "equipo-categoria" que chocan. */
+function represChocan() {
+  const visto = {}, malas = {};
+  REPRES.forEach((fila, i) => fila.forEach((d, ci) => {
+    const v = (d || "").trim();
+    if (!v) return;
+    if (visto[v]) { malas[visto[v]] = true; malas[i + "-" + ci] = true; }
+    else visto[v] = i + "-" + ci;
+  }));
+  return malas;
+}
 
 // Si falta trivial-preguntas.js se monta un banco mínimo para poder ensayar.
 let BANCO = window.TRIVIAL_PREGUNTAS || null;
@@ -785,6 +885,8 @@ function reservaDe(ci, usadas) {
 /* =========================================================
    2. ESTADO
    ========================================================= */
+leerRepres();
+
 const AJ = Object.assign({
   presu: 30, opciones: 10, ventana: 2.5, meta: 16, reanudar: "restante",
   teclas: ["ScrollLock", "Pause", "Insert"]
@@ -881,7 +983,7 @@ let confetiAnim = null, confetiPiezas = [], confetiMedido = false;
 const VISTA = {
   fase: "espera", idx: 0, total: 30, cat: CATEGORIAS[0].nombre, color: CATEGORIAS[0].color,
   enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
-  turno: null, marcada: null, puntos: [0,0,0], meta: 16,
+  turno: null, marcada: null, puntos: [0,0,0], meta: 16, repres: ["","",""],
   etapa: "ordinaria", empatados: [], motivoFin: null,
   cola: [], tiempos: [], ventanaFin: 0, veredicto: null, ganador: null, bloqueados: [],
   presuFin: 0, presuRest: 0, presuCorre: false, pausa: false
@@ -974,6 +1076,25 @@ function pintarLED() {
   // Caras del cubo
   document.querySelectorAll("#led-cubo .nom").forEach(n => n.textContent = v.cat);
   document.getElementById("led-cat-nombre").textContent = v.cat;
+
+  /* Los dorsales que responden esta categoria. Si no se han cargado, el
+     cartel vuelve a decir lo de siempre y no se enseña ningun hueco vacio
+     en la pantalla grande. */
+  const rep = v.repres || [];
+  const hayRep = rep.some(d => d);
+  const cajaRep = document.getElementById("led-repres");
+  cajaRep.style.display = hayRep ? "flex" : "none";
+  if (hayRep && cajaRep.dataset.firma !== v.cat + "|" + rep.join(",")) {
+    cajaRep.dataset.firma = v.cat + "|" + rep.join(",");
+    cajaRep.innerHTML = EQUIPOS.map((eq, i) =>
+      '<div class="r' + (rep[i] ? '' : ' vacio') + '" style="--eq:' + eq.color + '">' +
+        '<div class="eq">' + eq.nombre + '</div>' +
+        '<div class="d">' + (rep[i] ? "#" + rep[i] : "—") + '</div>' +
+      '</div>').join("");
+  }
+  document.getElementById("led-cat-sub").textContent = hayRep
+    ? "A LA MESA ESTOS TRES"
+    : "PREPARAD A VUESTRO REPRESENTANTE";
 
   // Pregunta
   const centro = document.getElementById("led-centro");
@@ -1178,7 +1299,8 @@ if (!esLED) {
     d.className = "puls"; d.id = "puls-" + i;
     d.style.setProperty("--eq", eq.color);
     d.onclick = () => pulsar(i, true);
-    d.innerHTML = `<div class="n">${eq.nombre}</div><div class="k">${AJ.teclas[i]}</div><div class="p">0</div>`;
+    d.innerHTML = `<div class="n">${eq.nombre}</div><div class="k">${AJ.teclas[i]}</div>` +
+      `<div class="rep sin" id="puls-rep-${i}">sin dorsal</div><div class="p">0</div>`;
     cp.appendChild(d);
   });
 
@@ -1193,6 +1315,8 @@ if (!esLED) {
     mp.appendChild(d);
   });
 
+  montarRepres();
+
   setInterval(() => { enviar({ t: "ping" }); marcarLED(); }, 2000);
   requestAnimationFrame(buclePanel);
   setInterval(ticPanel, 100);          // respaldo si la ventana queda tapada
@@ -1201,6 +1325,81 @@ if (!esLED) {
 }
 
 function guardarAjustes() { escribirAjustes(); }
+
+/* ---------- Representantes: la rejilla del panel ---------- */
+function montarRepres() {
+  const g = document.getElementById("rep-grid");
+  let html = '<div></div>' + EQUIPOS.map(eq =>
+    '<div class="cab" style="color:' + eq.color + '">' + eq.nombre.replace("EQUIPO ", "") + '</div>').join("");
+  CATEGORIAS.forEach((c, ci) => {
+    html += '<div class="cat">' + c.nombre + '</div>';
+    EQUIPOS.forEach((eq, i) => {
+      html += '<input type="text" inputmode="numeric" maxlength="4" id="rep-' + i + '-' + ci +
+              '" value="' + (REPRES[i][ci] || "") + '" placeholder="—" ' +
+              'oninput="cambiarRepres(' + i + ',' + ci + ',this.value)">';
+    });
+  });
+  g.innerHTML = html;
+  pintarRepres();
+}
+
+function cambiarRepres(i, ci, valor) {
+  // Solo digitos: el dorsal es un numero, y asi no se cuelan espacios.
+  const limpio = String(valor).replace(/[^0-9]/g, "");
+  const campo = document.getElementById("rep-" + i + "-" + ci);
+  if (campo && campo.value !== limpio) campo.value = limpio;
+  REPRES[i][ci] = limpio;
+  escribirRepres();
+  pintarRepres();
+  difundir();          // si la categoria en curso es esta, la LED se entera ya
+}
+
+function pintarRepres() {
+  const malas = represChocan();
+  let faltan = 0;
+  REPRES.forEach((fila, i) => fila.forEach((d, ci) => {
+    if (!(d || "").trim()) faltan++;
+    const campo = document.getElementById("rep-" + i + "-" + ci);
+    if (campo) campo.classList.toggle("choca", !!malas[i + "-" + ci]);
+  }));
+
+  const aviso = document.getElementById("rep-aviso");
+  if (aviso) {
+    const repetidos = Object.keys(malas).length;
+    aviso.innerHTML = repetidos
+      ? '<div class="aviso warn" style="margin-top:10px"><b>Hay dorsales repetidos.</b> ' +
+        'Cada persona lleva una sola categoría, y un dorsal no puede estar en dos equipos.</div>'
+      : (faltan
+        ? '<div class="mini" style="margin-top:10px">Faltan <b>' + faltan + '</b> de 15.</div>'
+        : '<div class="mini" style="margin-top:10px">Los 15 cargados.</div>');
+  }
+
+  // El recordatorio de debajo de cada pulsador, con la categoria en curso.
+  const rep = represDe(E.ci);
+  EQUIPOS.forEach((eq, i) => {
+    const el = document.getElementById("puls-rep-" + i);
+    if (!el) return;
+    el.textContent = rep[i] ? "#" + rep[i] : "sin dorsal";
+    el.classList.toggle("sin", !rep[i]);
+  });
+}
+
+function rellenarRepresEjemplo() {
+  REPRES = REPRES_EJEMPLO.map(f => f.slice());
+  escribirRepres();
+  montarRepres();
+  difundir();
+  apuntar("Cargados los dorsales de ejemplo en los representantes.");
+}
+
+function vaciarRepres() {
+  if (!confirm("¿Vaciar los quince dorsales?")) return;
+  REPRES = [["","","","",""],["","","","",""],["","","","",""]];
+  escribirRepres();
+  montarRepres();
+  difundir();
+  apuntar("Representantes vaciados.");
+}
 
 function abrirLED() {
   ventanaLED = window.open(location.pathname + "#led", "omega_trivial_led");
@@ -1222,6 +1421,7 @@ function difundir() {
   enviar({ t: "estado", v: {
     fase: E.fase, idx: E.idx, total: ORDEN.length,
     cat: cat.nombre, color: cat.color,
+    repres: represDe(E.ci),
     enunciado: E.pregunta ? E.pregunta.p : "",
     opciones: E.pregunta ? E.pregunta.o : [],
     correcta: E.pregunta ? E.pregunta.c : 0,
@@ -1616,6 +1816,7 @@ function reiniciarTodo() {
 function pintarPanel() {
   if (esLED) return;
   const f = E.fase;
+  pintarRepres();
 
   const p = enPausa;
   document.getElementById("b-pausa").disabled = (f === "espera" || f === "fin");
