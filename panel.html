@@ -1841,28 +1841,65 @@ function anunciarEquipoFormado(id) {
 /* Lee una lista de frases sueltas, una a una, para que la voz haga pausa
    entre ellas. Chrome corta la voz a los ~15 s en colas largas si no se le da
    un toque cada pocos segundos: de ahí el keepAlive. */
+/* Numero de la locucion en curso. Al empezar una nueva, la anterior deja de
+   existir a todos los efectos: aunque le llegue un onend tardio, ve que ya
+   no es su turno y no encola nada mas. Esto es lo que evitaba que se colara
+   una pareja de la ronda anterior. */
+let turnoDeVoz = 0;
+
 function hablarPorFrases(frases) {
   if (!window.speechSynthesis) { mostrarNotif("Este navegador no reproduce voz"); return; }
-  window.speechSynthesis.cancel();
-  const utterances = frases.map(texto => {
+  if (!frases || !frases.length) return;
+  const sintesis = window.speechSynthesis;
+  const mio = ++turnoDeVoz;
+  sintesis.cancel();
+
+  const keepAlive = setInterval(function () {
+    if (mio !== turnoDeVoz) { clearInterval(keepAlive); return; }
+    if (sintesis.speaking) { sintesis.pause(); sintesis.resume(); }
+  }, 5000);
+
+  let i = 0;
+  function siguiente() {
+    if (mio !== turnoDeVoz || i >= frases.length) { clearInterval(keepAlive); return; }
+    const texto = String(frases[i++]);
     const msg = new SpeechSynthesisUtterance(texto);
     msg.lang = "es-ES"; msg.rate = 0.85; msg.pitch = 0.9; msg.volume = 1;
     if (vozSeleccionada) msg.voice = vozSeleccionada;
-    return msg;
-  });
-  const keepAlive = setInterval(() => {
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.pause();
-      window.speechSynthesis.resume();
+    let pasado = false;
+    const paso = function () {
+      if (pasado) return;
+      pasado = true;
+      clearTimeout(red);
+      setTimeout(siguiente, 120);        // respiro entre frases
+    };
+    msg.onend = paso;
+    msg.onerror = paso;
+    /* Red de seguridad: Chrome se traga el onend de vez en cuando y la
+       megafonia se quedaria muda a media locucion. Margen de sobra: una
+       frase corta tarda un segundo. */
+    const red = setTimeout(paso, Math.max(1200, texto.length * 110) + 1500);
+    sintesis.speak(msg);
+  }
+
+  /* cancel() no vacia la cola hasta el tick siguiente. Si se encola ahora
+     mismo, Chrome se come frases. Se espera a que no quede nada sonando ni
+     pendiente, con un tope de dos segundos para no quedarse colgado. */
+  let esperas = 0;
+  function esperarCola() {
+    if (mio !== turnoDeVoz) { clearInterval(keepAlive); return; }
+    if ((sintesis.speaking || sintesis.pending) && esperas++ < 40) {
+      sintesis.cancel();
+      setTimeout(esperarCola, 50);
+      return;
     }
-  }, 5000);
-  let terminado = false;
-  const finalizar = () => { if (terminado) return; terminado = true; clearInterval(keepAlive); };
-  const ultima = utterances[utterances.length - 1];
-  ultima.onend = finalizar;
-  ultima.onerror = finalizar;
-  setTimeout(finalizar, frases.length * 2500 + 5000);
-  utterances.forEach(u => window.speechSynthesis.speak(u));
+    siguiente();
+  }
+  /* Ojo: aunque speaking y pending den ya false, el cancel() de arriba deja
+     una limpieza pendiente que llega en el tick siguiente y arrasa con lo
+     que se encole ahora mismo. Por eso NUNCA se empieza en este tick: se
+     deja pasar un respiro y se mira despues. */
+  setTimeout(esperarCola, 100);
 }
 
 function anunciarEquipoPorDatos(nombre, dorsalesEq) {
@@ -2742,9 +2779,7 @@ function lanzarAnuncioDeParejas(items, esRepeticion) {
   const frases = [esRepeticion ? "Atención, se repite" : "Atención",
                   "Se anuncian las " + parejas.length + " parejas"];
   parejas.forEach(function (ds, i) {
-    frases.push("Pareja " + (i + 1));
-    frases.push(String(ds[0]));
-    frases.push("y " + ds[1]);
+    frases.push("Pareja " + (i + 1) + ", " + ds[0] + " y " + ds[1]);
   });
   frases.push("Todas estas parejas", "por favor", "acudir a la zona de juego");
   hablarPorFrases(frases);
@@ -2789,7 +2824,7 @@ function anunciarPareja(id) {
 
 function anunciarParejaPorDatos(dorsales) {
   if (!dorsales || dorsales.length !== 2) return;
-  hablarPorFrases(["Pareja", String(dorsales[0]), "y", String(dorsales[1]),
+  hablarPorFrases(["Pareja " + dorsales[0] + " y " + dorsales[1],
                    "por favor", "acudir a la zona de juego"]);
   mostrarParejasEnLED([dorsales], 16);
   mostrarNotif("Anunciando la pareja #" + dorsales[0] + " · #" + dorsales[1]);
