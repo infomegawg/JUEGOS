@@ -543,6 +543,9 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <button class="btn btn-verde" id="btn-anunciar-todas" style="width:auto;padding:8px 14px;" onclick="anunciarTodasLasParejas()">
             <i class="ti ti-volume"></i> Anunciar todas
           </button>
+          <button class="btn btn-ghost" id="btn-repetir-tanda" style="width:auto;padding:8px 14px;" onclick="repetirUltimaTanda()" title="Vuelve a decir la ultima ronda anunciada, sin tocar nada">
+            <i class="ti ti-repeat"></i> Repetir
+          </button>
           <span class="barra-sep"></span>
           <button class="btn btn-morado" id="crear-pareja-toggle-btn" style="width:auto;padding:8px 14px;" onclick="toggleModoCrearPareja()">
             <i class="ti ti-hand-finger"></i> Formar una a mano
@@ -1657,6 +1660,9 @@ function renderVistaParejas(grid) {
       // Las pendientes arriba: son las que quedan por jugar.
       const ja = a[1].jugada ? 1 : 0, jb = b[1].jugada ? 1 : 0;
       if (ja !== jb) return ja - jb;
+      // Y dentro de esas, primero la ronda que todavia no se ha anunciado.
+      const aa = a[1].anunciada ? 1 : 0, ab = b[1].anunciada ? 1 : 0;
+      if (aa !== ab) return aa - ab;
       return (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0];
     });
   if (!lista.length) {
@@ -1672,7 +1678,9 @@ function renderVistaParejas(grid) {
     return '<div class="agrup' + (pa.jugada || deOtraPrueba ? ' cerrada' : '') + '">' +
       '<div class="cab">' +
         '<span class="tit pareja">#' + ds.join(' · #') + '</span>' +
-        '<span class="sello" style="background:' + (pa.jugada ? '#6b6b6b' : '#0a8f4d') + ';">' + (pa.jugada ? 'YA JUGADA' : 'PENDIENTE') + '</span>' +
+        '<span class="sello" style="background:' +
+          (pa.jugada ? '#6b6b6b' : pa.anunciada ? '#d96400' : '#0a8f4d') + ';">' +
+          (pa.jugada ? 'YA JUGADA' : pa.anunciada ? 'ANUNCIADA' : 'SIN ANUNCIAR') + '</span>' +
         '<span class="sub">' + (pa.prueba || 'sin prueba') + ' · ' + quien +
           (pa.cerrada_por ? ' · cerrada al eliminar al #' + pa.cerrada_por : '') +
           (deOtraPrueba ? ' · NO es de la prueba en curso' : '') + '</span>' +
@@ -2444,14 +2452,14 @@ async function confirmarParejasAleatorias() {
     });
     await lote.commit();
     const n = parejasAzarPropuestas.length;
-    // Con una sola, se anuncia sola, como antes. Con varias no: seis
-    // locuciones seguidas por megafonía no se entienden. Se anuncian desde
-    // la lista, cuando toque llamar a cada una.
+    // Con una sola, se anuncia sola, como antes. Con varias no se anuncia
+    // nada automaticamente: el operador decide cuando sacar la ronda por
+    // megafonía, con el boton "Anunciar las N".
     if (n === 1) anunciarParejaPorDatos(parejasAzarPropuestas[0]);
     cancelarParejaAleatoria();
     mostrarNotif(n === 1
       ? "Pareja creada y anunciada"
-      : n + " parejas creadas · anúncialas una a una desde la lista");
+      : n + " parejas creadas · pulsa «Anunciar las " + n + "» cuando quieras sacarlas");
   } catch (e) { mostrarNotif("No se han creado las parejas — " + motivoFallo(e)); }
 }
 
@@ -2638,48 +2646,100 @@ async function mostrarParejasEnLED(parejas, segundos) {
   setTimeout(function () { retirarLED(id); }, segundos * 1000);
 }
 
-/* Las parejas que de verdad se van a anunciar: las de la prueba en curso que
-   siguen pendientes. Se filtra igual que la lista de la pantalla, buscador
-   incluido, para que "todas" sea exactamente lo que el operador esta viendo. */
-function parejasPendientesDeLaPrueba() {
+/* Las parejas vivas de la prueba en curso, con el mismo filtro que la lista
+   de la pantalla (buscador incluido), para que lo que se anuncia sea
+   exactamente lo que el operador esta viendo. */
+function parejasVivasParaAnunciar(condicion) {
   const prueba = pruebaEnCurso();
   return Object.entries(parejasCache)
     .filter(function (e) { return e[1].activo !== false; })
     .filter(function (e) { return !e[1].jugada; })
     .filter(function (e) { return (e[1].prueba || '') === prueba; })
+    .filter(function (e) { return (e[1].dorsales || []).length === 2; })
     .filter(function (e) { return agrupacionCoincide(e[1].dorsales || [], ''); })
-    .map(function (e) { return (e[1].dorsales || []).slice().sort(function (a, b) { return a - b; }); })
-    .filter(function (ds) { return ds.length === 2; })
-    .sort(function (a, b) { return a[0] - b[0]; });
+    .filter(function (e) { return condicion(e[1]); })
+    .map(function (e) {
+      return {
+        id: e[0],
+        tanda: e[1].tanda || '',
+        dorsales: (e[1].dorsales || []).slice().sort(function (a, b) { return a - b; })
+      };
+    })
+    .sort(function (a, b) { return a.dorsales[0] - b.dorsales[0]; });
 }
 
-/* El boton dice cuantas va a anunciar: asi nunca sorprende lo que sale por
-   megafonia. Sin parejas pendientes se desactiva en vez de desaparecer, que
-   si no parece que se ha roto algo. */
+/* La ronda que toca anunciar: las que aun no han salido por megafonia. */
+function parejasSinAnunciar() {
+  return parejasVivasParaAnunciar(function (pa) { return !pa.anunciada; });
+}
+
+/* La ultima ronda anunciada, para poder repetirla. Se agrupa por "tanda",
+   que es un identificador puesto en el momento de anunciar: asi no hay que
+   adivinar nada comparando horas. */
+function ultimaTandaAnunciada() {
+  const anunciadas = parejasVivasParaAnunciar(function (pa) { return pa.anunciada && pa.tanda; });
+  if (!anunciadas.length) return [];
+  const ultima = anunciadas.map(function (p) { return p.tanda; }).sort().pop();
+  return anunciadas.filter(function (p) { return p.tanda === ultima; });
+}
+
+/* Los dos botones dicen cuantas parejas van a sacar por megafonia, para que
+   nunca sorprenda lo que suena. Se desactivan en vez de desaparecer, que si
+   no parece que se ha roto algo. */
 function actualizarBotonAnunciarTodas() {
   const btn = document.getElementById("btn-anunciar-todas");
-  if (!btn) return;
-  const n = parejasPendientesDeLaPrueba().length;
-  btn.innerHTML = '<i class="ti ti-volume"></i> ' +
-    (n ? (n === 1 ? 'Anunciar la pareja' : 'Anunciar las ' + n) : 'Nada que anunciar');
-  btn.disabled = !n;
-  btn.style.opacity = n ? '' : '.5';
+  if (btn) {
+    const n = parejasSinAnunciar().length;
+    btn.innerHTML = '<i class="ti ti-volume"></i> ' +
+      (n ? (n === 1 ? 'Anunciar la pareja' : 'Anunciar las ' + n) : 'Todas anunciadas');
+    btn.disabled = !n;
+    btn.style.opacity = n ? '' : '.5';
+  }
+  const rep = document.getElementById("btn-repetir-tanda");
+  if (rep) {
+    const u = ultimaTandaAnunciada().length;
+    rep.innerHTML = '<i class="ti ti-repeat"></i> ' +
+      (u ? 'Repetir las ' + u : 'Repetir');
+    rep.disabled = !u;
+    rep.style.opacity = u ? '' : '.5';
+  }
 }
 
-/* Una sola locucion con todas las parejas. El preambulo se dice una vez, no
-   una por pareja, que era lo que hacia eterno el anuncio. Cada dorsal va en
-   su propia frase para que la voz haga pausa y se entienda por megafonia. */
-function anunciarTodasLasParejas() {
-  const parejas = parejasPendientesDeLaPrueba();
-  if (!parejas.length) { mostrarNotif("No hay parejas pendientes en esta prueba"); return; }
-  if (parejas.length === 1) { anunciarParejaPorDatos(parejas[0]); return; }
+/* Marca la ronda como anunciada y le pone un identificador de tanda comun,
+   que es lo que luego permite repetirla entera. */
+async function marcarParejasAnunciadas(items) {
+  const tanda = String(Date.now());
+  try {
+    const lote = db.batch();
+    items.forEach(function (p) {
+      lote.update(db.collection("parejas").doc(p.id),
+        { anunciada: true, tanda: tanda, anunciada_en: TS() });
+    });
+    await lote.commit();
+  } catch (e) {
+    console.error(e);
+    // No se corta el anuncio por esto: ya ha sonado. Pero hay que avisar,
+    // porque si no quedan marcadas volveran a salir en la siguiente ronda.
+    mostrarNotif("Anunciadas, pero no he podido marcarlas: saldran otra vez");
+  }
+}
+
+/* Una sola locucion con toda la ronda. El preambulo se dice una vez, no una
+   por pareja, que era lo que hacia eterno el anuncio. Cada dorsal va en su
+   propia frase para que la voz haga pausa y se entienda por megafonia.
+   Devuelve si de verdad ha sonado: si el operador cancela, no se marca. */
+function lanzarAnuncioDeParejas(items, esRepeticion) {
+  const parejas = items.map(function (p) { return p.dorsales; });
+  if (!parejas.length) return false;
+  if (parejas.length === 1) { anunciarParejaPorDatos(parejas[0]); return true; }
 
   // Mas de ocho seguidas son varios minutos de megafonia del tiron.
   if (parejas.length > 8 &&
       !confirm("Son " + parejas.length + " parejas seguidas por megafonia.\n\n" +
-               "Eso son varios minutos sin poder cortar.\n\n¿Las anuncio todas?")) return;
+               "Eso son varios minutos sin poder cortar.\n\n¿Las anuncio todas?")) return false;
 
-  const frases = ["Atención", "Se anuncian las " + parejas.length + " parejas"];
+  const frases = [esRepeticion ? "Atención, se repite" : "Atención",
+                  "Se anuncian las " + parejas.length + " parejas"];
   parejas.forEach(function (ds, i) {
     frases.push("Pareja " + (i + 1));
     frases.push("el " + ds[0]);
@@ -2689,13 +2749,41 @@ function anunciarTodasLasParejas() {
   hablarPorFrases(frases);
   // La pantalla acompana a la voz: se queda hasta que la locucion termina.
   mostrarParejasEnLED(parejas, Math.round(frases.length * 1.6) + 6);
-  mostrarNotif("Anunciando " + parejas.length + " parejas de una vez");
+  return true;
+}
+
+/* El boton principal: anuncia la ronda que todavia no ha salido. */
+function anunciarTodasLasParejas() {
+  const items = parejasSinAnunciar();
+  if (!items.length) {
+    const u = ultimaTandaAnunciada().length;
+    mostrarNotif(u
+      ? "Ya estan todas anunciadas. Usa Repetir para volver a decir las " + u
+      : "No hay parejas pendientes en esta prueba");
+    return;
+  }
+  if (!lanzarAnuncioDeParejas(items, false)) return;
+  marcarParejasAnunciadas(items);
+  mostrarNotif("Anunciando " + items.length +
+    (items.length === 1 ? " pareja" : " parejas de una vez"));
+}
+
+/* Repetir no vuelve a marcar: esas parejas ya estan anunciadas y no deben
+   volver a contar como ronda nueva. */
+function repetirUltimaTanda() {
+  const items = ultimaTandaAnunciada();
+  if (!items.length) { mostrarNotif("Todavia no has anunciado ninguna ronda"); return; }
+  if (!lanzarAnuncioDeParejas(items, true)) return;
+  mostrarNotif("Repitiendo las " + items.length +
+    (items.length === 1 ? " pareja" : " parejas de la ultima ronda"));
 }
 
 function anunciarPareja(id) {
   const pa = parejasCache[id];
   if (!pa) return;
   anunciarParejaPorDatos(pa.dorsales || []);
+  // Queda marcada: si no, volveria a salir con la ronda siguiente.
+  marcarParejasAnunciadas([{ id: id }]);
 }
 
 function anunciarParejaPorDatos(dorsales) {
