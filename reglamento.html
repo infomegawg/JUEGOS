@@ -120,6 +120,9 @@ mark { background: var(--amarillo); color: inherit; border-radius: 3px; padding:
   box-shadow: 0 3px 10px rgba(0,0,0,.3); display: none;
 }
 
+/* Chrome headless imprime en Letter si no se le dice otra cosa, y aqui se
+   imprime en Espania. */
+@page { size: A4; margin: 14mm 13mm; }
 @media print {
   .barra, #indice, #arriba { display: none !important; }
   body { background: #fff; font-size: 10.5pt; padding: 0; }
