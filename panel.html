@@ -1357,6 +1357,16 @@ function escucharLlamadas() {
             if (c) c.classList.add("called");
           });
         });
+      } else if (d.activa && d.tipo === "equipo" && Array.isArray(d.dorsales)) {
+        const prev = document.getElementById("call-preview");
+        document.getElementById("call-prev-num").textContent = d.nombre || "Equipo";
+        document.getElementById("call-prev-zona").textContent = d.zona || "";
+        prev.classList.add("show");
+        document.querySelectorAll(".cell.called").forEach(c => c.classList.remove("called"));
+        d.dorsales.forEach(function (dor) {
+          const c = document.getElementById("cell-" + dor);
+          if (c) c.classList.add("called");
+        });
       } else if (d.activa) {
         const prev = document.getElementById("call-preview");
         document.getElementById("call-prev-num").textContent = "#" + d.dorsal;
@@ -1640,6 +1650,7 @@ function renderVistaEquipos(grid) {
       '<div class="cab">' +
         '<span class="tit">👥 ' + eq.nombre + '</span>' +
         '<span class="sello" style="background:' + (vivos ? 'var(--verde)' : '#6b6b6b') + ';">' + vivos + ' VIVOS DE ' + ds.length + '</span>' +
+        selloListaEquipo(eq, ds) +
         '<span class="sub">' + (eq.prueba || 'sin prueba') + ' · ' + (eq.creado_por || '—') +
           (eq.origen === 'aleatorio-panel' ? ' · sorteado' : '') +
           (deOtraPrueba ? ' · NO es de la prueba en curso' : '') + '</span>' +
@@ -1652,6 +1663,22 @@ function renderVistaEquipos(grid) {
       '<div class="dorsales">' + ds.map(celdaDorsal).join('') + '</div>' +
     '</div>';
   }).join('');
+}
+
+/* Lo que el staff ha confirmado desde el campo: quien esta de verdad en la
+   zona de juego. Sin esto no se sabe si faltan dos y nadie se ha enterado. */
+function selloListaEquipo(eq, ds) {
+  const vivos = ds.filter(d => participantes[d] && participantes[d].vivo);
+  if (!vivos.length) return '';
+  const presentes = (eq.presentes || []).filter(d => vivos.indexOf(d) !== -1);
+  if (!presentes.length) return '';
+  const faltan = vivos.filter(d => presentes.indexOf(d) === -1);
+  const texto = faltan.length
+    ? presentes.length + ' DE ' + vivos.length + ' EN ZONA · FALTAN #' + faltan.join(' #')
+    : 'LOS ' + vivos.length + ' EN ZONA';
+  return '<span class="sello" style="background:' +
+    (faltan.length ? '#d96400' : '#0a8f4d') + ';" title="Marcado por ' +
+    (eq.lista_por || 'staff') + '">' + texto + '</span>';
 }
 
 function renderVistaParejas(grid) {
@@ -1837,9 +1864,12 @@ async function confirmarCrearEquipo() {
       creado_en: TS(),
       activo: true
     });
+    // Igual que el sorteado: se crea y se convoca, voz y pantalla. El boton
+    // "Anunciar" de la tarjeta sigue ahi para repetirlo.
+    anunciarEquipoPorDatos(nombre, dorsales);
     document.getElementById("nuevo-equipo-nombre").value = "";
     toggleModoCrearEquipo();
-    mostrarNotif("Equipo \"" + nombre + "\" creado con " + dorsales.length + " jugadores");
+    mostrarNotif("Equipo \"" + nombre + "\" creado y anunciado (" + dorsales.length + " jugadores)");
   } catch(e) { console.error(e); mostrarNotif("Error al crear el equipo"); }
 }
 
@@ -1929,6 +1959,8 @@ function anunciarEquipoPorDatos(nombre, dorsalesEq) {
   });
   frases.push("por favor", "acudir a la zona de juego");
   hablarPorFrases(frases);
+  // La pantalla acompana a la voz: se queda hasta que la locucion termina.
+  mostrarEquipoEnLED(eq.nombre, dorsales, Math.round(frases.length * 1.6) + 6);
   mostrarNotif("Anunciando a " + eq.nombre);
 }
 
@@ -2690,6 +2722,27 @@ async function retirarLED(id) {
 
 /* Pinta parejas en la pantalla grande. Se queda los segundos que dure la
    locucion mas un margen: la voz y la pantalla van juntas. */
+/* El equipo en la pantalla grande. Mismo token de emision que todo lo
+   demas: si despues sale otra cosa, el temporizador de esta no la borra. */
+async function mostrarEquipoEnLED(nombre, dorsales, segundos) {
+  const id = ++emisionLED;
+  try {
+    await db.collection("llamadas").doc("actual").set({
+      tipo: "equipo",
+      nombre: String(nombre || "Equipo"),
+      dorsales: (dorsales || []).map(Number),
+      zona: "LA ZONA DE JUEGO",
+      activa: true,
+      llamado_en: TS()
+    });
+  } catch (e) {
+    console.error(e);
+    mostrarNotif("Se anuncia por voz, pero la LED no ha recibido el equipo");
+    return;
+  }
+  setTimeout(function () { retirarLED(id); }, segundos * 1000);
+}
+
 async function mostrarParejasEnLED(parejas, segundos) {
   const id = ++emisionLED;
   try {

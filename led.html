@@ -167,6 +167,16 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   text-shadow: 0 0 30px rgba(255,116,33,0.7);
   animation: pulseNaranja 1s ease-in-out infinite alternate;
 }
+/* El nombre del equipo, encima de sus dorsales. */
+.equipo-nombre {
+  font-family: 'Orbitron', sans-serif;
+  font-size: clamp(28px, 5vw, 86px);
+  font-weight: 900; color: #fff; letter-spacing: 3px;
+  text-transform: uppercase; text-align: center;
+  padding: 0 2vw; line-height: 1.1;
+  text-shadow: 0 0 40px rgba(255,116,33,0.55);
+}
+
 /* El numero de pareja, el mismo que dice la megafonia y que sale en el
    Panel. Pequeno y blanco: se lee, pero no compite con los dorsales. */
 .pareja-n {
@@ -228,6 +238,13 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
 </div>
 
 <!-- OVERLAY PAREJAS -->
+<div class="call-overlay" id="equipo-overlay">
+  <div class="call-badge">◀ Equipo</div>
+  <div class="equipo-nombre" id="equipo-nombre">—</div>
+  <div class="parejas-grid" id="equipo-grid"></div>
+  <div class="call-zona" id="equipo-zona">—</div>
+</div>
+
 <div class="call-overlay" id="parejas-overlay">
   <div class="call-badge">📢 PAREJAS</div>
   <div class="parejas-grid" id="parejas-grid"></div>
@@ -678,20 +695,31 @@ function init() {
     const d = doc.data();
     const overlay = document.getElementById('call-overlay');
     const parejasOverlay = document.getElementById('parejas-overlay');
+    const equipoOverlay = document.getElementById('equipo-overlay');
     const hayParejas = d.activa && d.tipo === 'parejas' &&
                        Array.isArray(d.parejas) && d.parejas.length;
+    const hayEquipo = d.activa && d.tipo === 'equipo' &&
+                      Array.isArray(d.dorsales) && d.dorsales.length;
     if (hayParejas) {
       pintarParejas(d.parejas, d.zona);
       overlay.classList.remove('show');
+      equipoOverlay.classList.remove('show');
       parejasOverlay.classList.add('show');
+    } else if (hayEquipo) {
+      pintarEquipo(d.nombre, d.dorsales, d.zona);
+      overlay.classList.remove('show');
+      parejasOverlay.classList.remove('show');
+      equipoOverlay.classList.add('show');
     } else if (d.activa) {
       document.getElementById('call-num').textContent = d.dorsal;
       document.getElementById('call-zona-txt').textContent = 'ACUDE A ' + (d.zona || '');
       parejasOverlay.classList.remove('show');
+      equipoOverlay.classList.remove('show');
       overlay.classList.add('show');
     } else {
       overlay.classList.remove('show');
       parejasOverlay.classList.remove('show');
+      equipoOverlay.classList.remove('show');
     }
   });
 }
@@ -726,6 +754,29 @@ function pintarParejas(lista, zona) {
            '</div>';
   }).join('');
   document.getElementById('parejas-zona').textContent =
+    'ACUDID A ' + (zona || 'LA ZONA DE JUEGO');
+}
+
+/* Los dorsales de un equipo, con el nombre encima. Mismo criterio que las
+   parejas: tantas columnas como hagan falta y la letra mas grande que
+   quepa, porque esto se lee desde el fondo del campo. */
+function pintarEquipo(nombre, dorsales, zona) {
+  const ds = (dorsales || []).map(Number).sort(function (a, b) { return a - b; });
+  const n = ds.length;
+  const cols = n <= 3 ? Math.max(n, 1) : n <= 8 ? 4 : n <= 15 ? 5 : 6;
+  const filas = Math.ceil(n / cols);
+  const grid = document.getElementById('equipo-grid');
+  grid.style.gridTemplateColumns = 'repeat(' + cols + ', auto)';
+  // Se deja la mitad del alto: el nombre del equipo ocupa arriba.
+  const porAncho = (window.innerWidth  * 0.92) / (cols * 2.6);
+  const porAlto  = (window.innerHeight * 0.48) / Math.max(filas, 1);
+  const tam = Math.max(28, Math.min(200, Math.round(Math.min(porAncho, porAlto))));
+  grid.style.fontSize = tam + 'px';
+  grid.innerHTML = ds.map(function (d) {
+    return '<div class="pareja-cell">' + d + '</div>';
+  }).join('');
+  document.getElementById('equipo-nombre').textContent = nombre || 'EQUIPO';
+  document.getElementById('equipo-zona').textContent =
     'ACUDID A ' + (zona || 'LA ZONA DE JUEGO');
 }
 

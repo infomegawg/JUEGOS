@@ -109,6 +109,27 @@ input, select { font-family: var(--mono); font-weight: 700; border: 1px solid va
 .pareja-card .meta { font-size: 11px; color: var(--texto2); margin: 4px 0 8px; }
 
 /* ===== EQUIPOS ===== */
+/* ===== PASAR LISTA DE UN EQUIPO =====
+   Celdas grandes: esto se usa de pie, en el campo, con el movil en una mano
+   y mirando a la gente, no a la pantalla. */
+.lista-cab { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
+.lista-cab .nombre { font-size: 18px; font-weight: 900; color: var(--morado); }
+.lista-cab .cuenta { font-size: 13px; font-weight: 800; margin-top: 4px; }
+.lista-cab .faltan { font-size: 12px; color: var(--texto2); margin-top: 4px; }
+.lista-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(76px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.lista-cell {
+  aspect-ratio: 1; border-radius: 10px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px;
+  font-size: 20px; font-weight: 900;
+  background: #fff; border: 2px solid var(--border); color: var(--morado);
+  user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.lista-cell .marca { font-size: 9px; letter-spacing: 1px; font-weight: 800; color: var(--texto2); }
+.lista-cell.aqui { background: #e6f7ee; border-color: var(--verde); color: #0a7a42; }
+.lista-cell.aqui .marca { color: #0a7a42; }
+/* Un eliminado no se pasa lista: ya no juega. */
+.lista-cell.fuera { background: #f3f3f3; border-color: #ddd; color: #aaa; text-decoration: line-through; }
+
 .equipo-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; }
 .equipo-card .nombre { font-size: 14px; font-weight: 900; color: var(--morado); }
 .equipo-card .meta { font-size: 11px; color: var(--texto2); margin: 4px 0 8px; }
@@ -11128,20 +11149,137 @@ async function guardarNuevoEquipo() {
 
 function renderEquiposList() {
   const cont = document.getElementById("equipos-list");
+  if (equipoAbierto) {
+    if (equipos[equipoAbierto] && equipos[equipoAbierto].activo !== false) {
+      renderListaEquipo(cont, equipoAbierto);
+      return;
+    }
+    equipoAbierto = null;   // lo han disuelto mientras estaba abierto
+  }
   const lista = Object.entries(equipos).filter(([id, e]) => e.activo !== false);
   if (!lista.length) { cont.innerHTML = '<div style="text-align:center;color:var(--texto2);font-size:12px;padding:20px;">Aún no hay equipos creados</div>'; return; }
   cont.innerHTML = lista.map(([id, e]) => {
     const vivos = e.dorsales.filter(d => participantes[d] && participantes[d].vivo);
     const esMio = e.creado_por === staffNombre;
+    const presentes = (e.presentes || []).filter(d => vivos.indexOf(d) !== -1);
+    const todos = vivos.length && presentes.length === vivos.length;
+    const color = todos ? 'var(--verde)' : presentes.length ? 'var(--naranja)' : 'var(--texto2)';
     return `<div class="equipo-card">
       <div class="nombre">👥 ${e.nombre}</div>
       <div class="meta">${vivos.length} vivos de ${e.dorsales.length} · #${e.dorsales.join(', #')} · creado por ${e.creado_por||'—'} · ${e.prueba || 'sin prueba'}</div>
+      <div style="font-size:12px;font-weight:800;margin-bottom:8px;color:${color};">
+        ${todos ? '✓ Los ' + vivos.length + ' están en la zona de juego'
+                 : presentes.length + ' de ' + vivos.length + ' confirmados en la zona'}
+      </div>
+      <div class="btns" style="margin-bottom:6px;">
+        <button class="btn btn-morado" onclick="abrirListaEquipo('${id}')">
+          <i class="ti ti-list-check"></i> Pasar lista (${presentes.length}/${vivos.length})
+        </button>
+      </div>
       <div class="btns">
         <button class="btn btn-naranja" ${vivos.length ? '' : 'disabled'} onclick="proponerEquipo('${id}')">Proponer eliminar (${vivos.length})</button>
         <button class="btn btn-ghost" ${esMio ? '' : 'disabled title="Solo quien lo creó puede borrarlo"'} onclick="borrarEquipo('${id}')"><i class="ti ti-trash"></i></button>
       </div>
     </div>`;
   }).join('');
+}
+
+/* ===== PASAR LISTA DE UN EQUIPO =====
+   Se entra en el equipo y se marca uno a uno a quien se tiene delante. Es
+   lo unico que distingue "el equipo esta completo" de "faltan dos y nadie
+   se ha dado cuenta". */
+let equipoAbierto = null;
+
+function abrirListaEquipo(id) {
+  equipoAbierto = id;
+  renderEquiposList();
+  window.scrollTo(0, 0);
+}
+
+function cerrarListaEquipo() {
+  equipoAbierto = null;
+  renderEquiposList();
+}
+
+function renderListaEquipo(cont, id) {
+  const e = equipos[id];
+  if (!e) { cerrarListaEquipo(); return; }
+  const ds = (e.dorsales || []).slice().sort((a, b) => a - b);
+  const vivos = ds.filter(d => participantes[d] && participantes[d].vivo);
+  const presentes = (e.presentes || []);
+  const aqui = vivos.filter(d => presentes.indexOf(d) !== -1);
+  const faltan = vivos.filter(d => presentes.indexOf(d) === -1);
+  const completo = vivos.length && !faltan.length;
+
+  cont.innerHTML =
+    '<button class="btn btn-ghost" style="margin-bottom:10px;" onclick="cerrarListaEquipo()">' +
+      '<i class="ti ti-arrow-left"></i> Volver a los equipos</button>' +
+    '<div class="lista-cab">' +
+      '<div class="nombre">👥 ' + e.nombre + '</div>' +
+      '<div class="cuenta" style="color:' + (completo ? 'var(--verde)' : 'var(--naranja)') + ';">' +
+        (completo ? '✓ Están los ' + vivos.length
+                  : aqui.length + ' de ' + vivos.length + ' en la zona de juego') +
+      '</div>' +
+      (faltan.length
+        ? '<div class="faltan">Faltan por llegar: #' + faltan.join(', #') + '</div>'
+        : '') +
+      '<div class="faltan">Toca cada dorsal cuando lo tengas delante.</div>' +
+    '</div>' +
+    '<div class="lista-grid">' +
+      ds.map(function (d) {
+        const p = participantes[d];
+        const fuera = !p || !p.vivo;
+        const marcado = presentes.indexOf(d) !== -1;
+        const cls = 'lista-cell' + (fuera ? ' fuera' : marcado ? ' aqui' : '');
+        const pie = fuera ? 'FUERA' : marcado ? 'AQUÍ' : 'TOCAR';
+        return '<div class="' + cls + '"' +
+          (fuera ? '' : ' onclick="marcarPresente(\'' + id + '\',' + d + ',' + (!marcado) + ')"') +
+          '>' + d + '<span class="marca">' + pie + '</span></div>';
+      }).join('') +
+    '</div>' +
+    '<div class="btns" style="display:flex;gap:6px;">' +
+      (faltan.length
+        ? '<button class="btn btn-verde" style="flex:1;" onclick="marcarTodoElEquipo(\'' + id + '\')">Están todos</button>'
+        : '<button class="btn btn-ghost" style="flex:1;" onclick="vaciarListaEquipo(\'' + id + '\')">Empezar de cero</button>') +
+      '<button class="btn btn-naranja" style="flex:1;" ' + (vivos.length ? '' : 'disabled') +
+        ' onclick="proponerEquipo(\'' + id + '\')">Proponer eliminar</button>' +
+    '</div>';
+}
+
+async function escribirPresentes(id, cambio) {
+  try {
+    await db.collection("equipos").doc(id).update(Object.assign({
+      lista_por: staffNombre,
+      lista_en: TS()
+    }, cambio));
+  } catch (e) {
+    console.error(e);
+    toast("No se ha podido guardar: vuelve a tocarlo");
+  }
+}
+
+/* arrayUnion / arrayRemove en vez de reescribir la lista entera: si dos del
+   staff estan pasando lista al mismo equipo, no se borran lo del otro. */
+function marcarPresente(id, dorsal, poner) {
+  const FV = firebase.firestore.FieldValue;
+  escribirPresentes(id, {
+    presentes: poner ? FV.arrayUnion(dorsal) : FV.arrayRemove(dorsal)
+  });
+}
+
+function marcarTodoElEquipo(id) {
+  const e = equipos[id];
+  if (!e) return;
+  const vivos = (e.dorsales || []).filter(d => participantes[d] && participantes[d].vivo);
+  if (!vivos.length) return;
+  if (!confirm("¿Confirmas que están los " + vivos.length + " en la zona de juego?")) return;
+  const FV = firebase.firestore.FieldValue;
+  escribirPresentes(id, { presentes: FV.arrayUnion.apply(null, vivos) });
+}
+
+function vaciarListaEquipo(id) {
+  if (!confirm("¿Empezar la lista de cero?")) return;
+  escribirPresentes(id, { presentes: [] });
 }
 
 async function proponerEquipo(id) {
