@@ -434,17 +434,17 @@ function pintar() {
 
   const col = j.coord.charAt(0);
   const fil = j.coord.slice(1);
-  // En la lona solo hay dos piezas: X verde (agua) y X roja (tocado). Un
-  // hundido se coloca igual que un tocado, asi que ni se menciona.
+  // En la lona solo hay dos piezas: circulo verde (agua) y circulo rojo
+  // (tocado). Un hundido se coloca igual que un tocado, asi que ni se menciona.
   cont.innerHTML =
-    '<div class="que">PON UNA X ' + (esAgua ? 'VERDE' : 'ROJA') + '</div>' +
+    '<div class="que">PON UN CÍRCULO ' + (esAgua ? 'VERDE' : 'ROJO') + '</div>' +
     '<div class="coord">' + j.coord + '</div>' +
     '<div class="marca">' + (esAgua ? '&#128994; AGUA' : '&#128308; TOCADO') + '</div>' +
     '<div class="donde">columna <b>' + col + '</b> &nbsp;·&nbsp; fila <b>' + fil + '</b></div>';
 
   boton.disabled = false;
   boton.className = "lista";
-  boton.textContent = "✓ YA HE PUESTO LA " + j.coord;
+  boton.textContent = "✓ YA HE PUESTO EL " + j.coord;
 
   pintarRejilla(j.coord);
 }
@@ -473,11 +473,11 @@ function pintarRejilla(objetivo) {
     html += '<tr><th>' + f + '</th>';
     LETRAS.forEach(l => {
       const id = l + f;
-      // "hundido" se dibuja igual que "tocado": en la lona es la misma X roja.
+      // "hundido" se dibuja igual que "tocado": en la lona es el mismo circulo rojo.
       const r = recibidos[id] === 'hundido' ? 'tocado' : recibidos[id];
       let cls = r ? r : '';
-      let txt = r ? '&#215;' : '';
-      if (objetivo && id === objetivo) { cls = 'objetivo'; txt = '&#215;'; }
+      let txt = r ? '&#9679;' : '';
+      if (objetivo && id === objetivo) { cls = 'objetivo'; txt = '&#9679;'; }
       html += '<td class="' + cls + '">' + txt + '</td>';
     });
     html += '</tr>';
