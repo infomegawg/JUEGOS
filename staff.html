@@ -11795,6 +11795,7 @@ function iniciarApp() {
   procesarColaOffline();
   setInterval(procesarColaOffline, 20000);
   actualizarBannerOffline();
+  comprobarVersion();
 }
 
 // Reentrada automática si ya se identificó antes en este móvil
@@ -11839,6 +11840,40 @@ function enlazarReglamento() {
   a.title = id
     ? "Reglamento de " + sel.value
     : "Reglamento de las pruebas";
+}
+
+
+/* ===== Version de la app =====
+   Si version.txt no coincide con esta, el movil tiene una copia vieja en la
+   cache y se recarga solo. Se recarga con ?v= porque recargar a secas vuelve
+   a sacar el HTML de la cache y no cambiaria nada.
+
+   Tres cosas para que esto no se vuelva en contra el dia 21:
+   - Si la peticion falla (sin cobertura, GitHub caido), NO se hace nada: la
+     app sigue funcionando con lo que tenga.
+   - Solo se recarga una vez por version, anotado en sessionStorage, para que
+     un version.txt mal subido no deje el movil en bucle.
+   - La comprobacion no bloquea el arranque: va por detras.  */
+const VERSION_APP = "2026-11-16 18:24";
+
+async function comprobarVersion() {
+  try {
+    const r = await fetch("version.txt?t=" + Date.now(), { cache: "no-store" });
+    if (!r.ok) return;
+    const publicada = (await r.text()).trim();
+    if (!publicada || publicada === VERSION_APP) return;
+
+    const yaIntentado = sessionStorage.getItem("omegaRecargaVersion");
+    if (yaIntentado === publicada) {
+      console.warn("Version publicada " + publicada + " y la app sigue en " + VERSION_APP +
+                   ". No se recarga otra vez para no entrar en bucle.");
+      return;
+    }
+    sessionStorage.setItem("omegaRecargaVersion", publicada);
+    location.replace(location.pathname + "?v=" + encodeURIComponent(publicada));
+  } catch (e) {
+    /* Sin red o sin fichero: no pasa nada, la app funciona igual. */
+  }
 }
 
 </script>
