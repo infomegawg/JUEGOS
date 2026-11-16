@@ -1661,15 +1661,21 @@ function renderVistaParejas(grid) {
     .filter(([, pa]) => pa.activo !== false)
     .filter(([, pa]) => agrupacionCoincide(pa.dorsales || [], ''))
     .sort((a, b) => {
-      // Primero las de la prueba en curso, y dentro de ellas POR SU NUMERO,
-      // en el orden en que se crearon. No se reordena por nada mas: la
-      // pareja 7 esta siempre entre la 6 y la 8, haya jugado o no.
+      // Primero las de la prueba en curso, y dentro de ellas POR SU NUMERO
+      // PERO AL REVES: la ultima creada arriba del todo y la 1 al final.
+      // No se reordena por nada mas: la 7 esta siempre entre la 8 y la 6,
+      // haya jugado o no.
       const pa = (a[1].prueba || '') === prueba ? 0 : 1;
       const pb = (b[1].prueba || '') === prueba ? 0 : 1;
       if (pa !== pb) return pa - pb;
+      // Las de antes de que existiera el numero no tienen sitio en esa
+      // cuenta: van al final, no arriba.
+      const sa = typeof a[1].numero === 'number' ? 0 : 1;
+      const sb = typeof b[1].numero === 'number' ? 0 : 1;
+      if (sa !== sb) return sa - sb;
       const oa = ordenDePareja(a[1]), ob = ordenDePareja(b[1]);
-      if (oa !== ob) return oa - ob;
-      return (a[1].dorsales || [0])[0] - (b[1].dorsales || [0])[0];
+      if (oa !== ob) return ob - oa;
+      return (b[1].dorsales || [0])[0] - (a[1].dorsales || [0])[0];
     });
   if (!lista.length) {
     grid.innerHTML = '<div class="agrup-vacio">No hay parejas.<br>Se forman desde la pestaña Staff, a mano o sorteadas, o desde el móvil del staff.</div>';
