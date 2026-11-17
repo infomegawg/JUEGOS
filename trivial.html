@@ -290,6 +290,8 @@ body.led { overflow: hidden; }
 .veredicto.ok .txt  { color: var(--verde); text-shadow: 0 0 30px var(--verde), 0 0 90px var(--verde); animation: golpe 400ms cubic-bezier(.2,1.6,.4,1); }
 .veredicto.no  { background: radial-gradient(900px 560px at 50% 50%, color-mix(in srgb, var(--rojo) 30%, transparent), transparent 72%), rgba(4,0,10,0.88); }
 .veredicto.no .txt  { color: var(--rojo); text-shadow: 0 0 30px var(--rojo), 0 0 90px var(--rojo); animation: temblor 420ms ease; }
+.veredicto.nadie { background: radial-gradient(900px 560px at 50% 50%, rgba(255,176,32,0.30), transparent 72%), rgba(4,0,10,0.90); }
+.veredicto.nadie .txt { font-size: 104px; letter-spacing: 8px; color: #ffb020; text-shadow: 0 0 30px #ffb020, 0 0 90px #ffb020; animation: golpe 400ms cubic-bezier(.2,1.6,.4,1); }
 .veredicto .sub { display: block; font-size: 26px; letter-spacing: 7px; color: #fff; margin-top: 18px; text-shadow: none; }
 @keyframes golpe { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes temblor { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-22px); } 40% { transform: translateX(20px); } 60% { transform: translateX(-12px); } 80% { transform: translateX(10px); } }
@@ -904,7 +906,7 @@ function escribirAjustes() {
 }
 
 let E = {
-  fase: "espera",        // espera | categoria | pregunta | respondiendo | veredicto | cerrada | fin
+  fase: "espera",        // espera | categoria | pregunta | respondiendo | veredicto | nadie | cerrada | fin
   // En que parte del juego estamos:
   //   "ordinaria" las 30 preguntas
   //   "extra"     la ronda de cinco entre los empatados en cabeza
@@ -938,6 +940,9 @@ if (!AJ.migrado_restante) {
 let ORDEN = construirOrden();
 let usadasReserva = new Set();
 let presuRestante = AJ.presu * 1000;
+/* Ultimo segundo entero que ya ha sonado, para no repetir el tic en cada
+   vuelta del bucle (que da sesenta por segundo). */
+let ultimoTicSeg = 0;
 let presuCorriendo = false;
 let enPausa = false;
 let guardado = { presuCorria: false, respQuedaba: 0 };
@@ -985,7 +990,7 @@ const VISTA = {
   enunciado: "", opciones: [], opcionesVisibles: false, correcta: 0,
   turno: null, marcada: null, puntos: [0,0,0], meta: 16, repres: ["","",""],
   etapa: "ordinaria", empatados: [], motivoFin: null,
-  cola: [], tiempos: [], ventanaFin: 0, veredicto: null, ganador: null, bloqueados: [],
+  cola: [], tiempos: [], ventanaFin: 0, veredicto: null, nadie: null, ganador: null, bloqueados: [],
   presuFin: 0, presuRest: 0, presuCorre: false, pausa: false
 };
 
@@ -1015,7 +1020,7 @@ function pintarLED() {
   const rk = document.getElementById("led-ranking");
   const cola = v.cola || [];
   const verRanking = cola.length > 0 &&
-    ["ventana", "respondiendo", "veredicto"].includes(v.fase);
+    ["ventana", "respondiendo", "veredicto", "nadie"].includes(v.fase);
   rk.classList.toggle("ver", verRanking);
   document.getElementById("led-centro").classList.toggle("con-ranking", verRanking);
   if (verRanking) {
@@ -1098,7 +1103,7 @@ function pintarLED() {
 
   // Pregunta
   const centro = document.getElementById("led-centro");
-  const conPregunta = ["pregunta", "respondiendo", "veredicto", "cerrada"].includes(v.fase);
+  const conPregunta = ["pregunta", "respondiendo", "veredicto", "nadie", "cerrada"].includes(v.fase);
   centro.classList.toggle("con-pregunta", conPregunta);
   document.getElementById("led-enunciado").textContent = v.enunciado || "";
 
@@ -1132,11 +1137,18 @@ function pintarLED() {
 
   // Veredicto
   const ver = document.getElementById("led-veredicto");
-  ver.className = "veredicto" + (v.veredicto ? " ver " + (v.veredicto === "ok" ? "ok" : "no") : "");
+  ver.className = "veredicto" + (v.veredicto ? " ver " + (v.veredicto === "ok" ? "ok" : "no")
+                                 : v.nadie ? " ver nadie" : "");
   if (v.veredicto) {
     document.getElementById("led-veredicto-txt").innerHTML = v.veredicto === "ok"
       ? `¡CORRECTO!<span class="sub">${EQUIPOS[v.turno] ? EQUIPOS[v.turno].nombre : ""} ${v.etapa === "subita" ? "GANA" : "SUMA UN PUNTO"}</span>`
       : `INCORRECTO<span class="sub">SIGUEN LOS DEMÁS EQUIPOS</span>`;
+  } else if (v.nadie) {
+    document.getElementById("led-veredicto-txt").innerHTML =
+      `NADIE PUNTÚA<span class="sub">${
+        v.nadie === "tiempo" ? "SE AGOTÓ EL TIEMPO" :
+        v.nadie === "fallos" ? "NADIE HA ACERTADO" : "PREGUNTA CERRADA"
+      }</span>`;
   }
 
   // Marcador. En muerte subita NO hay marcador: gana el primer acierto, asi
@@ -1437,6 +1449,7 @@ function difundir() {
     presuFin: presuCorriendo ? Date.now() + presuRestante : 0,
     presuRest: presuRestante, presuCorre: presuCorriendo, pausa: enPausa,
     veredicto: E.fase === "veredicto" ? (E.marcada && E.marcada.bien ? "ok" : "no") : null,
+    nadie: E.fase === "nadie" ? (E.nadieMotivo || "tiempo") : null,
     ganador: E.ganador
   }});
 }
@@ -1493,6 +1506,17 @@ function ticPanel() {
     const consumido = AJ.presu * 1000 - presuRestante;
     if (!E.opcionesVisibles && consumido >= AJ.opciones * 1000 && E.fase === "pregunta") {
       E.opcionesVisibles = true; difundir(); apuntar("Opciones en pantalla.");
+    }
+
+    /* Tic de la cuenta atras. Desde los diez segundos -donde el numero ya se
+       pone rojo- suena un golpe por segundo entero, y los tres ultimos pegan
+       mas fuerte. Suena en el panel, que es la ventana que recibe clics;
+       las dos estan en el mismo ordenador, asi que se oye igual. */
+    const seg = Math.ceil(presuRestante / 1000);
+    if (seg > 10) ultimoTicSeg = 0;                 // reloj reabierto
+    else if (presuRestante > 0 && seg !== ultimoTicSeg) {
+      ultimoTicSeg = seg;
+      sonido(seg <= 3 ? "tac" : "tic");
     }
   }
   ultimoTick = ahora;
@@ -1642,7 +1666,7 @@ function resolver(opcion, bien, nota) {
       cerrarPregunta();
     } else if (E.bloqueados.length >= cuantosJuegan()) {
       apuntar("Han fallado todos los que jugaban. Pregunta cerrada sin punto.");
-      cerrarPregunta();
+      nadiePuntua("fallos");
     } else {
       // ¿Queda alguien en la cola que no haya fallado todavía?
       const siguiente = E.cola.find(x => !E.bloqueados.includes(x));
@@ -1670,7 +1694,24 @@ function cerrarPorTiempo(manual) {
   if (!["pregunta", "ventana", "respondiendo"].includes(E.fase)) return;
   presuCorriendo = false; E.turno = null; E.ventanaFin = 0;
   apuntar(manual ? "Pregunta cerrada a mano." : "Se agotó el presupuesto. Nadie acertó.");
-  cerrarPregunta();
+  nadiePuntua(manual ? "manual" : "tiempo");
+}
+
+/* La pregunta queda desierta: o se agoto el tiempo, o fallaron todos, o
+   la cerro el operador a mano. Antes se iba derecho a la solucion y el
+   publico se quedaba sin saber que no habia habido punto. Ahora se canta
+   en la pantalla grande y solo despues sale la respuesta. */
+function nadiePuntua(motivo) {
+  E.fase = "nadie"; E.nadieMotivo = motivo;
+  presuCorriendo = false; E.turno = null; E.ventanaFin = 0; E.marcada = null;
+  /* Si viene de un fallo, el bocinazo acaba de sonar hace un momento y no
+     hace falta repetirlo. */
+  if (motivo !== "fallos") sonido("no");
+  pintarPanel(); difundir();
+  setTimeout(() => {
+    if (E.fase !== "nadie") return;     // lo han cambiado por el camino
+    cerrarPregunta();
+  }, 2800);
 }
 
 function cerrarPregunta() {
@@ -1819,7 +1860,7 @@ function pintarPanel() {
   pintarRepres();
 
   const p = enPausa;
-  document.getElementById("b-pausa").disabled = (f === "espera" || f === "fin");
+  document.getElementById("b-pausa").disabled = (f === "espera" || f === "fin" || f === "nadie");
   document.getElementById("b-iniciar").disabled = p || (f !== "espera");
   document.getElementById("b-lanzar").disabled = p || (f !== "categoria");
   document.getElementById("b-siguiente").disabled = p || (f !== "cerrada");
@@ -1866,6 +1907,7 @@ function pintarPanel() {
     pregunta: "Pregunta en el aire. Los pulsadores están activos; el presupuesto corre.",
     respondiendo: "Tiene el turno un equipo. Marca abajo la respuesta que ha dicho, o déjalo correr si se le acaba el tiempo.",
     veredicto: "Mostrando el resultado en pantalla…",
+    nadie: "Nadie se ha llevado el punto. La pantalla lo está cantando; enseguida sale la solución.",
     cerrada: "Pregunta cerrada y solución en pantalla. Cuando quieras, «Siguiente pregunta».",
     fin: E.motivoFin === "tarjetas"
       ? "Empate sin resolver: toca sortear las tarjetas Omega entre " +
@@ -2066,24 +2108,54 @@ function sonido(tipo) {
   try {
     ac = ac || new (window.AudioContext || window.webkitAudioContext)();
     if (ac.state === "suspended") ac.resume();
+    if (tipo === "no") { bocina(); return; }
     const t = ac.currentTime;
     const notas = {
       puls:   [[880, 0, .09]],
       inicio: [[520, 0, .10], [780, .10, .14]],
       ok:     [[660, 0, .10], [880, .10, .10], [1320, .20, .26]],
-      no:     [[200, 0, .28], [150, .22, .36]]
+      /* Tic de la cuenta atras: corto y seco, para que marque el segundo
+         sin taparle la voz al presentador. El tac de los tres ultimos
+         segundos es mas agudo y suena mas. */
+      tic:    [[1400, 0, .045]],
+      tac:    [[1850, 0, .060]]
     }[tipo] || [];
+    const volumen = { tic: 0.15, tac: 0.30 }[tipo] || 0.22;
     notas.forEach(([f, d, dur]) => {
       const o = ac.createOscillator(), g = ac.createGain();
-      o.type = (tipo === "no") ? "sawtooth" : "square";
+      o.type = "square";
       o.frequency.value = f;
       g.gain.setValueAtTime(0.0001, t + d);
-      g.gain.exponentialRampToValueAtTime(tipo === "no" ? 0.35 : 0.22, t + d + 0.012);
+      g.gain.exponentialRampToValueAtTime(volumen, t + d + 0.012);
       g.gain.exponentialRampToValueAtTime(0.0001, t + d + dur);
       o.connect(g); g.connect(ac.destination);
       o.start(t + d); o.stop(t + d + dur + 0.02);
     });
   } catch (e) {}
+}
+
+/* El fallo: dos bocinazos de claxon. Cada uno son tres ondas sonando a la
+   vez -la nota, su tercera menor y una octava por debajo-, que es lo que
+   hace que suene a bocina y no a pitido de microondas. El ataque no es
+   instantaneo: una bocina de verdad tarda unos milisegundos en coger aire. */
+function bocina() {
+  const t = ac.currentTime;
+  [[0, 0.42], [0.52, 0.42]].forEach(([ini, dur]) => {
+    const mezcla = ac.createGain();
+    mezcla.gain.setValueAtTime(0.0001, t + ini);
+    mezcla.gain.linearRampToValueAtTime(0.50, t + ini + 0.03);
+    mezcla.gain.setValueAtTime(0.50, t + ini + dur - 0.07);
+    mezcla.gain.exponentialRampToValueAtTime(0.0001, t + ini + dur);
+    mezcla.connect(ac.destination);
+    [[196, "sawtooth", 1], [233, "sawtooth", 0.85], [98, "square", 0.5]]
+      .forEach(([f, forma, peso]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.type = forma; o.frequency.value = f;
+        g.gain.value = peso * 0.33;
+        o.connect(g); g.connect(mezcla);
+        o.start(t + ini); o.stop(t + ini + dur + 0.02);
+      });
+  });
 }
 
 /* =========================================================
