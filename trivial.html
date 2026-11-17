@@ -352,6 +352,9 @@ body.panel { overflow-y: auto; background: #0a0612; font-family: system-ui, -app
 .estado-led { display: flex; align-items: center; gap: 9px; font-size: 13px; color: #c9b6e6; }
 .punto { width: 11px; height: 11px; border-radius: 50%; background: #5a2030; box-shadow: 0 0 10px #5a2030; }
 .punto.on { background: #00ff88; box-shadow: 0 0 12px #00ff88; }
+.punto.viejo { background: #ffb020; box-shadow: 0 0 14px #ffb020; animation: parpadeo .7s steps(2) infinite; }
+#txt-led.viejo { color: #ffb020; font-weight: 900; }
+@keyframes parpadeo { 50% { opacity: .25; } }
 
 .rejilla-panel { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; align-items: start; }
 .panel-wrap .acta { max-height: 190px; }
@@ -953,6 +956,12 @@ let acta = [];
    3. QUIÉN SOY: panel o pantalla LED
    ========================================================= */
 const esLED = location.hash === "#led";
+
+/* Sello de esta version. Sirve para dos cosas: forzar que la ventana de la
+   LED se recargue con el mismo codigo que el panel, y avisar en la barra de
+   arriba si se han quedado descolgadas. Al cambiar algo del trivial, subir
+   tambien este numero. */
+const VERSION = "2026-11-17c";
 document.body.classList.add(esLED ? "led" : "panel");
 document.getElementById(esLED ? "vista-led" : "vista-panel").classList.remove("oculto");
 
@@ -972,9 +981,14 @@ function recibir(msg) {
   if (!msg || !msg.t) return;
   if (esLED) {
     if (msg.t === "estado") { Object.assign(VISTA, msg.v); pintarLED(); }
-    if (msg.t === "ping") enviar({ t: "aqui" });
+    if (msg.t === "ping") enviar({ t: "aqui", ver: VERSION });
   } else {
-    if (msg.t === "aqui" || msg.t === "hola") { ledVivo = Date.now(); marcarLED(); difundir(); }
+    if (msg.t === "aqui" || msg.t === "hola") {
+      ledVivo = Date.now();
+      /* Una LED vieja no manda version: se queda en "antigua" y salta el aviso. */
+      ledVersion = msg.ver || "antigua";
+      marcarLED(); difundir();
+    }
   }
 }
 if (canal) canal.onmessage = e => recibir(e.data);
@@ -1004,8 +1018,8 @@ if (esLED) {
     d.innerHTML = `<div class="nombre">${eq.nombre}</div><div class="pips"></div><div class="puntos">0</div>`;
     m.appendChild(d);
   });
-  enviar({ t: "hola" });
-  setInterval(() => enviar({ t: "hola" }), 3000);
+  enviar({ t: "hola", ver: VERSION });
+  setInterval(() => enviar({ t: "hola", ver: VERSION }), 3000);
   requestAnimationFrame(bucleCrono);
   setInterval(ticCrono, 100);          // respaldo si la ventana queda tapada
   pintarLED();
@@ -1271,6 +1285,8 @@ function ticCrono() {
    6. PANEL: arranque
    ========================================================= */
 let ledVivo = 0;
+let ledVersion = null;     // la que ha dicho la pantalla en su ultimo saludo
+let avisadoDesfase = false;  // para no llenar el acta con la misma linea
 
 if (!esLED) {
   // Ajustes guardados
@@ -1414,14 +1430,30 @@ function vaciarRepres() {
 }
 
 function abrirLED() {
-  ventanaLED = window.open(location.pathname + "#led", "omega_trivial_led");
+  /* La version va en la direccion a proposito: la ventana tiene nombre, asi
+     que si ya estaba abierta con otra direccion el navegador la recarga. Sin
+     esto, una LED servida de la cache se queda con el codigo viejo y hace
+     cosas que no se entienden -como quedarse en el cubo de la categoria. */
+  ventanaLED = window.open(location.pathname + "?v=" + VERSION + "#led", "omega_trivial_led");
   if (ventanaLED) ventanaLED.focus();
   setTimeout(difundir, 900);
 }
 function marcarLED() {
   const vivo = (Date.now() - ledVivo) < 7000;
-  document.getElementById("punto-led").classList.toggle("on", vivo);
-  document.getElementById("txt-led").textContent = vivo ? "Pantalla LED conectada" : "Pantalla LED no abierta";
+  const desfase = vivo && ledVersion !== VERSION;
+  const punto = document.getElementById("punto-led");
+  const txt = document.getElementById("txt-led");
+  punto.classList.toggle("on", vivo && !desfase);
+  punto.classList.toggle("viejo", desfase);
+  txt.classList.toggle("viejo", desfase);
+  txt.textContent = !vivo ? "Pantalla LED no abierta"
+    : desfase ? "⚠ LA LED LLEVA OTRA VERSIÓN (" + ledVersion + ") · ciérrala y vuelve a pulsar «Abrir pantalla LED»"
+    : "Pantalla LED conectada";
+  if (desfase && !avisadoDesfase) {
+    avisadoDesfase = true;
+    apuntar("⚠ La pantalla LED lleva la versión " + ledVersion + " y el panel la " + VERSION + ". Hay que recargarla.", "no");
+  }
+  if (!desfase) avisadoDesfase = false;
 }
 
 /* =========================================================
@@ -2147,7 +2179,7 @@ function bocina() {
     mezcla.gain.setValueAtTime(0.50, t + ini + dur - 0.07);
     mezcla.gain.exponentialRampToValueAtTime(0.0001, t + ini + dur);
     mezcla.connect(ac.destination);
-    [[196, "sawtooth", 1], [233, "sawtooth", 0.85], [98, "square", 0.5]]
+    [[131, "sawtooth", 1], [156, "sawtooth", 0.85], [65.4, "square", 0.5]]
       .forEach(([f, forma, peso]) => {
         const o = ac.createOscillator(), g = ac.createGain();
         o.type = forma; o.frequency.value = f;
