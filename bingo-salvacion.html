@@ -1593,7 +1593,10 @@ function hacerFrase(texto, rate = 0.95, pitch = 1.0) {
 
 function hablarSalvacion(nums) {
   // Habla una sola pantalla: la LED si está abierta, si no, esta.
-  if (!yoMandoEstaJugada) return;
+  // La pantalla LED canta siempre: esta sola delante del publico y no tiene
+  // a quien pedirle permiso. Las demas ventanas si esperan a haberse
+  // llevado la jugada, para que no se oiga en eco si hay dos abiertas.
+  if (!esInstanciaLED && !yoMandoEstaJugada) return;
   if (!state.soundOn) return;
   window.speechSynthesis.cancel();
 

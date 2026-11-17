@@ -1455,7 +1455,10 @@ function showMultiOverlay(nums) {
 function hablarMultiEliminacion(nums) {
   // Habla una sola pantalla, igual que en la eliminacion de uno en uno: sin
   // esto cantan todas las ventanas abiertas a la vez y se oye en eco.
-  if (!yoMandoEstaJugada) return;
+  // La pantalla LED canta siempre: esta sola delante del publico y no tiene
+  // a quien pedirle permiso. Las demas ventanas si esperan a haberse
+  // llevado la jugada, para que no se oiga en eco si hay dos abiertas.
+  if (!esInstanciaLED && !yoMandoEstaJugada) return;
   if (!state.soundOn) return;
   window.speechSynthesis.cancel();
 
@@ -1766,7 +1769,10 @@ cargarVoces();
 
 function hablarEliminacion(num) {
   // Habla una sola pantalla: la LED si está abierta, si no, esta.
-  if (!yoMandoEstaJugada) return;
+  // La pantalla LED canta siempre: esta sola delante del publico y no tiene
+  // a quien pedirle permiso. Las demas ventanas si esperan a haberse
+  // llevado la jugada, para que no se oiga en eco si hay dos abiertas.
+  if (!esInstanciaLED && !yoMandoEstaJugada) return;
   if (!state.soundOn) return;
   window.speechSynthesis.cancel();
 
