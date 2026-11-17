@@ -77,6 +77,21 @@ html, body { width: 100%; height: 100%; overflow: hidden; background: var(--bg);
   color: rgba(255,31,61,0.4);
   text-decoration: line-through;
 }
+/* Expulsado o abandono: negro y con una barra cruzada. No vuelven, asi que
+   no se parecen a un eliminado, que si puede volver por el bingo. */
+.cell.fuera {
+  background: rgba(0,0,0,0.55);
+  border-color: rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.35);
+  text-decoration: line-through;
+}
+/* Dorsal que todavia no ha recogido nadie: apagado, para que la pantalla
+   ensene cuanta gente hay de verdad y no el aforo vendido. */
+.cell.sinrecoger {
+  background: rgba(255,255,255,0.04);
+  border-color: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.22);
+}
 .cell.nuevo-elim {
   animation: explosion 0.6s ease-out forwards;
 }
@@ -429,26 +444,75 @@ function hablar(texto) {
 
 /* ===== LOGO embebido ===== */
 
-/* ===== GRID ===== */
-function renderGrid(total) {
-  const grid = document.getElementById('grid');
-  grid.innerHTML = '';
-  const frag = document.createDocumentFragment();
-  for (let i = 1; i <= total; i++) {
-    const c = document.createElement('div');
-    c.className = 'cell' + (eliminados.has(i) ? ' elim' : '');
-    c.id = 'cell-' + i;
-    c.textContent = i;
-    frag.appendChild(c);
-  }
-  grid.appendChild(frag);
-  updateStats(total);
+/* ===== GRID =====
+   Cada celda lleva el dorsal de verdad, no el sitio que ocupa en la lista.
+   Antes se pintaba 1..N con N = cuantos participantes habia cargados: con 40
+   acreditados la pantalla ensenaba del 1 al 40 y, al eliminar al #212, el
+   tachon caia en la casilla 12.
+
+   Cuatro estados, y se distinguen desde el fondo del pabellon:
+     · en juego              encendido en morado
+     · eliminado             rojo apagado y tachado (puede volver por el bingo)
+     · expulsado o abandono  negro y tachado (no vuelve)
+     · sin recoger           gris casi invisible, hasta que alguien recoge
+                             ese dorsal en la puerta */
+function estaFueraLED(p) {
+  return !!p && (p.estado === 'expulsado' || p.estado === 'abandono');
 }
 
-function updateStats(total) {
-  const nelim = eliminados.size;
-  const nvivos = (total || Object.keys(participantes).length) - nelim;
-  document.getElementById('st-vivos').textContent = Math.max(0, nvivos);
+/* Un dorsal es una persona cuando tiene su entrada atada (lo normal: lo hace
+   la app de la puerta al acreditar) o cuando tiene nombre (importado del CSV
+   o anadido a mano desde el Panel). Los dorsales que se crean de golpe nacen
+   con el nombre vacio: son numeros esperando a su dueno. */
+function recogido(p) {
+  if (!p) return false;
+  if (p.entrada_codigo) return true;
+  return !!(p.nombre && String(p.nombre).trim());
+}
+
+function claseCelda(n) {
+  const p = participantes[n];
+  if (estaFueraLED(p)) return 'cell fuera';
+  if (!recogido(p)) return 'cell sinrecoger';
+  if (p.vivo === false || eliminados.has(Number(n))) return 'cell elim';
+  return 'cell';
+}
+
+function renderGrid(total) {
+  const grid = document.getElementById('grid');
+  const dorsales = Object.keys(participantes).map(Number)
+    .filter(n => !isNaN(n)).sort((a, b) => a - b);
+
+  /* Mientras no ha llegado ningun participante se pinta el carton entero
+     1..total, para que la pantalla no este en blanco al arrancar. */
+  const numeros = dorsales.length
+    ? dorsales
+    : Array.from({ length: Math.max(0, total || 0) }, (_, i) => i + 1);
+
+  const frag = document.createDocumentFragment();
+  numeros.forEach(n => {
+    const c = document.createElement('div');
+    c.className = claseCelda(n);
+    c.id = 'cell-' + n;
+    c.textContent = n;
+    frag.appendChild(c);
+  });
+  grid.innerHTML = '';
+  grid.appendChild(frag);
+  updateStats();
+}
+
+/* Los contadores salen de las personas, no del aforo: un dorsal sin recoger
+   no es un vivo, y un expulsado no es ni vivo ni eliminado. */
+function updateStats() {
+  let nvivos = 0, nelim = 0;
+  Object.keys(participantes).forEach(k => {
+    const p = participantes[k];
+    if (!recogido(p) || estaFueraLED(p)) return;
+    if (p.vivo === false || eliminados.has(Number(k))) nelim++;
+    else nvivos++;
+  });
+  document.getElementById('st-vivos').textContent = nvivos;
   document.getElementById('st-elim').textContent = nelim;
 }
 
@@ -631,6 +695,7 @@ function init() {
     });
     const total = Object.keys(participantes).length;
     if (total > 0) renderGrid(total);
+    else updateStats();
   });
 
   // Escuchar eliminaciones en tiempo real
@@ -645,7 +710,7 @@ function init() {
         if (!eliminados.has(dorsal)) {
           eliminados.add(dorsal);
           const cell = document.getElementById('cell-' + dorsal);
-          if (cell) cell.classList.add('elim');
+          if (cell) cell.className = claseCelda(dorsal);
           // Animación + voz solo para eliminaciones manuales individuales del panel
           // (las múltiples y las de equipo se animan agrupadas vía 'eliminaciones_multiples').
           // Se ignora en la carga inicial: si no, al recargar el LED (p.ej. al volver
@@ -655,15 +720,18 @@ function init() {
           if (!esCargaInicial && (d.juez === 'Panel-Central' || d.metodo === 'manual-panel') && !esGrupal) {
             mostrarEliminacion(dorsal);
           }
-          updateStats(Object.keys(participantes).length);
+          updateStats();
         }
       }
       if (ch.type === 'removed') {
         const d = ch.doc.data();
         eliminados.delete(d.dorsal);
         const cell = document.getElementById('cell-' + d.dorsal);
-        if (cell) cell.classList.remove('elim');
-        updateStats(Object.keys(participantes).length);
+        // Se vuelve a decidir el color entero en vez de quitar el tachon a
+        // ciegas: si lo han expulsado, su eliminacion desaparece pero el
+        // sigue fuera del juego y tiene que seguir apagado.
+        if (cell) cell.className = claseCelda(d.dorsal);
+        updateStats();
       }
     });
   });

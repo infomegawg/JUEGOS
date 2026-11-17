@@ -495,8 +495,18 @@ function setFiltro(f) {
   pintarLista();
 }
 
+
+/* Para buscar por nombre sin que estorben las mayusculas ni las tildes: en la
+   puerta nadie escribe "Alvaro Nunez Iborra" con los acentos puestos, y la
+   enie tambien se escribe con n. Misma funcion que la app de la puerta. */
+function normalizarBusqueda(txt) {
+  return String(txt || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+}
+
 function pintarLista() {
-  const q = $("buscar").value.trim().toLowerCase();
+  const q = normalizarBusqueda($("buscar").value);
   let lista = Object.entries(entradas).map(([codigo, e]) => Object.assign({ codigo: codigo }, e));
 
   lista = lista.filter((e) => {
@@ -512,8 +522,8 @@ function pintarLista() {
 
   if (q) {
     lista = lista.filter((e) =>
-      (e.nombre || "").toLowerCase().includes(q) ||
-      e.codigo.toLowerCase().includes(q) ||
+      normalizarBusqueda(e.nombre).includes(q) ||
+      normalizarBusqueda(e.codigo).includes(q) ||
       String(e.dorsal || "").startsWith(q));
   }
 

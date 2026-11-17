@@ -187,7 +187,7 @@ input[type=text], input[type=number], select {
     <div class="cifra esp"><div class="n" id="c-esp">0</div><div class="t">Espectadores</div></div>
     <div class="cifra pen"><div class="n" id="c-pen">0</div><div class="t">Pendientes</div></div>
     <div class="cifra sal"><div class="n" id="c-sal">0</div><div class="t">Han salido</div></div>
-    <div class="cifra men"><div class="n" id="c-men">0</div><div class="t">Menores</div></div>
+    <div class="cifra men"><div class="n" id="c-men">0</div><div class="t">Menores por llegar</div></div>
   </div>
 
   <!-- Qué se está haciendo: dar entrada o marcar salida -->
@@ -11041,15 +11041,29 @@ function pintarFicha() {
 
 }
 
-// Con un menor, no se puede continuar hasta marcar que se ha visto el papel
+// Con un menor, no se puede continuar hasta marcar que se ha visto el papel.
+//
+// El campo de escribir el dorsal a mano entra en la lista: antes se quedaba
+// activo y, como tiene su propio Enter, se podia acreditar a un menor de 17
+// sin la autorizacion firmada escribiendo el numero y pulsando Enter.
 function revisarMenor() {
   const chk = $("chk-menor");
   if (!chk) return;
   const listo = chk.checked;
-  ["btn-dorsal", "btn-dorsal-manual"].forEach((id) => {
+  ["btn-dorsal", "btn-dorsal-manual", "dorsal-manual"].forEach((id) => {
     const b = $(id);
     if (b) { b.disabled = !listo; b.style.opacity = listo ? "1" : ".45"; }
   });
+  const campo = $("dorsal-manual");
+  if (campo && !listo) campo.value = "";
+}
+
+/* El cerrojo de verdad, por si alguien llega a la funcion por otro camino
+   (el Enter del campo, la camara, un doble toque). Bloquear botones es para
+   que se vea; esto es para que no pase. */
+function faltaElPapelDelMenor() {
+  const chk = $("chk-menor");
+  return !!chk && !chk.checked;
 }
 
 function volverAInicio() {
@@ -11078,6 +11092,12 @@ async function acreditarEspectador() {
 }
 
 function asignarDorsalManual() {
+  if (faltaElPapelDelMenor()) {
+    mostrarResultado("error", "✖", "Falta la autorización",
+      "Es menor de edad: recoge la autorización firmada y la fotocopia del DNI, " +
+      "y marca la casilla antes de darle el dorsal.");
+    return;
+  }
   const v = parseInt($("dorsal-manual").value, 10);
   if (isNaN(v)) return;
   $("dorsal-manual").value = "";
@@ -11089,6 +11109,12 @@ function asignarDorsalManual() {
 async function asignarDorsal(dorsal) {
   const e = entradaActual;
   if (!e) { volverAInicio(); return; }
+  if (faltaElPapelDelMenor()) {
+    mostrarResultado("error", "✖", "Falta la autorización",
+      "Es menor de edad: recoge la autorización firmada y la fotocopia del DNI, " +
+      "y marca la casilla antes de darle el dorsal.");
+    return;
+  }
   asegurarOperador();
   if (dorsal < DORSAL_MIN || dorsal > DORSAL_MAX) {
     mostrarResultado("error", "✖", "Dorsal fuera de rango",

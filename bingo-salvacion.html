@@ -322,6 +322,17 @@
     transition: transform 0.15s, box-shadow 0.15s;
   }
 
+  /* CELDA FUERA DE JUEGO: dorsal sin recoger, expulsado o abandono. No es
+     candidato a nada, asi que se apaga y no se puede pulsar. */
+  .cell.fuera {
+    cursor: not-allowed;
+    background: rgba(255,255,255,0.03);
+    color: rgba(255,255,255,0.18);
+    border: 1px solid rgba(255,255,255,0.07);
+    box-shadow: none;
+  }
+  .cell.fuera:hover { transform: none; }
+
   /* CELDA ELIMINADA: candidata a ser salvada — roja, clicable */
   .cell.eliminated {
     cursor: pointer;
@@ -926,6 +937,32 @@ window.fbEscuchar = function() {
     }
   });
 
+  /* Quien esta realmente en juego. Sin esto la ruleta sorteaba entre los 500
+     numeros vendidos y podia cantar a un expulsado. */
+  db.collection("participantes").onSnapshot((snap) => {
+    const fuera = new Set();
+    snap.forEach((doc) => {
+      const n = parseInt(doc.id, 10);
+      if (isNaN(n)) return;
+      const d = doc.data() || {};
+      const tieneDueno = !!d.entrada_codigo || !!(d.nombre && String(d.nombre).trim());
+      if (!tieneDueno || d.en_juego === false ||
+          d.estado === "expulsado" || d.estado === "abandono") {
+        fuera.add(n);
+      }
+    });
+    /* Solo se repinta si de verdad ha cambiado algo, y nunca en mitad de un
+       giro: este listener salta con cada acreditacion y cada eliminacion, y
+       rehacer el carton a media ruleta se cargaria la animacion. */
+    const anterior = state.fuera || new Set();
+    const igual = fuera.size === anterior.size &&
+      Array.from(fuera).every((n) => anterior.has(n));
+    state.fuera = fuera;
+    if (!igual && !state.spinning && typeof renderGridFull === "function") {
+      renderGridFull();
+    }
+  });
+
   db.collection("eliminaciones").onSnapshot((snapshot) => {
     snapshot.docChanges().forEach((change) => {
       const data = change.doc.data();
@@ -955,6 +992,7 @@ window.fbEscuchar = function() {
 const state = {
   total: 500,         // total de jugadores (se actualiza desde Firebase sesion/actual)
   eliminated: new Set(), // dorsales actualmente eliminados, candidatos a salvar
+  fuera: new Set(),   // sin recoger, expulsados y abandonos: no se pueden salvar
   pruebaDe: {},       // dorsal -> prueba en la que fue eliminado
   filtro: null,       // tramo de pruebas fijado desde el Panel Central
   savedCount: 0,       // salvados en esta sesión
@@ -993,7 +1031,9 @@ function renderGridFull() {
 
 function buildCell(n) {
   const c = document.createElement("div");
-  c.className = "cell" + (state.eliminated.has(n) ? " eliminated" : "");
+  c.className = !puedeVolver(n)
+    ? "cell fuera"
+    : "cell" + (state.eliminated.has(n) ? " eliminated" : "");
   c.dataset.n = n;
   c.textContent = n;
   c.addEventListener("click", () => manualSave(n, c));
@@ -1002,7 +1042,7 @@ function buildCell(n) {
 
 function markCellEliminated(n) {
   const cell = grid.querySelector(`[data-n="${n}"]`);
-  if (cell) cell.classList.add("eliminated");
+  if (cell && puedeVolver(n)) cell.classList.add("eliminated");
 }
 
 function markCellAlive(n, wasSavedHere) {
@@ -1019,9 +1059,15 @@ function markCellAlive(n, wasSavedHere) {
 /* Candidatos reales: los eliminados que caen dentro del tramo de pruebas
    que ha fijado el Panel Central. Sin esto, girar desde este portatil
    sorteaba entre TODOS los eliminados y se saltaba el filtro sin avisar. */
+/* Un expulsado, un abandono o un dorsal que nadie recogio no vuelven al
+   juego por mucho que su numero siga en "eliminaciones". */
+function puedeVolver(d) {
+  return !state.fuera.has(Number(d));
+}
+
 function candidatosSalvacion() {
   const f = state.filtro;
-  const todos = Array.from(state.eliminated);
+  const todos = Array.from(state.eliminated).filter(puedeVolver);
   if (!f || f.desde == null) {
     return f && f.sin_prueba === false
       ? todos.filter(d => !!state.pruebaDe[d])
@@ -1055,7 +1101,7 @@ function updateStats() {
     ? candidatos + " CANDIDATOS · PRUEBAS " + state.filtro.desde + "-" + state.filtro.hasta
     : candidatos + " ELIMINADOS";
   const aviso = document.getElementById("avisoSinEliminados");
-  if (aviso) aviso.style.display = state.eliminated.size === 0 ? "block" : "none";
+  if (aviso) aviso.style.display = candidatos === 0 ? "block" : "none";
 }
 window.updateStats = updateStats;
 
@@ -1085,6 +1131,7 @@ function renderHistory() {
 function manualSave(n, cellEl) {
   if (state.spinning) return;
   if (!state.eliminated.has(n)) return;
+  if (!puedeVolver(n)) return;   // expulsado, abandono o dorsal sin recoger
   cellEl.classList.add("winner");
   playSound("winner");
   spawnConfetti(cellEl);
@@ -1100,7 +1147,9 @@ function manualSave(n, cellEl) {
 
 function spin(ganadorFijado) {
   if (state.spinning) return;
-  const pool = Array.from(state.eliminated);
+  // Antes era Array.from(state.eliminated) a pelo: se saltaba el tramo de
+  // pruebas del panel y podia cantar a alguien que no puede volver.
+  const pool = candidatosSalvacion();
   if (pool.length === 0) return;
 
   state.spinning = true;

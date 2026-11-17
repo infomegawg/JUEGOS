@@ -163,6 +163,10 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
 .cell:hover { background: rgba(130,36,227,0.2); border-color: var(--morado2); }
 .cell.elim { background: #fce8eb; border-color: rgba(212,18,48,0.4); color: rgba(255,31,61,0.4); text-decoration: line-through; }
 .cell.fuera { background: #2b2b2b; border-color: #555; color: #bbb; text-decoration: line-through; }
+/* Dorsal que todavia no ha recogido nadie en la puerta. No es un jugador:
+   es un numero esperando a que llegue su dueno. */
+.cell.sinrecoger { background: #f7f7f7; border-color: #e2e2e2; color: #bdbdbd; }
+.cell.sinrecoger:hover { background: #efefef; border-color: #cfcfcf; }
 .part-item.fuera { opacity: .5; background: rgba(0,0,0,0.06); }
 .cell.selmulti { background: #fff3d6; border-color: var(--naranja); color: var(--naranja); box-shadow: inset 0 0 0 2px var(--naranja); }
 .cell.called { background: rgba(255,116,33,0.2); border-color: var(--naranja); color: var(--naranja); animation: pulse-cell 1s ease-in-out infinite; }
@@ -1391,19 +1395,24 @@ function escucharLlamadas() {
 /* ===== STATS ===== */
 function updateStats() {
   const parts = Object.values(participantes);
-  const total = parts.length;
+  // Solo cuentan los dorsales recogidos: los demas son numeros sin dueno.
+  const dentro = parts.filter(recogido);
+  const total = dentro.length;
+  const sinRecoger = parts.length - total;
   // Expulsados y abandonos no son eliminados: no cuentan para recuperaciones
   // y el manual los cuadra por separado.
-  const expulsados = parts.filter(p => p.estado === "expulsado").length;
-  const abandonos = parts.filter(p => p.estado === "abandono").length;
-  const elim = parts.filter(p => !p.vivo && !estaFuera(p)).length;
+  const expulsados = dentro.filter(p => p.estado === "expulsado").length;
+  const abandonos = dentro.filter(p => p.estado === "abandono").length;
+  const elim = dentro.filter(p => !p.vivo && !estaFuera(p)).length;
   const vivos = total - elim - expulsados - abandonos;
   const resumen = document.getElementById("resumen-estados");
   if (resumen) {
     resumen.innerHTML = "Vivos: <b>" + vivos + "</b> · Eliminados: <b>" + elim + "</b>" +
       (expulsados ? " · Expulsados: <b>" + expulsados + "</b>" : "") +
       (abandonos ? " · Abandonos: <b>" + abandonos + "</b>" : "") +
-      "<br>Cuadre: " + total + " = " + vivos + " + " + elim + " + " + expulsados + " + " + abandonos;
+      (sinRecoger ? " · Sin recoger: <b>" + sinRecoger + "</b>" : "") +
+      "<br>Cuadre: " + total + " = " + vivos + " + " + elim + " + " + expulsados + " + " + abandonos +
+      (sinRecoger ? "<br>Y " + sinRecoger + " dorsales que todavia no ha recogido nadie." : "");
   }
   document.getElementById("st-total").textContent = total;
   document.getElementById("st-vivos").textContent = vivos;
@@ -1430,6 +1439,29 @@ function updateStats() {
 function estaFuera(p) {
   return !!p && (p.estado === "expulsado" || p.estado === "abandono");
 }
+
+/* Los 300 dorsales existen en la base de datos desde antes de abrir la
+   puerta. Sin esto el panel contaba el aforo vendido en vez de la gente que
+   hay dentro: a las 9 de la manana ponia "300 VIVOS" con doce personas. */
+/* Un dorsal es una persona cuando tiene su entrada atada (lo normal: lo hace
+   la app de la puerta al acreditar) o cuando tiene nombre (importado del CSV
+   o anadido a mano desde el Panel). Los dorsales que se crean de golpe nacen
+   con el nombre vacio: son numeros esperando a su dueno. */
+function recogido(p) {
+  if (!p) return false;
+  if (p.entrada_codigo) return true;
+  return !!(p.nombre && String(p.nombre).trim());
+}
+
+/* Para buscar por nombre sin que estorben las mayusculas ni las tildes: en la
+   puerta nadie escribe "Alvaro Nunez Iborra" con los acentos puestos, y la
+   enie tambien se escribe con n. Misma funcion que la app de la puerta. */
+function normalizarBusqueda(txt) {
+  return String(txt || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+}
+
 
 function etiquetaFuera(p) {
   return p.estado === "expulsado" ? "EXPULSADO" : "ABANDONO";
@@ -1464,14 +1496,28 @@ async function marcarAbandono(dorsal) {
 
 async function marcarFuera(dorsal, estado, motivo) {
   try {
-    // Si estaba eliminado, su eliminación deja de contar como recuperable.
-    await db.collection("eliminaciones").doc(String(dorsal)).delete().catch(() => {});
+    /* Si ya estaba eliminado hay que sacarlo de "eliminaciones" para que el
+       bingo de salvacion no lo repesque. Pero ese papel es el UNICO sitio
+       donde consta que estaba eliminado: si se borra sin mas, deshacer la
+       expulsion lo devolvia VIVO. Asi que primero se guarda una copia dentro
+       de su propia ficha, y de ahi se recupera al deshacer. */
+    let eliminacionPrevia = null;
+    try {
+      const doc = await db.collection("eliminaciones").doc(String(dorsal)).get();
+      if (doc.exists) eliminacionPrevia = doc.data();
+    } catch (e) { /* sin red se sigue: lo importante es sacarlo del juego */ }
+
+    if (eliminacionPrevia) {
+      await db.collection("eliminaciones").doc(String(dorsal)).delete().catch(() => {});
+    }
     await db.collection("participantes").doc(String(dorsal)).update({
       vivo: false,
       estado: estado,
       estado_motivo: motivo,
       estado_en: TS(),
-      estado_por: "Panel-Central"
+      estado_por: "Panel-Central",
+      // Null a proposito: "lo comprobe y no estaba eliminado".
+      estado_eliminacion_previa: eliminacionPrevia || null
     });
     mostrarNotif("#" + dorsal + " marcado como " + estado);
   } catch (e) {
@@ -1484,18 +1530,43 @@ async function marcarFuera(dorsal, estado, motivo) {
 async function deshacerFuera(dorsal) {
   const p = participantes[dorsal];
   if (!p) return;
+  const BORRAR = firebase.firestore.FieldValue.delete();
+  /* Cada uno vuelve a donde estaba, no a "vivo" por defecto. Si cuando se le
+     expulso ya estaba eliminado, sigue eliminado al deshacer: la expulsion no
+     puede servir de atajo para volver al juego. */
+  const previa = p.estado_eliminacion_previa || null;
+  const vuelveVivo = !previa;
+
   if (!confirm("¿Deshacer el " + etiquetaFuera(p).toLowerCase() + " del dorsal #" + dorsal + "?\n\n" +
-    "Volverá al juego como jugador vivo.")) return;
+    (vuelveVivo
+      ? "Volverá al juego como jugador vivo."
+      : "Volverá a quedar ELIMINADO, que es como estaba antes de la sanción."))) return;
   try {
-    await db.collection("participantes").doc(String(dorsal)).update({
-      vivo: true,
-      estado: firebase.firestore.FieldValue.delete(),
-      estado_motivo: firebase.firestore.FieldValue.delete(),
-      estado_en: firebase.firestore.FieldValue.delete(),
-      estado_por: firebase.firestore.FieldValue.delete(),
-      eliminado_en: null, prueba: null, metodo: null, juez: null
-    });
-    mostrarNotif("#" + dorsal + " vuelve al juego");
+    if (previa) {
+      await db.collection("eliminaciones").doc(String(dorsal)).set(
+        Object.assign({}, previa, {
+          dorsal: Number(dorsal),
+          eliminado_en: previa.eliminado_en || TS()
+        })
+      );
+    }
+    const cambios = {
+      vivo: vuelveVivo,
+      estado: BORRAR,
+      estado_motivo: BORRAR,
+      estado_en: BORRAR,
+      estado_por: BORRAR,
+      estado_eliminacion_previa: BORRAR
+    };
+    // Solo se le limpia la ficha de eliminacion al que vuelve vivo de verdad.
+    if (vuelveVivo) {
+      cambios.eliminado_en = null; cambios.prueba = null;
+      cambios.metodo = null; cambios.juez = null;
+    }
+    await db.collection("participantes").doc(String(dorsal)).update(cambios);
+    mostrarNotif(vuelveVivo
+      ? "#" + dorsal + " vuelve al juego"
+      : "#" + dorsal + " vuelve a estar eliminado, como estaba");
   } catch (e) { console.error(e); mostrarNotif("No se ha podido deshacer"); }
 }
 
@@ -1556,18 +1627,24 @@ function renderGrid() {
   grid.classList.toggle("agrupado", filtro === "equipos" || filtro === "parejas");
   if (filtro === "equipos") { renderVistaEquipos(grid); return; }
   if (filtro === "parejas") { renderVistaParejas(grid); return; }
-  const q = document.getElementById("grid-search").value.trim().toLowerCase();
+  const q = normalizarBusqueda(document.getElementById("grid-search").value);
   const parts = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
   let lista = parts.filter(p => {
-    if (filtro === 'vivos') return p.vivo;
+    if (filtro === 'vivos') return p.vivo && recogido(p);
     if (filtro === 'eliminados') return !p.vivo;
     return true;
   });
-  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q) || (p.apellidos||'').toLowerCase().includes(q));
+  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) ||
+    normalizarBusqueda(p.nombre).includes(q) ||
+    normalizarBusqueda(p.apellidos).includes(q));
   grid.innerHTML = lista.map(p => {
     let cls;
     if (estaFuera(p)) {
       cls = 'cell fuera';
+    } else if (p.vivo && !recogido(p)) {
+      // Nadie ha recogido este dorsal todavia: gris, para no confundirlo con
+      // un jugador que esta en la pista.
+      cls = 'cell sinrecoger';
     } else if (p.vivo) {
       cls = 'cell' + (seleccionMulti.has(p.dorsal) ? ' selmulti' : '');
     } else {
@@ -1581,7 +1658,10 @@ function renderGrid() {
     const notaPareja = pareja
       ? (pareja.jugada ? 'YA JUGÓ con el #' : 'Emparejado con el #') + pareja.dorsales.find(d => d !== p.dorsal) + ' · '
       : '';
-    return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${estaFuera(p) ? etiquetaFuera(p) + ' — ' + (p.estado_motivo||'') + ' · ' : ''}${notaPareja}${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
+    const aviso = estaFuera(p)
+      ? etiquetaFuera(p) + ' — ' + (p.estado_motivo || '') + ' · '
+      : (!recogido(p) ? 'SIN RECOGER — nadie ha acreditado este dorsal · ' : '');
+    return `<div class="${cls}" id="cell-${p.dorsal}" onclick="clickCell(${p.dorsal})" title="${aviso}${notaPareja}${p.nombre||''} ${p.apellidos||''}">${p.dorsal}</div>`;
   }).join('');
 }
 

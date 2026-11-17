@@ -10823,6 +10823,15 @@ function setPantalla(p) {
 }
 
 /* ===== GRID PARTICIPANTES ===== */
+/* Para buscar por nombre sin que estorben las mayusculas ni las tildes: en la
+   puerta nadie escribe "Alvaro Nunez Iborra" con los acentos puestos, y la
+   enie tambien se escribe con n. Misma funcion que la app de la puerta. */
+function normalizarBusqueda(txt) {
+  return String(txt || "")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim();
+}
+
 // Filtro de la vista: "todos", "vivos" o "eliminados". Sirve para encontrar
 // antes a quien se busca cuando hay cientos de dorsales en pantalla.
 let filtroStaff = "todos";
@@ -10837,9 +10846,10 @@ function setFiltroStaff(f) {
 
 function renderGridStaff() {
   const grid = document.getElementById("grid");
-  const q = document.getElementById("grid-search").value.trim().toLowerCase();
+  const q = normalizarBusqueda(document.getElementById("grid-search").value);
   let lista = Object.values(participantes).sort((a,b) => a.dorsal - b.dorsal);
-  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) || (p.nombre||'').toLowerCase().includes(q));
+  if (q) lista = lista.filter(p => String(p.dorsal).startsWith(q) ||
+    normalizarBusqueda(p.nombre).includes(q));
   if (filtroStaff === "vivos") lista = lista.filter(p => p.vivo);
   else if (filtroStaff === "eliminados") lista = lista.filter(p => !p.vivo);
   if (!lista.length) {
@@ -11925,7 +11935,7 @@ function enlazarReglamento() {
    - Solo se recarga una vez por version, anotado en sessionStorage, para que
      un version.txt mal subido no deje el movil en bucle.
    - La comprobacion no bloquea el arranque: va por detras.  */
-const VERSION_APP = "2026-11-16 19:34";
+const VERSION_APP = "2026-11-17 07:57";
 
 async function comprobarVersion() {
   try {
