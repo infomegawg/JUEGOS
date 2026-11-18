@@ -311,7 +311,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
              font-size:12px;line-height:1.5;color:#6b2800;">
           <b style="color:#a33500;">⚠ La pantalla de Batalla Naval está muda</b><br>
           Chrome bloquea la voz hasta que alguien toca esa pantalla.
-          Haz un clic en el portátil de la pantalla gigante y este aviso desaparecerá.
+          Haz un clic con el ratón en el PC que gobierna esa pantalla —son torres, no portátiles— y este aviso desaparecerá.
         </div>
         <div class="led-btns">
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/panel-acreditacion.html','_blank')"><i class="ti ti-chart-bar"></i> Panel de acreditación</button>
@@ -329,7 +329,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <!-- CONTROL REMOTO BINGO DE SALVACIÓN -->
       <div class="section">
         <div class="section-title"><i class="ti ti-remote-control"></i> Control remoto Bingo Salvación</div>
-        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta de salvación en la pantalla LED sin tocar ese portátil (la pantalla debe estar en modo "Salvación")</div>
+        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta de salvación en la pantalla LED sin salir del panel (la pantalla debe estar en modo "Salvación")</div>
 
         <!-- QUIÉN ENTRA EN EL SORTEO -->
         <div style="background:rgba(0,0,0,.05);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:8px;">
@@ -361,7 +361,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <!-- CONTROL REMOTO BINGO -->
       <div class="section">
         <div class="section-title"><i class="ti ti-skull"></i> Control remoto Bingo Eliminación</div>
-        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta que se ve en la pantalla LED sin tocar ese portátil (la pantalla debe estar en modo "Bingo Eliminación")</div>
+        <div style="font-size:10px;color:var(--texto2);margin-bottom:8px;">Acciona la ruleta que se ve en la pantalla LED sin salir del panel (la pantalla debe estar en modo "Bingo Eliminación")</div>
         <button class="btn btn-morado" style="margin-bottom:8px;" onclick="girarBingoRemoto()">
           <i class="ti ti-player-play"></i> Girar (1 número)
         </button>
@@ -3473,7 +3473,7 @@ function renderContadorSalvacion() {
 
 async function cambiarFiltroSalvacion() {
   renderContadorSalvacion();
-  // Se publica para que el portátil de la ruleta use el mismo criterio si
+  // Se publica para que la ventana de la ruleta use el mismo criterio si
   // alguien gira desde allí en vez de desde aquí.
   const rango = rangoSalvacion();
   try {

@@ -893,7 +893,7 @@ window.fbEliminar = async function(dorsal, prueba, metodo) {
 
 /* =========================================================
    CONTROL REMOTO — comandos enviados desde el Panel Central
-   para accionar la ruleta sin tocar el portátil de la pantalla.
+   para accionar la ruleta sin salir del panel.
 
    Solo escucha si esta pestaña es la que abrió automáticamente la
    pantalla LED (URL con ?led=1). Así, si alguien abre bingo.html
@@ -1418,8 +1418,8 @@ function scrollCellIntoView(cell) {
   }
 }
 
-// Autocierre del overlay: al accionar el bingo en remoto no hay nadie físicamente
-// junto al portátil para hacer click o pulsar espacio, así que se cierra solo.
+// Autocierre del overlay: al accionar el bingo en remoto no hay nadie delante de
+// esta pantalla para hacer click o pulsar espacio, así que se cierra solo.
 let overlayAutoCloseId = null;
 function programarAutoCierreOverlay(ms = 10000) {
   clearTimeout(overlayAutoCloseId);
