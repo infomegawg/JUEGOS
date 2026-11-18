@@ -316,10 +316,21 @@ esperan un segundo y medio, así que manda la grande si está encendida.</p>
 <table>
   <tr><th>Dato</th><th>Qué significa</th></tr>
   <tr><td><strong>Vivos</strong></td><td>Jugadores en juego que siguen sin eliminar. Este es el número que gobierna el evento.</td></tr>
-  <tr><td><strong>Eliminados</strong></td><td>Los que han caído. Vivos + Eliminados = jugadores acreditados.</td></tr>
+  <tr><td><strong>Eliminados</strong></td><td>Los que han caído en una prueba. <strong>Se pueden salvar</strong> en un bingo de recuperación.</td></tr>
+  <tr><td><strong>Expulsados</strong> y <strong>Abandonos</strong></td><td>Solo salen si hay alguno. <strong>No son eliminados</strong>: no se pueden salvar y el dorsal queda muerto el resto del día.</td></tr>
+  <tr><td><strong>Sin recoger</strong></td><td>Dorsales creados que todavía no tiene nadie. <strong>No cuentan como vivos</strong> y salen en gris en el tablero.</td></tr>
   <tr><td><strong>En juego / fuera</strong></td><td>Cuántos dorsales están dentro del juego y cuántos quedaron fuera al cerrar la acreditación.</td></tr>
   <tr><td><strong>Candado</strong></td><td>Bloquea el panel. Pide PIN para volver.</td></tr>
 </table>
+
+<div class="caja ojo">
+  <div class="titulo">El cuadre: la línea que te dice si los números están sanos</div>
+  <p>Debajo de los contadores el panel escribe el cuadre, y es la comprobación más rápida que tienes:</p>
+  <p style="font-family:monospace;font-size:14px;"><strong>Acreditados = Vivos + Eliminados + Expulsados + Abandonos</strong></p>
+  <p>Si esa suma no da, hay algo que no está donde crees. <strong>Los dorsales sin recoger van aparte</strong>, fuera de
+  esa cuenta, porque no son personas: son números esperando dueño. Por eso a las nueve de la mañana el panel
+  no dice «300 vivos» con doce personas dentro.</p>
+</div>
 
 <div class="caja">
   <div class="titulo">Mira este número antes de cada prueba</div>
@@ -368,7 +379,7 @@ ciérrala y vuelve a pulsar el botón.</p>
 
 <table>
   <tr><th>Botón</th><th>Qué se proyecta</th><th>Cuándo se usa</th></tr>
-  <tr><td><strong>Grid</strong></td><td>La cuadrícula con todos los dorsales en juego; los eliminados se apagan</td><td>El modo por defecto. Durante casi todo el evento.</td></tr>
+  <tr><td><strong>Grid</strong></td><td>La cuadrícula con todos los dorsales. <strong>Encendido</strong> = vivo · <strong>tachado</strong> = eliminado · <strong>gris</strong> = dorsal que nadie ha recogido · <strong>apagado</strong> = expulsado o abandono</td><td>El modo por defecto. Durante casi todo el evento.</td></tr>
   <tr><td><strong>Bingo Eliminación</strong> 💀</td><td>La ruleta que elimina</td><td>Solo mientras giras esa ruleta.</td></tr>
   <tr><td><strong>Bingo Salvación</strong></td><td>La ruleta que devuelve a un eliminado al juego</td><td>El momento emocional del evento. Es el que más se usa.</td></tr>
   <tr><td><strong>Batalla Naval</strong></td><td>El tablero de la prueba de batalla naval</td><td>Durante esa prueba.</td></tr>
@@ -456,6 +467,13 @@ el de <strong>Eliminación</strong> está debajo y a priori no se usa (las elimi
   <tr><td><strong>Girar (salvar a uno)</strong></td><td>Elige al azar un eliminado y lo devuelve al juego. Vuelve a encenderse su casilla en el grid.</td></tr>
   <tr><td><strong>Girar múltiple</strong></td><td>Pide cuántos quieres salvar, te confirma el número y los salva de golpe.</td></tr>
 </table>
+
+<div class="caja ojo">
+  <div class="titulo">A quién no va a cantar nunca</div>
+  <p>La ruleta <strong>no puede sacar a un expulsado, a un abandono ni a un dorsal que nadie recogió</strong>, aunque su
+  número siga apareciendo en el historial de eliminaciones. Están descartados antes de girar, así que no
+  tienes que vigilarlo tú: si alguien de esos sale, es un fallo y hay que pararlo.</p>
+</div>
 
 <div class="caja nota">
   <div class="titulo">Si no hay eliminados, no hay a quien salvar</div>
@@ -752,6 +770,36 @@ Tocando un dorsal se abre su ficha, con su estado, su equipo y su historia.</p>
 
 <p>Para localizar el dorsal de alguien, para comprobar si una persona concreta sigue viva o para
 resolver un lío de dorsales duplicados.</p>
+
+<p>En el buscador vale <strong>el número o el nombre</strong>, y <strong>las tildes y la ñ dan igual</strong>: <em>nunez</em> encuentra a
+Núñez y <em>jose</em> encuentra a José. Funciona igual en el panel, en el panel de acreditación y en la app
+del staff. Nadie escribe los acentos con prisa y con una cola delante.</p>
+
+<h3>Expulsar a alguien, o marcar un abandono</h3>
+
+<p>En la pestaña <strong>Jugadores</strong>, cada ficha lleva un botón a la derecha. Es el único sitio desde donde se hace.</p>
+
+<table>
+  <tr><th>Qué</th><th>Cuándo</th><th>Qué te pide</th></tr>
+  <tr><td><strong>Expulsar</strong></td><td>Sanción: alguien al que echas del evento</td><td><strong>Un motivo por escrito</strong> (obligatorio, queda guardado) y <strong>el PIN</strong></td></tr>
+  <tr><td><strong>Abandono</strong></td><td>Se ha ido y no vuelve a entrar al recinto</td><td>Una confirmación</td></tr>
+  <tr><td><strong>Deshacer</strong></td><td>Te has equivocado</td><td>Una confirmación</td></tr>
+</table>
+
+<div class="caja aviso">
+  <div class="titulo">Un expulsado no es un eliminado</div>
+  <p>Un eliminado puede volver: lo salva un bingo, o revive si gana su equipo. <strong>Un expulsado y un abandono
+  no vuelven por ninguna de las dos vías</strong>, y su dorsal queda muerto el resto del día: no se reutiliza con
+  otra persona. Por eso expulsar pide motivo y PIN y abandonar solo pide confirmación: lo primero es una
+  decisión tuya sobre una persona, y tiene que quedar por escrito quién y por qué.</p>
+</div>
+
+<div class="caja ojo">
+  <div class="titulo">Deshacer te devuelve a donde estabas, no al juego</div>
+  <p>Si expulsas a alguien que <strong>ya estaba eliminado</strong> y luego deshaces, <strong>vuelve a estar eliminado</strong>, no vivo.
+  La expulsión no puede servir de atajo para volver al juego. El panel te lo dice en el aviso antes de
+  confirmar: léelo, porque ahí pone exactamente a qué estado vuelve.</p>
+</div>
 
 <h3>Actas</h3>
 
