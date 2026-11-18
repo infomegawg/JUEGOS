@@ -274,9 +274,26 @@ cada app está <strong>escuchando</strong> los cambios y se actualiza sola. Cuan
 números ya dentro. Así todas las pantallas animan exactamente los mismos números y es imposible que
 la voz diga una cosa y la pantalla muestre otra.</p>
 
-<p>Pero <strong>guardar el resultado y poner la voz le toca a una sola pantalla</strong>, o saldría todo por duplicado.
+<p>Pero <strong>guardar el resultado le toca a una sola pantalla</strong>, o saldría todo por duplicado.
 La primera pantalla que «coge» la jugada se queda con ella: la pantalla grande lo intenta al instante y las demás
 esperan un segundo y medio, así que manda la grande si está encendida.</p>
+
+<div class="caja ojo">
+  <div class="titulo">La voz ya no depende de eso (cambiado el 17 de noviembre)</div>
+  <p>Hasta el ensayo, <strong>una pantalla solo cantaba si antes conseguía apuntarse la jugada en la base de datos</strong>.
+  Cuando esa escritura fallaba —red lenta, dos cosas tocando el mismo dato a la vez— la pantalla daba por hecho que se
+  la había llevado otra y <strong>se quedaba muda sin dar ningún error</strong>. Síntoma: se oía la ruleta girar y no se
+  cantaba el número.</p>
+  <p>Ahora <strong>la pantalla grande canta siempre</strong>, le salga bien o no esa escritura. Está sola delante del
+  público y no tiene a quién pedirle permiso. Las demás ventanas sí siguen esperando su turno, para que no se oiga en eco.</p>
+</div>
+
+<div class="caja aviso">
+  <div class="titulo">Una sola ventana de bingo abierta</div>
+  <p>Si hay dos —la pantalla grande y otra en un portátil, por ejemplo— <strong>la que se lleva la jugada puede ser la
+  que nadie está mirando</strong>, y entonces no se oye nada por megafonía. Deja abierta la pantalla grande y ninguna más.
+  Por eso los botones de los dos bingos ya no están en «Apps digitales».</p>
+</div>
 
 <div class="caja ojo">
   <div class="titulo">Consecuencia práctica</div>
@@ -365,23 +382,43 @@ cambia al instante. Solo uno puede estar activo, y se ve marcado.</p>
   al terminar: está pensado así para que dos anuncios seguidos no se apaguen el uno al otro.</p>
 </div>
 
+<div class="caja nota">
+  <div class="titulo">Los dorsales caben todos, sea cual sea la pantalla</div>
+  <p>Hasta el 17 de noviembre la cuadrícula tenía <strong>35 columnas fijas</strong>, heredadas de cuando el evento era de
+  500 personas y la pantalla era un monitor ancho. En el LED de verdad eso dejaba <strong>decenas de dorsales fuera del
+  borde</strong>, con una barra de desplazamiento que nadie iba a usar. Ahora las columnas y el tamaño de la letra
+  <strong>se calculan solos</strong>: da igual la resolución que mande el escalador y da igual cuánta gente quede viva,
+  siempre caben todos. Afecta al Grid, al Bingo Eliminación y al Bingo Salvación.</p>
+</div>
+
 <h3>Reiniciar Batalla Naval</h3>
 <p>Limpia el tablero de la batalla naval para volver a jugarla desde cero. No toca jugadores ni eliminaciones:
 solo el tablero de esa prueba.</p>
 
 <h2 id="apps">7. Sección: Apps digitales</h2>
 
-<p>Seis botones que abren cada app en una ventana nueva, y un botón morado de sorteo. Son atajos:
-no hace falta recordar ninguna dirección.</p>
+<p>Atajos que abren cada app en una ventana nueva, más los mandos de Batalla Naval. No hace falta
+recordar ninguna dirección.</p>
 
 <table>
   <tr><th>Botón</th><th>Para qué lo abres</th></tr>
-  <tr><td><strong>Bingo Eliminación</strong> 💀 y <strong>Bingo Salvación</strong></td><td>Para tenerlos controlados aparte. Normalmente no hace falta: los verás a través de la pantalla LED.</td></tr>
-  <tr><td><strong>Crono Luz Roja/Verde</strong></td><td>El cronómetro de la primera prueba. Se abre en el portátil que lo gobierna.</td></tr>
-  <tr><td><strong>Acreditación (puerta)</strong></td><td>La app con la que se escanea en la entrada. Para comprobar que funciona o para echar una mano en la puerta.</td></tr>
   <tr><td><strong>Panel de acreditación</strong></td><td>El recuento de la puerta: cuántos han entrado, cuántos faltan.</td></tr>
   <tr><td><strong>Batalla Naval (ver en directo)</strong></td><td>El tablero <strong>en modo espectador</strong>: lo ves sin poder tocarlo. Para seguir la partida desde la mesa sin riesgo de descolocar nada.</td></tr>
+  <tr><td><strong>Lona · tablero ROJO</strong> y <strong>Lona · tablero AZUL</strong></td><td>Las pantallas del staff que coloca las X sobre la lona de 5×2 m. Cada una va fijada a su tablero, así que no hay forma de confundirse. <strong>No se abren desde aquí el día del evento</strong>: cada staff ya tiene la suya puesta. Este botón es para montarlas y para reponer una que se haya cerrado.</td></tr>
+  <tr><td><strong>Pausar Batalla Naval</strong></td><td>Congela la partida sin perder nada: para una incidencia, un cambio de capitán o una reclamación. Se vuelve a pulsar para reanudar.</td></tr>
+  <tr><td><strong>Reiniciar Batalla Naval</strong></td><td>Limpia el tablero para volver a jugar desde cero. No toca jugadores ni eliminaciones.</td></tr>
 </table>
+
+<div class="caja ojo">
+  <div class="titulo">Qué se quitó de aquí el 17 de noviembre, y por qué</div>
+  <p>Ya no están los botones de <strong>Bingo Eliminación</strong>, <strong>Bingo Salvación</strong>,
+  <strong>Crono Luz Roja/Verde</strong> ni <strong>Acreditación (puerta)</strong>.</p>
+  <p>Los tres primeros abrían una <strong>segunda ventana</strong> de una app que ya está funcionando en otro sitio. En el
+  caso de los bingos eso es peligroso de verdad: <strong>la ventana nueva puede quedarse con la jugada y cantar el número
+  donde no lo oye nadie</strong>, que es exactamente lo que pasó en el ensayo. La acreditación de puerta se quitó porque
+  tiene su propio puesto y su propio acceso: desde la mesa no se escanea.</p>
+  <p>Si alguna vez hace falta abrirlas, se hace por su dirección, a conciencia, no por un atajo que invita a pulsarlo.</p>
+</div>
 
 <p>Debajo, en morado y a todo el ancho, está <strong>Sortear quién empieza en Batalla Naval</strong>:
 decide al azar qué lado abre fuego y lo canta. Se pulsa una sola vez, antes de empezar esa prueba.</p>
@@ -389,8 +426,10 @@ decide al azar qué lado abre fuego y lo canta. Se pulsa una sola vez, antes de 
 <div class="caja aviso">
   <div class="titulo">Si aparece «La pantalla de Batalla Naval está muda»</div>
   <p>Es un aviso naranja que sale en esta misma sección. No es una avería: Chrome no deja hablar a una
-  pantalla que nadie ha tocado todavía. <strong>Basta con hacer un clic en el portátil de la pantalla
-  gigante</strong> y el aviso desaparece. Hazlo <strong>antes</strong> de que empiece la prueba, no durante.</p>
+  pantalla que nadie ha tocado todavía. <strong>Basta con hacer un clic en el PC que gobierna la pantalla de
+  Batalla Naval</strong> y el aviso desaparece. Hazlo <strong>antes</strong> de que empiece la prueba, no durante.</p>
+  <p>Las dos máquinas de Batalla Naval son <strong>torres, no portátiles</strong>: hay que tener el ratón a mano en
+  las dos. Y dale el clic también a la pantalla grande, por la misma razón.</p>
 </div>
 
 <p>La <strong>pantalla LED</strong> y la <strong>app de staff</strong> no están en esta fila. La LED se abre
@@ -788,6 +827,7 @@ Entre el Historial y las actas tienes el evento entero documentado sin haber esc
 <table>
   <tr><th>Síntoma</th><th>Causa probable</th><th>Qué haces</th></tr>
   <tr><td>Giro el bingo y no elimina a nadie</td><td>No hay ninguna ventana de bingo abierta: nadie recoge la jugada</td><td>Pon la pantalla LED en el modo del bingo, comprueba que se ve la ruleta y vuelve a girar.</td></tr>
+  <tr><td>La ruleta gira pero <strong>no canta el número</strong></td><td>Hay otra ventana de bingo abierta y se ha llevado la jugada, o esa pantalla no ha recibido un clic y Chrome no la deja hablar</td><td>Cierra cualquier otra ventana de bingo y deja solo la pantalla grande. Dale un clic con el ratón. Si sigue muda, recárgala.</td></tr>
   <tr><td>La pantalla grande no cambia de modo</td><td>La ventana de la LED se ha cerrado o ha perdido la conexión</td><td>Vuelve a abrir la pantalla LED desde Apps digitales y ponla a pantalla completa.</td></tr>
   <tr><td>La ruleta canta un número que no está en el recinto</td><td>No se cerró la acreditación</td><td>Cierra la acreditación. Los dorsales no recogidos salen del bombo.</td></tr>
   <tr><td>Un staff dice que marcó y no ha pasado nada</td><td>La propuesta está esperando en el panel</td><td>Pestaña Staff → Propuestas pendientes → aceptar.</td></tr>
