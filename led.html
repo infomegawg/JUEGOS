@@ -703,10 +703,13 @@ function init() {
       return;
     }
 
-    // 'animacion' no tiene pantalla propia: las animaciones de eliminación se
-    // dibujan encima del grid, así que se trata igual que 'grid'. Antes caía en
-    // el "si no es ninguna de estas" y escondía el grid sin poner nada.
-    const enGrid = (modo === 'grid' || modo === 'animacion');
+    // 'animacion' es la pantalla de las llamadas: se queda la cabecera sobre el
+    // fondo y se esconde el tablero, para que cuando Mesa llame a un dorsal el
+    // número salga sobre negro. El overlay de la llamada es translúcido (92 %),
+    // así que encima del grid se transparentan las casillas por detrás de la
+    // cifra y se lee peor desde el fondo del campo. No es un modo vacío por
+    // error: es el modo preparado para llamar a alguien.
+    const enGrid = (modo === 'grid');
     document.getElementById('modo-grid').style.display = enGrid ? 'block' : 'none';
     document.querySelector('.header').style.display = 'flex';
     document.querySelector('.app').style.gridTemplateRows = '90px 1fr';
