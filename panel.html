@@ -294,6 +294,7 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
       <div class="section">
         <div class="section-title"><i class="ti ti-device-tv"></i> Pantalla LED</div>
         <div class="led-btns">
+          <button class="led-btn accion accion-morada" onclick="abrirPantallaLED()" style="grid-column:1/-1;"><i class="ti ti-external-link"></i> Abrir pantalla LED</button>
           <button class="led-btn active" id="led-grid" onclick="setLED('grid')">Grid</button>
           <button class="led-btn" id="led-bingo" onclick="setLED('bingo')">Bingo Eliminación</button>
           <button class="led-btn" id="led-salvacion" onclick="setLED('salvacion')">Salvación</button>
@@ -317,8 +318,9 @@ label { font-size: 12px; font-weight: 800; color: var(--texto); display: block; 
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/panel-acreditacion.html','_blank')"><i class="ti ti-chart-bar"></i> Panel de acreditación</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/batallanaval.html?espectador=1','_blank')"><i class="ti ti-anchor"></i> Batalla Naval (ver en directo)</button>
           <button class="led-btn accion accion-morada" id="btn-sorteo-batalla" onclick="sortearInicioBatalla()" style="grid-column:1/-1;"><i class="ti ti-dice"></i> Sortear quién empieza (Batalla Naval)</button>
-          <!-- Pantallas del staff que coloca las X sobre la lona de 5x2 m.
-               Cada una va fijada a su tablero: no hay forma de confundirse. -->
+          <!-- Pantallas del staff que marca con circulos la lona-marcador de
+               5x2 m: circulo verde agua, circulo rojo tocado. Cada una va
+               fijada a su tablero: no hay forma de confundirse. -->
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/lona.html?lado=A','_blank')"><i class="ti ti-grid-dots"></i> Lona · tablero ROJO (staff)</button>
           <button class="led-btn" onclick="window.open('https://infomegawg.github.io/JUEGOS/lona.html?lado=B','_blank')"><i class="ti ti-grid-dots"></i> Lona · tablero AZUL (staff)</button>
           <button class="led-btn accion accion-naranja" id="btn-pausa-batalla" onclick="alternarPausaBatalla()"><i class="ti ti-player-pause"></i> Pausar Batalla Naval</button>
@@ -3556,9 +3558,14 @@ async function cerrarAcreditacion() {
     const snap = await db.collection("participantes").get();
     const fuera = [];
     let dentro = 0;
+    /* Mismo criterio que el grid y que la pantalla grande: cuenta como
+       persona quien tiene la entrada atada O tiene nombre. La entrada solo
+       la escribe la app de la puerta, asi que mirando solo la entrada se
+       sacaba del juego a quien hubiera entrado por el CSV o por "Anadir
+       jugador", que son los dos caminos de emergencia del propio panel. */
     snap.forEach(d => {
       const p = d.data();
-      if (p.entrada_codigo) dentro++;
+      if (recogido(p)) dentro++;
       else fuera.push(d.id);
     });
 
@@ -3834,6 +3841,26 @@ async function llamarJugador() {
 }
 
 /* ===== LED SELECTOR ===== */
+/* Abre la pantalla grande en su propia ventana. Lleva nombre, asi que
+   pulsarlo dos veces no abre dos pantallas: reutiliza la que ya hay. Esa
+   ventana es la que se arrastra a la tercera pantalla extendida del PC del
+   panel y se pone a pantalla completa con F11. */
+function abrirPantallaLED() {
+  /* "popup=yes" con un tamanio hace que Chrome abra una ventana limpia: sin
+     pestanias, sin barra de direcciones y sin los botones de atras. Lo poco
+     que queda alrededor se va con el clic que se le da despues, que la pone
+     a pantalla completa. Lleva nombre de ventana: pulsar el boton dos veces
+     no abre dos pantallas, trae al frente la que ya hay. */
+  const v = window.open("https://infomegawg.github.io/JUEGOS/led.html", "omega_led",
+                        "popup=yes,width=1280,height=720,left=0,top=0");
+  if (!v) {
+    mostrarNotif("El navegador ha bloqueado la ventana emergente: permítela y vuelve a pulsar");
+    return;
+  }
+  try { v.focus(); } catch (e) {}
+  mostrarNotif("Pantalla LED abierta. Arrástrala a la pantalla grande y dale un clic: se pone a pantalla completa");
+}
+
 async function setLED(modo) {
   document.querySelectorAll('.led-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('led-'+modo).classList.add('active');

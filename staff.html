@@ -10429,7 +10429,7 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
     <div class="stat-box stat-vivos"><div class="val" id="st-vivos">0</div><div class="lbl">Vivos</div></div>
     <div class="stat-box stat-elim"><div class="val" id="st-elim">0</div><div class="lbl">Eliminados</div></div>
   </div>
-  <input type="text" id="grid-search" placeholder="Buscar dorsal..." oninput="renderGridStaff()" style="margin-bottom:8px;"/>
+  <input type="text" id="grid-search" placeholder="Buscar dorsal o nombre..." oninput="renderGridStaff()" style="margin-bottom:8px;"/>
   <div class="filtros-grid">
     <button class="filtro-btn activo" id="fil-todos" onclick="setFiltroStaff('todos')">Todos</button>
     <button class="filtro-btn" id="fil-vivos" onclick="setFiltroStaff('vivos')">Vivos</button>
@@ -11935,7 +11935,7 @@ function enlazarReglamento() {
    - Solo se recarga una vez por version, anotado en sessionStorage, para que
      un version.txt mal subido no deje el movil en bucle.
    - La comprobacion no bloquea el arranque: va por detras.  */
-const VERSION_APP = "2026-11-17 07:57";
+const VERSION_APP = "2026-11-18 11:05";
 
 async function comprobarVersion() {
   try {
