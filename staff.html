@@ -10766,7 +10766,8 @@ function abrirMiCronograma(ev) {
     if (!(n >= 1 && n <= 12)) { toast("Número no válido"); return; }
     lsSet("staffNumero", String(n));
   }
-  window.open("cronograma-a" + n + ".pdf", "_blank", "noopener");
+  window.open("cronograma-a" + n + ".pdf?v=" + encodeURIComponent(VERSION_APP),
+              "_blank", "noopener");
 }
 
 function idStaffDoc(nombre) {
@@ -11978,7 +11979,7 @@ function enlazarReglamento() {
    - Solo se recarga una vez por version, anotado en sessionStorage, para que
      un version.txt mal subido no deje el movil en bucle.
    - La comprobacion no bloquea el arranque: va por detras.  */
-const VERSION_APP = "2026-11-20 18:46";
+const VERSION_APP = "2026-11-20 19:05";
 
 async function comprobarVersion() {
   try {
