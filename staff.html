@@ -10387,6 +10387,8 @@ function findAlignmentPattern(matrix, alignmentPatternQuads, topRight, topLeft, 
        title="Manual de instrucciones de la app">📖 Manual</a>
     <a id="btn-reglamento" href="reglamento.html" target="_blank" rel="noopener"
        title="Reglamento de la prueba marcada">📋 Reglamento</a>
+    <a id="btn-mi-cronograma" href="#" onclick="abrirMiCronograma(event)"
+       title="Lo que te toca a ti en cada momento del día">🗓️ Mi cronograma</a>
   </div>
   <div class="prueba-actual-heading">PRUEBA ACTUAL</div>
   <select id="prueba-select-staff" onchange="guardarPruebaLocal()">
@@ -10718,12 +10720,53 @@ function cambiarNombre() {
   if (nuevo === null || !nuevo.trim()) return;
   staffNombre = nuevo.trim();
   lsSet("staffNombre", staffNombre);
+  /* el numero se recalcula con el nombre nuevo: si no, el movil que cambia
+     de persona seguiria abriendo el cronograma del anterior */
+  try { localStorage.removeItem("staffNumero"); } catch(e) {}
   document.getElementById("quien-soy").textContent = staffNombre;
   // El listener de "Mis envíos" filtra por nombre: hay que re-suscribirlo
   // con el nombre nuevo, si no seguiría mostrando lo del nombre anterior.
   escucharMisPropuestas();
   enviarPresencia();
   toast("Nombre actualizado");
+}
+
+/* ===== MI CRONOGRAMA =====
+   Reparto de numeros del 20-nov-2026. Si manana cambia alguien, se cambia
+   aqui y en los PDF: son los dos unicos sitios donde vive el reparto. */
+const CRONOGRAMA_STAFF = {
+  pablo: 1, alex: 2, erik: 3, marcos: 4, augusto: 5, maria: 6,
+  vicent: 7, zacarias: 8, gloria: 9, gabbi: 10, desi: 11, alba: 12
+};
+
+function numeroDeStaff() {
+  const guardado = parseInt(lsGet("staffNumero") || "", 10);
+  if (guardado >= 1 && guardado <= 12) return guardado;
+  const clave = idStaffDoc(staffNombre || "");
+  if (CRONOGRAMA_STAFF[clave]) return CRONOGRAMA_STAFF[clave];
+  /* "pablo_r" o "alex2" tambien valen: basta con que empiece por el nombre */
+  for (const n in CRONOGRAMA_STAFF) {
+    if (clave.indexOf(n) === 0) return CRONOGRAMA_STAFF[n];
+  }
+  return null;
+}
+
+function abrirMiCronograma(ev) {
+  if (ev) ev.preventDefault();
+  let n = numeroDeStaff();
+  if (!n) {
+    const lista = Object.keys(CRONOGRAMA_STAFF)
+      .map(k => "A" + CRONOGRAMA_STAFF[k] + " " + k.toUpperCase())
+      .sort((a, b) => parseInt(a.slice(1), 10) - parseInt(b.slice(1), 10))
+      .join("\n");
+    const r = prompt("No encuentro tu nombre en el reparto.\n" +
+                     "Escribe tu número (del 1 al 12):\n\n" + lista, "");
+    if (r === null) return;
+    n = parseInt(r.replace(/[^0-9]/g, ""), 10);
+    if (!(n >= 1 && n <= 12)) { toast("Número no válido"); return; }
+    lsSet("staffNumero", String(n));
+  }
+  window.open("cronograma-a" + n + ".pdf", "_blank", "noopener");
 }
 
 function idStaffDoc(nombre) {
